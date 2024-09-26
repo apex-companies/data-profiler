@@ -11,18 +11,24 @@ from typing import Annotated
 from .models.ProjectInfo import ProjectInfoInputs, UploadedFilePaths, ProjectInfoExistingProject
 from .models.TransformOptions import TransformOptions
 
+from .services.output_tables_service import OutputTablesService
+
+
 class DataProfiler:
 
-    def __init__(self, project_number: Annotated[str, 'Apex Project Number']):
+    def __init__(self, project_number: Annotated[str, 'Apex Project Number'], dev: bool = False):
         self.project_number = project_number
+        self.dev = dev
+
+        self.OutputTablesService = OutputTablesService(dev=self.dev)
         pass
 
     def get_output_tables_projects(self) -> list[str]:
-        project_nums = get_output_tables_project_numbers()
-        return project_nums
+        return self.OutputTablesService.get_output_tables_project_numbers()
 
     def get_project_number_info(self): # -> ProjectInfo:
-        pass
+        return self.OutputTablesService.get_project_info_for_project(self.project_number)
+
         # info = { }
         # print(project_number)
 

@@ -10,29 +10,30 @@ import os
 import pyodbc
 # from pyodbc import DatabaseError, Row
 
+from ..database.database_manager import DatabaseConnection
 
 
-# Returns list of project numbers
-def get_output_tables_project_numbers(dev: bool = False) -> list[str]:
-    connection = create_server_connection()
-    cursor = connection.cursor()
-    
-    schema = 'OutputTables_Dev' if dev else 'OutputTables_Prod'
-    query = f'''SELECT ProjectNumber FROM {schema}.Project'''
+class OutputTablesService:
 
-    results = None
-    try:
-        cursor.execute(query)
-        results = cursor.fetchall()
-    except DatabaseError as e:
-        print(f'Error getting project numbers: {e}')
-    
-    results = [result[0] for result in results]
+    def __init__(self, dev: bool = False):
+        self.dev = dev
 
-    cursor.close()
-    connection.close()
+    def get_output_tables_project_numbers(self) -> list[str]:
+        ''' Returns list of project numbers '''
 
-    return results
+        schema = 'OutputTables_Dev' if self.dev else 'OutputTables_Prod'
+        query = f'''SELECT ProjectNumber FROM {schema}.Project'''
+        results = []
+
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            cursor = db_conn.cursor()
+
+            cursor.execute(query)
+            results = [result[0] for result in cursor.fetchall()]
+            
+            cursor.close()
+
+        return results
 
 # # Returns item master SKUs for project number
 # def get_skus_in_item_master_for_project(project_number: str) -> list[Row]:
@@ -70,23 +71,34 @@ def get_output_tables_project_numbers(dev: bool = False) -> list[str]:
 
 #     return lines
 
-# # Returns company table row for project number
-# def get_company_table_row_for_project(project_number: str) -> list[Row]:
-#     connection = create_server_connection()
-#     cursor = connection.cursor()
     
-#     results = None
-#     try:
-#         query = ''' SELECT ProjectNumber, Company, Salesman, [Company Location], [Project Name] FROM OutputTables_Prod.Project WHERE ProjectNumber = ? '''
-#         cursor.execute(query, project_number)
-#         results = cursor.fetchall()
-#     except DatabaseError as e:
-#         print(f'Error getting outbound info for {project_number}: {e}')
+    def get_project_info_for_project(self, project_number: str) -> list:
+        ''' Returns Project table row for project '''
+        
+        schema = 'OutputTables_Dev' if self.dev else 'OutputTables_Prod'
+        query = f''' 
+                SELECT [ProjectNumber]
+                        ,[Company]
+                        ,[Salesman]
+                        ,[Company Location]
+                        ,[Project Name]
+                        ,[Security Email]
+                        ,[Date Start]
+                        ,[DateForAnalysis]
+                        ,[WeekendDateRule]
+                        ,[Notes] 
+                FROM {schema}.Project 
+                WHERE ProjectNumber = ? 
+                '''
+        results = []
+        
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            cursor = db_conn.cursor()
 
-#     cursor.close()
-#     connection.close()
+            cursor.execute(query, project_number)
+            results = cursor.fetchall()
 
-#     return results
+        return results
 
 
 # # Inserts a new row into CompanyTable
