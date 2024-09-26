@@ -29,10 +29,10 @@ class DatabaseConnection():
     # Use Fernet cipher to decrypt connection string
     # https://cryptography.io/en/latest/
     def _get_connection_string(self):
-        key = open('Y:\\Database\\SECRET-key.txt').read()
+        key = open('Y:\\Database\\Writer\\SECRET-key.txt').read()
         suite = Fernet(key)
         
-        cxn_str = open('Y:\\Database\\SECRET-sql-connection-string.txt').read()
+        cxn_str = open('Y:\\Database\\Writer\\SECRET-sql-connection-string.txt').read()
         connection_string = suite.decrypt(cxn_str).decode()
 
         return connection_string

@@ -40,6 +40,22 @@ if master_version != current_version:
     sys.exit(-1)
 
 dp = DataProfiler(project_number='CJPROSPECTIVE', dev=True)
+dp = DataProfiler(project_number='12345', dev=True)
 
 print(dp.get_output_tables_projects())
 print(dp.get_project_number_info())
+
+from data_profiler.models.ProjectInfo import ProjectInfoInputs
+
+info = ProjectInfoInputs(
+    project_number='TESTNATIVE',
+    company_name='DAN\'S STORE',
+    salesperson='DAN DOIT',
+    company_location='BUCKTOWN',
+    project_name='NEW DONUT STORAGE',
+    email='dan.email@aol.com',
+    start_date='',
+    notes='opportunity'
+)
+
+print(dp.create_new_project(project_info=info))

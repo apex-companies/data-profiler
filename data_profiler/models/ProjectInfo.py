@@ -9,13 +9,14 @@ Pydantic models to represent the Project table and related information
 
 from pydantic import BaseModel
 
-from .TransformOptions import TransformOptions
+from .TransformOptions import TransformOptions, DateForAnalysis, WeekendDateRules
 
 class ProjectInfoInputs(BaseModel):
-    project_name: str
+    project_number: str
     company_name: str
-    company_location: str
     salesperson: str
+    company_location: str
+    project_name: str
     email: str
     start_date: str
     notes: str
@@ -24,6 +25,7 @@ class ProjectInfoInputs(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
+                    "project_name": 'AAS24-010101',
                     "project_name": 'Conveyor System',
                     "company_name": 'Nike',
                     "company_location": 'Eugene, OR',
@@ -38,16 +40,16 @@ class ProjectInfoInputs(BaseModel):
 
 
 class UploadedFilePaths(BaseModel):
-    item_master: str
-    inbound_header: str
-    inbound_details: str
-    inventory: str
-    order_header: str
-    order_details: str
+    item_master: str = ''
+    inbound_header: str = ''
+    inbound_details: str = ''
+    inventory: str = ''
+    order_header: str = ''
+    order_details: str = ''
 
 
 class ProjectInfoExistingProject(ProjectInfoInputs):
-    project_number: str
-    data_uploaded: bool
-    transform_options: TransformOptions
-    uploaded_file_paths: UploadedFilePaths
+    data_uploaded: bool = False
+    upload_date: str = ''
+    transform_options: TransformOptions | None = None
+    uploaded_file_paths: UploadedFilePaths = UploadedFilePaths()

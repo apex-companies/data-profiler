@@ -52,7 +52,7 @@ class DataProfiler:
         # return info
 
     def create_new_project(self, project_info: ProjectInfoInputs): #-> Response
-        pass
+        return self.OutputTablesService.insert_new_project_to_project_table(project_info=project_info)
 
     def update_project_info(self, new_project_info: ProjectInfoInputs): #-> Response:
         pass
