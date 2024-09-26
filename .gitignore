@@ -1,0 +1,6 @@
+# Folders
+poetry.lock
+__pycache__/
+.venv/
+
+# Files
