@@ -39,11 +39,13 @@ if master_version != current_version:
 
     sys.exit(-1)
 
-dp = DataProfiler(project_number='CJPROSPECTIVE', dev=True)
-dp = DataProfiler(project_number='12345', dev=True)
+dp = DataProfiler(project_number='TESTNATIVE', dev=True)
+# dp = DataProfiler(project_number='12345', dev=True)
 
 print(dp.get_output_tables_projects())
-print(dp.get_project_number_info())
+# print(dp.get_project_number_info())
+
+# print(dp.delete_project_data())
 
 from data_profiler.models.ProjectInfo import ProjectInfoInputs
 

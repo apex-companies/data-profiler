@@ -4,7 +4,8 @@ Apex Companies
 January 2024
 '''
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from time import time
 import os
 
 import pyodbc
@@ -15,7 +16,7 @@ from ..models.TransformOptions import DateForAnalysis, WeekendDateRules, Transfo
 
 from ..database.database_manager import DatabaseConnection
 from ..database.helpers.constants import DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT, OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT,\
-    DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT
+    DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, SCHEMAS, DEV_OUTPUT_TABLES_DELETE_SQL_FILES, OUTPUT_TABLES_DELETE_SQL_FILES
 
 class OutputTablesService:
 
@@ -76,7 +77,7 @@ class OutputTablesService:
 #     return lines
 
     
-    def get_project_info_for_project(self, project_number: str) -> ProjectInfoExistingProject:
+    def get_project_info(self, project_number: str) -> ProjectInfoExistingProject:
         ''' Returns Project table row for project '''
         
         results = []
@@ -187,21 +188,89 @@ class OutputTablesService:
 
 #     return row_count
 
-    
-# # Delete from OutputTables schema by project number (call func from database_functions)
-# # Returns total number of affected rows or -1 if error
-# def delete_from_output_tables_by_project_number(project_number: str) -> int:
-#     connection = create_server_connection()
+    # TODO - don't delete from Project. But update DataUploaded to False
+    def delete_project_data(self, project_number: str) -> int:
+        '''
+        Delete from OutputTables schema
+        Removes records from all relevant DB tables belonging to the given project_number
+        Optional param "tables": defaults to all, which deletes from all tables in schema. Pass a specific table to "tables" and this function will delete only from that table
+        Returns total number of deleted rows or -1 if error
+        '''
 
-#     log_file = None
-#     if os.environ['DEV'] == 'true':
-#         log_file = open(f'logs/{project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_delete_from_output_tables.txt', 'w+')
-#         log_file.write(f'PROJECT NUMBER: {project_number}\n')
-    
-#     # Delete
-#     rows_deleted = delete_from_db_by_project_number(log_file=log_file, connection=connection, project_number=project_number, schema='OutputTables_Prod')
-    
-#     if log_file: log_file.close()
-#     connection.close()
-    
-#     return rows_deleted
+        # Create log file, if dev
+        log_file = None
+        if self.dev:
+            log_file = open(f'logs/{project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_delete_from_output_tables.txt', 'w+')
+            log_file.write(f'PROJECT NUMBER: {project_number}\n')
+        
+        # Configure schema and sql file mapper
+        tables = 'all'                          # NOTE - this is from old code, when RawData was still used. We no longer need to be able to delete one table at a time, but it could be a future requirement
+        schema = ''
+        sql_file_mapper = {}
+        if self.dev:
+            schema = 'OutputTables_Dev' 
+            sql_file_mapper = DEV_OUTPUT_TABLES_DELETE_SQL_FILES
+        else:
+            schema = 'OutputTables_Prod'
+            sql_file_mapper = OUTPUT_TABLES_DELETE_SQL_FILES
+               
+        # Loop through delete queries and execute them
+        delete_st = time()
+        print(f'Deleting records from {schema} table(s) "{tables}" belonging to project number: {project_number}')
+
+        if log_file: 
+            log_file.write(f'Deleting records from {schema} table(s) "{tables}" belonging to project number: {project_number}\n')
+        
+        total_rows_deleted = 0
+        
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            cursor = db_conn.cursor()
+
+            # We want to delete one table at a time so it's easier to tell where failure happens
+            for table,file in sql_file_mapper.items():
+
+                # If a single table is passed to be deleted, skip if not the correct table
+                if tables != 'all' and table != tables:
+                    continue
+                
+                # Get delete query
+                fd = open(file)
+                delete_query = fd.read()
+                fd.close()
+                print(f'{delete_query} \n')
+
+                if log_file: 
+                    log_file.write(f'{delete_query} \n')
+
+                # try:
+                
+                cursor.execute(delete_query, project_number)
+                rows_deleted = cursor.rowcount
+                total_rows_deleted += rows_deleted
+
+                print(f'Rows deleted: {rows_deleted}')
+                if log_file: 
+                    log_file.write(f'Rows deleted: {rows_deleted}')
+                    
+                db_conn.commit()
+
+                # except pyodbc.Error as e:
+                #     print(f'Error deleting by project number: {e}')
+                #     if log_file: log_file.write(f'Error deleting by project number: {e}\n')
+                #     print(f'Query: {delete_query}')
+                #     if log_file: log_file.write(f'Query: {delete_query}\n')
+            
+            cursor.close()  
+            
+        delete_et = time()
+        print(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.')
+        print(f'{total_rows_deleted} rows deleted.')
+
+        if log_file: 
+            log_file.write(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.\n')
+            log_file.write(f'{total_rows_deleted} rows deleted.\n')
+            log_file.close()
+
+                  
+        
+        return total_rows_deleted

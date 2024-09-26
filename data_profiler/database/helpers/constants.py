@@ -6,6 +6,22 @@ Oct 2024
 Database constants. File paths/mappers for queries and column names for tables 
 '''
 
+###########
+### ALL ###
+###########
+
+SCHEMAS = {
+    'OutputTables_Dev': {
+        'tables':  ['Project', 'ItemMaster', 'InboundHeader', 'ProjectNumber_Velocity', 'ProjectNumber_OrderNumber', 'InboundDetails', 'InventoryData',
+                    'OutboundData', 'OutboundDataByOrder', 'OrderVelocityCombinations', 'VelocitySummary', 'VelocityLadder',
+                    'VelocityByMonth', 'DailyOrderProfileByVelocity']
+    },
+    'OutputTables_Prod': {
+        'tables': ['Project', 'ItemMaster', 'InboundHeader', 'ProjectNumber_Velocity', 'ProjectNumber_OrderNumber', 'InboundDetails', 'InventoryData',
+                    'OutboundData', 'OutboundDataByOrder', 'OrderVelocityCombinations', 'VelocitySummary', 'VelocityLadder',
+                    'VelocityByMonth', 'DailyOrderProfileByVelocity']
+    }
+}
 
 
 #####################

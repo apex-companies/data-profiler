@@ -20,14 +20,23 @@ class DataProfiler:
         self.project_number = project_number
         self.dev = dev
 
+        # Instantiate OutputTablesService object
         self.OutputTablesService = OutputTablesService(dev=self.dev)
-        pass
+        
+        # Determine whether project exists for project_number
+        project_numbers = self.get_output_tables_projects()
+        if project_number in project_numbers:
+            self.project_exists = True
+        else:
+            self.project_exists = False
 
     def get_output_tables_projects(self) -> list[str]:
         return self.OutputTablesService.get_output_tables_project_numbers()
 
-    def get_project_number_info(self): # -> ProjectInfo:
-        return self.OutputTablesService.get_project_info_for_project(self.project_number)
+    def get_project_number_info(self) -> ProjectInfoExistingProject:
+        if not self.get_project_exists():
+            return 'Project does not yet exist'
+        return self.OutputTablesService.get_project_info(self.project_number)
 
         # info = { }
         # print(project_number)
@@ -52,6 +61,8 @@ class DataProfiler:
         # return info
 
     def create_new_project(self, project_info: ProjectInfoInputs): #-> Response
+        if self.get_project_exists():
+            return 'Project already exists. Try updating it instead'
         return self.OutputTablesService.insert_new_project_to_project_table(project_info=project_info)
 
     def update_project_info(self, new_project_info: ProjectInfoInputs): #-> Response:
@@ -90,7 +101,9 @@ class DataProfiler:
         # return response_obj 
 
     def delete_project_data(self): # -> Response:
-        pass
+        if not self.get_project_exists():
+            return 'Project does not yet exist'
+        return self.OutputTablesService.delete_project_data(project_number=self.project_number)
 
         # response_obj = BaseDBInteractionResponse()
         
@@ -107,3 +120,8 @@ class DataProfiler:
         # response_obj.rows_affected = rows_affected
         # response_obj.message = "Delete seems to have been successful. Check logs to ensure."
         # return response_obj
+
+    ''' Getters/Setters '''
+
+    def get_project_exists(self) -> bool:
+        return self.project_exists
