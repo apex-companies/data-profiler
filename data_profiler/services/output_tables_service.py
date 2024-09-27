@@ -11,12 +11,13 @@ import os
 import pyodbc
 # from pyodbc import DatabaseError, Row
 
-from ..models.ProjectInfo import UploadedFilePaths, ProjectInfoInputs, ProjectInfoExistingProject
+from ..models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
 from ..models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
 
 from ..database.database_manager import DatabaseConnection
 from ..database.helpers.constants import DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT, OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT,\
-    DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, SCHEMAS, DEV_OUTPUT_TABLES_DELETE_SQL_FILES, OUTPUT_TABLES_DELETE_SQL_FILES
+    DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT,\
+    OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT, SCHEMAS, DEV_OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER, OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER
 
 class OutputTablesService:
 
@@ -77,7 +78,7 @@ class OutputTablesService:
 #     return lines
 
     
-    def get_project_info(self, project_number: str) -> ProjectInfoExistingProject:
+    def get_project_info(self, project_number: str) -> ExistingProjectProjectInfo:
         ''' Returns Project table row for project '''
         
         results = []
@@ -98,12 +99,15 @@ class OutputTablesService:
             results = cursor.fetchall()[0]
 
         # Create ProjectInfoExistingProject object and return
-        transform_options = None
-        if results[7] and results[8]:
-            transform_options = TransformOptions(
-                date_for_analysis=DateForAnalysis(results[7]),
-                weekend_date_rule=WeekendDateRules(results[8])
-            )
+        transform_options = TransformOptions(
+            date_for_analysis=results[7] if results[7] else None,
+            weekend_date_rule=results[8] if results[8] else None
+        )
+        # if results[7] and results[8]:
+        #     transform_options = TransformOptions(
+        #         date_for_analysis=DateForAnalysis(results[7]),
+        #         weekend_date_rule=WeekendDateRules(results[8])
+        #     )
 
         upload_paths = UploadedFilePaths(
             item_master=results[12] if results[12] else '',
@@ -114,7 +118,7 @@ class OutputTablesService:
             order_details=results[17] if results[17] else '',
         )
 
-        project_info = ProjectInfoExistingProject(
+        project_info = ExistingProjectProjectInfo(
             project_number=results[0],
             company_name=results[1],
             salesperson=results[2],
@@ -136,7 +140,7 @@ class OutputTablesService:
     # Returns inserted row count (should equal 1 if successful)
     # def insert_new_project_to_project_table(sql_file: str, project_number: str, company_name: str, salesman: str, location: str, project_name: str, email: str, start_date: str, 
     #                                         date_for_analysis: str, weekend_date_rule: str, notes: str) -> int:
-    def insert_new_project_to_project_table(self, project_info: ProjectInfoInputs) -> int:
+    def insert_new_project_to_project_table(self, project_info: BaseProjectInfo) -> int:
         print(f'Attempting insert into company table with project number: {project_info.project_number}')
         
         row_count = 0
@@ -166,6 +170,43 @@ class OutputTablesService:
             cursor.close()
 
         return row_count
+    
+    # Updates the project's row in Project
+    # Returns inserted row count (should equal 1 if successful)
+    def update_project_in_project_table(self, new_project_info: ExistingProjectProjectInfo) -> int:
+        print(f'Attempting insert into company table with project number: {new_project_info.project_number}')
+        
+        row_count = 0
+
+        # Get query from sql file
+        sql_file = DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT if self.dev else OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT
+
+        f = open(sql_file)
+        update_query = f.read()
+        f.close()
+
+        # Setup query arguments. IMPORTANT to be in same order as update_project.sql query
+        query_args = [new_project_info.company_name, new_project_info.salesperson, new_project_info.company_location, 
+                      new_project_info.project_name, new_project_info.email, new_project_info.start_date, 
+                      new_project_info.transform_options.date_for_analysis, new_project_info.transform_options.weekend_date_rule, new_project_info.notes, 
+                      new_project_info.data_uploaded, new_project_info.upload_date, new_project_info.uploaded_file_paths.item_master, 
+                      new_project_info.uploaded_file_paths.inbound_header, new_project_info.uploaded_file_paths.inbound_details, 
+                      new_project_info.uploaded_file_paths.inventory, new_project_info.uploaded_file_paths.order_header, new_project_info.uploaded_file_paths.order_details, 
+                      new_project_info.project_number]
+
+        # Connect and run query    
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            cursor = db_conn.cursor()
+
+            print(update_query)
+            print(query_args)
+            cursor.execute(update_query, query_args)
+            row_count += cursor.rowcount
+            db_conn.commit()
+
+            cursor.close()
+
+        return row_count
 
 
 # # Takes user input re: project info and calls insert_new_project_to_company_table to insert to DB
@@ -188,6 +229,14 @@ class OutputTablesService:
 
 #     return row_count
 
+    def delete_project(self, project_number: str):
+        # get_project_info()
+        # if project.has_uploaded_data == True:
+        #       please delete project data before deleting project
+        #
+        # delete from Project
+        pass
+
     # TODO - don't delete from Project. But update DataUploaded to False
     def delete_project_data(self, project_number: str) -> int:
         '''
@@ -209,10 +258,10 @@ class OutputTablesService:
         sql_file_mapper = {}
         if self.dev:
             schema = 'OutputTables_Dev' 
-            sql_file_mapper = DEV_OUTPUT_TABLES_DELETE_SQL_FILES
+            sql_file_mapper = DEV_OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER
         else:
             schema = 'OutputTables_Prod'
-            sql_file_mapper = OUTPUT_TABLES_DELETE_SQL_FILES
+            sql_file_mapper = OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER
                
         # Loop through delete queries and execute them
         delete_st = time()
@@ -232,6 +281,9 @@ class OutputTablesService:
                 # If a single table is passed to be deleted, skip if not the correct table
                 if tables != 'all' and table != tables:
                     continue
+
+                if table == 'Project':
+                    break
                 
                 # Get delete query
                 fd = open(file)
@@ -250,7 +302,7 @@ class OutputTablesService:
 
                 print(f'Rows deleted: {rows_deleted}')
                 if log_file: 
-                    log_file.write(f'Rows deleted: {rows_deleted}')
+                    log_file.write(f'Rows deleted: {rows_deleted}\n')
                     
                 db_conn.commit()
 
@@ -270,7 +322,6 @@ class OutputTablesService:
             log_file.write(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.\n')
             log_file.write(f'{total_rows_deleted} rows deleted.\n')
             log_file.close()
-
                   
         
         return total_rows_deleted

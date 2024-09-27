@@ -43,6 +43,7 @@ class DatabaseConnection():
         tries = 0
         successful_connection = False
         while not successful_connection and tries < retries:
+            print(f'Connecting to DB, attempt {tries}')
             try:
                 connection = pyodbc.connect(self.connection_string)
                 connection.cursor()

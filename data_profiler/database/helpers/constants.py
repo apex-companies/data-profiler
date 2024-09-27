@@ -35,7 +35,7 @@ OUTPUT_TABLES_OUTBOUND_DATA_COLS = ['ProjectNumber_SKU','Quantity','ReceivedDate
 OUTPUT_TABLES_ORDER_VELOCITY_COMBINATIONS_COLS = ['ProjectNumber_OrderNumber','VelocityCombination']
 OUTPUT_TABLES_INBOUND_HEADER_COLS = ['ProjectNumber_ReceiptNumber','ProjectNumber','ReceiptNumber','ArrivalDate','ArrivalTime','ExpectedDate','ExpectedTime','Carrier','Mode','Lines','Units','SKUs']
 OUTPUT_TABLES_INBOUND_DETAILS_COLS = ['ProjectNumber_ReceiptNumber','ProjectNumber_SKU','UnitOfMeasure','Quantity','VendorID','SourcePoint','LineCube','LineWeight']
-OUTPUT_TABLES_INVENTORY_DATA_COLS = ['Period','ProjectNumber_SKU','UnitOfMeasure','Quantity','Warehouse','Velocity','ExistsInOutbound','Location','Lot','LineCube','LineWeight']
+OUTPUT_TABLES_INVENTORY_DATA_COLS = ['Period','ProjectNumber_SKU','UnitOfMeasure','Quantity','Subwarehouse','Velocity','ExistsInOutbound','Location','Lot','LineCube','LineWeight']
 OUTPUT_TABLES_VELOCITY_SUMMARY_COLS = ['ProjectNumber_Velocity','ActiveSKUs','Lines','Units','OnHandSKUs','QtyOnHand']
 OUTPUT_TABLES_OUTBOUND_DATA_BY_ORDER_COLS = ['Date','Lines','Units','SKUs','LinesPerOrderRange','UnitsPerOrderRange','Weekday','Weekday_Idx','ProjectNumber_OrderNumber']
 OUTPUT_TABLES_DAILY_ORDER_PROFILE_BY_VELOCITY_COLS = ['ProjectNumber_Velocity','AvgDailySKUs','AvgDailyOrders','AvgDailyLines','AvgDailyUnits','DailySKUsSD','DailyOrdersSD','DailyLinesSD','DailyUnitsSD','ActiveSKUs','OnHandSKUs','QtyOnHand','+1StDevSKUs','+1StDevOrders','+1StDevLines','+1StDevUnits']
@@ -43,6 +43,24 @@ OUTPUT_TABLES_VELOCITY_BY_MONTH_COLS = ['ProjectNumber_SKU','Month','Velocity','
 OUTPUT_TABLES_PROJECT_NUMBER_VELOCITY_COLS = ['ProjectNumber_Velocity','ProjectNumber','Velocity']
 OUTPUT_TABLES_PROJECT_NUMBER_ORDER_NUMBER_COLS = ['ProjectNumber_OrderNumber','ProjectNumber','OrderNumber']
 OUTPUT_TABLES_VELOCITY_LADDER_COLS = ['%Lines','SKUs_RunningSum','Lines_RunningSum','Units_RunningSum','ProjectNumber_Velocity','%SKUs','Lines','Units','SKUs','%Units']
+
+OUTPUT_TABLES_COLS_MAPPER = {
+    # 'Project': OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT,
+    'ItemMaster': OUTPUT_TABLES_ITEM_MASTER_COLS,
+    'InboundHeader': OUTPUT_TABLES_INBOUND_HEADER_COLS,
+    'ProjectNumber_Velocity': OUTPUT_TABLES_PROJECT_NUMBER_VELOCITY_COLS,
+    'ProjectNumber_OrderNumber': OUTPUT_TABLES_PROJECT_NUMBER_ORDER_NUMBER_COLS,
+    'InboundDetails': OUTPUT_TABLES_INBOUND_DETAILS_COLS,
+    'InventoryData': OUTPUT_TABLES_INVENTORY_DATA_COLS,
+    'OutboundData': OUTPUT_TABLES_OUTBOUND_DATA_COLS,
+    'OutboundDataByOrder': OUTPUT_TABLES_OUTBOUND_DATA_BY_ORDER_COLS,
+    'OrderVelocityCombinations': OUTPUT_TABLES_ORDER_VELOCITY_COMBINATIONS_COLS,
+    'VelocitySummary': OUTPUT_TABLES_VELOCITY_SUMMARY_COLS,
+    'VelocityLadder': OUTPUT_TABLES_VELOCITY_LADDER_COLS,
+    'VelocityByMonth': OUTPUT_TABLES_VELOCITY_BY_MONTH_COLS,
+    'DailyOrderProfileByVelocity': OUTPUT_TABLES_DAILY_ORDER_PROFILE_BY_VELOCITY_COLS,
+}
+
 
 ## Insert queries
 OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT = 'data_profiler/database/sql/PROD/insert/insert_into_project.sql'
@@ -62,7 +80,7 @@ OUTPUT_TABLES_SQL_FILE_INSERT_INTO_DAILY_ORDER_PROFILE_BY_VELOCITY = 'data_profi
 
 
 # IMPORTANT: these need to stay in INSERTION order. that is, PK tables first, then FK tables.
-OUTPUT_TABLES_INSERT_SQL_FILES = {
+OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
     'Project': OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT,
     'ItemMaster': OUTPUT_TABLES_SQL_FILE_INSERT_INTO_ITEM_MASTER,
     'InboundHeader': OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INBOUND_HEADER,
@@ -82,6 +100,9 @@ OUTPUT_TABLES_INSERT_SQL_FILES = {
 ## Select queries
 OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'data_profiler/database/sql/PROD/select/select_all_from_project.sql'
 
+## Update queries
+OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'data_profiler/database/sql/PROD/update/update_project.sql'
+
 ## Delete queries
 OUTPUT_TABLES_SQL_FILE_DELETE_FROM_TABLES_BY_PROJECT_NUMBER = 'data_profiler/database/sql/PROD/delete/delete_from_tables_by_project_number.sql'
 OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT = 'data_profiler/database/sql/PROD/delete/delete_from_project.sql'
@@ -100,7 +121,7 @@ OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_BY_MONTH = 'data_profiler/database/s
 OUTPUT_TABLES_SQL_FILE_DELETE_FROM_DAILY_ORDER_PROFILE_BY_VELOCITY = 'data_profiler/database/sql/PROD/delete/delete_from_daily_order_profile_by_velocity.sql'
 
 # IMPORTANT: these need to stay in DELETION order. that is, delete from non-PK tables first, then PK tables
-OUTPUT_TABLES_DELETE_SQL_FILES = {
+OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER = {
     'DailyOrderProfileByVelocity': OUTPUT_TABLES_SQL_FILE_DELETE_FROM_DAILY_ORDER_PROFILE_BY_VELOCITY,
     'VelocityByMonth': OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_BY_MONTH,
     'VelocityLadder': OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_LADDER,
@@ -139,7 +160,7 @@ DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_LADDER = 'data_profiler/database
 DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_BY_MONTH = 'data_profiler/database/sql/DEV/insert/insert_into_velocity_by_month.sql'
 DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_DAILY_ORDER_PROFILE_BY_VELOCITY = 'data_profiler/database/sql/DEV/insert/insert_into_daily_order_profile_by_velocity.sql'
 
-DEV_OUTPUT_TABLES_INSERT_SQL_FILES = {
+DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
     'Project': DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT,
     'ItemMaster': DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_ITEM_MASTER,
     'InboundHeader': DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INBOUND_HEADER,
@@ -160,6 +181,8 @@ DEV_OUTPUT_TABLES_INSERT_SQL_FILES = {
 ## Select queries
 DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'data_profiler/database/sql/DEV/select/select_all_from_project.sql'
 
+## Update queries
+DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'data_profiler/database/sql/DEV/update/update_project.sql'
 
 ## Delete queries
 DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_TABLES_BY_PROJECT_NUMBER = 'data_profiler/database/sql/DEV/delete/delete_from_tables_by_project_number.sql'
@@ -180,7 +203,7 @@ DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_BY_MONTH = 'data_profiler/databa
 DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_DAILY_ORDER_PROFILE_BY_VELOCITY = 'data_profiler/database/sql/DEV/delete/delete_from_daily_order_profile_by_velocity.sql'
 
 # IMPORTANT: these need to stay in DELETION order. that is, delete from non-PK tables first, then PK tables
-DEV_OUTPUT_TABLES_DELETE_SQL_FILES = {
+DEV_OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER = {
     'DailyOrderProfileByVelocity': DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_DAILY_ORDER_PROFILE_BY_VELOCITY,
     'VelocityByMonth': DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_BY_MONTH,
     'VelocityLadder': DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_LADDER,

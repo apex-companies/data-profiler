@@ -24,5 +24,5 @@ class WeekendDateRules(str, Enum):
     AS_IS = "As Is"
 
 class TransformOptions(BaseModel):
-    date_for_analysis: DateForAnalysis
-    weekend_date_rule: WeekendDateRules
+    date_for_analysis: DateForAnalysis | None = None
+    weekend_date_rule: WeekendDateRules | None = None
