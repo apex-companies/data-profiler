@@ -46,14 +46,14 @@ dp = DataProfiler(project_number='TESTNATIVE', dev=True)
 # dp = DataProfiler(project_number='12345', dev=True)
 
 # print(dp.get_output_tables_projects())
-# print(dp.get_project_info())
+print(dp.get_project_info())
 
 print(dp.transform_and_upload_data(data_directory="C:\\Users\\jack.miller\\Documents\\Apex\\Consulting\\Client Studies\\CJ Logistics\\data\\clean - only pallet pick",
                                    transform_options=TransformOptions(date_for_analysis=DateForAnalysis.SHIP_DATE, weekend_date_rule=WeekendDateRules.AS_IS)))
 
 # print(dp.delete_project_data())
 
-# 9:45:00 AM
+# 9:45:00 AM   2550000010     395703
 
 # info = BaseProjectInfo(
 #     project_number='TESTNATIVE',

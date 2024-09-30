@@ -30,7 +30,6 @@ UPLOADS_REQUIRED_COLUMNS_MAPPER = {
 }
 
 ITEM_MASTER_UPLOAD_REQUIRED_DTYPES = {
-    # 'ProjectNumber': 'object',
     'SKU':'object',
     'SKUDescription':'object',
     'SKUClass':'object',
@@ -61,7 +60,6 @@ ITEM_MASTER_UPLOAD_REQUIRED_DTYPES = {
 }
 
 INBOUND_HEADER_UPLOAD_REQUIRED_DTYPES = {
-    # 'ProjectNumber': 'object',
     'ReceiptNumber': 'object',
     'ArrivalDate': 'date', 
     'ArrivalTime': 'time' , 
@@ -72,7 +70,6 @@ INBOUND_HEADER_UPLOAD_REQUIRED_DTYPES = {
 }
 
 INBOUND_DETAILS_UPLOAD_REQUIRED_DTYPES = {
-    # 'ProjectNumber': 'object',
     'ReceiptNumber': 'object', 
     'SKU': 'object', 
     'UnitOfMeasure': 'object', 
@@ -82,7 +79,6 @@ INBOUND_DETAILS_UPLOAD_REQUIRED_DTYPES = {
 }
 
 INVENTORY_UPLOAD_REQUIRED_DTYPES = {
-    # 'ProjectNumber': 'object',
     'Period':'date',
     'SKU':'object',
     'Quantity':'int64',
@@ -120,4 +116,12 @@ UPLOADS_REQUIRED_DTYPES_MAPPER = {
     'Inventory': INVENTORY_UPLOAD_REQUIRED_DTYPES,
     'OrderHeader': ORDER_HEADER_UPLOAD_REQUIRED_DTYPES,
     'OrderDetails': ORDER_DETAILS_UPLOAD_REQUIRED_DTYPES
+}
+
+DTYPES_DEFAULT_VALUES = {
+    'date': '1900-01-01',
+    'time': '00:00:00',
+    'object': '',
+    'int64': 0,
+    'float64': 0.0
 }

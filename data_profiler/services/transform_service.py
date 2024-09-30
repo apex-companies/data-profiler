@@ -202,7 +202,7 @@ class TransformService:
             transform_response.rows_inserted = rows_inserted_obj
 
             insert_et = time()
-            log_file.write(f'Success! Inserted {total_rows_inserted} in {timedelta(seconds=insert_et-insert_st)}\n\n')
+            log_file.write(f'Success! Inserted {total_rows_inserted} rows in {timedelta(seconds=insert_et-insert_st)}\n\n')
 
         # if log_file:
         #     log_file.close()

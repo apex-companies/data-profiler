@@ -280,7 +280,7 @@ class OutputTablesService:
         print(f'Deleting records from {schema} table(s) "{tables}" belonging to project number: {project_number}')
 
         # if log_file: 
-        log_file.write(f'Deleting records from {schema} table(s) "{tables}" belonging to project number: {project_number}\n')
+        # log_file.write(f'Deleting records from {schema} table(s) "{tables}" belonging to project number: {project_number}\n')
         
         total_rows_deleted = 0
         

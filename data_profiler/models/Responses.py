@@ -17,3 +17,4 @@ class TransformResponse(BaseModel):
     success: bool = False
     message: str = ''
     rows_inserted: TransformRowsInserted = TransformRowsInserted()
+
