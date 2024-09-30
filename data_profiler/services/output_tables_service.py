@@ -7,6 +7,7 @@ January 2024
 from datetime import datetime, timedelta
 from time import time
 import os
+from io import TextIOWrapper
 
 import pyodbc
 # from pyodbc import DatabaseError, Row
@@ -31,13 +32,24 @@ class OutputTablesService:
         query = f'''SELECT ProjectNumber FROM {schema}.Project'''
         results = []
 
-        with DatabaseConnection(dev=self.dev) as db_conn:
-            cursor = db_conn.cursor()
+        # try:
+        #     db_conn = DatabaseConnection(dev=self.dev)
+        # except pyodbc.InterfaceError as e:
+        #     print(' - get projects - ')
+        # else:
+        try:
+            with DatabaseConnection(dev=self.dev) as db_conn:
+                # with db_conn:
+                cursor = db_conn.cursor()
 
-            cursor.execute(query)
-            results = [result[0] for result in cursor.fetchall()]
-            
-            cursor.close()
+                cursor.execute(query)
+                results = [result[0] for result in cursor.fetchall()]
+                
+                cursor.close()
+        
+        except pyodbc.InterfaceError as e:
+            print(f' get projects. unsuccessful connect ')
+
 
         return results
 
@@ -238,7 +250,7 @@ class OutputTablesService:
         pass
 
     # TODO - don't delete from Project. But update DataUploaded to False
-    def delete_project_data(self, project_number: str) -> int:
+    def delete_project_data(self, project_number: str, log_file: TextIOWrapper) -> int:
         '''
         Delete from OutputTables schema
         Removes records from all relevant DB tables belonging to the given project_number
@@ -247,10 +259,10 @@ class OutputTablesService:
         '''
 
         # Create log file, if dev
-        log_file = None
-        if self.dev:
-            log_file = open(f'logs/{project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_delete_from_output_tables.txt', 'w+')
-            log_file.write(f'PROJECT NUMBER: {project_number}\n')
+        # log_file = None
+        # if self.dev:
+        #     log_file = open(f'logs/{project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_delete_from_output_tables.txt', 'w+')
+        #     log_file.write(f'PROJECT NUMBER: {project_number}\n')
         
         # Configure schema and sql file mapper
         tables = 'all'                          # NOTE - this is from old code, when RawData was still used. We no longer need to be able to delete one table at a time, but it could be a future requirement
@@ -267,8 +279,8 @@ class OutputTablesService:
         delete_st = time()
         print(f'Deleting records from {schema} table(s) "{tables}" belonging to project number: {project_number}')
 
-        if log_file: 
-            log_file.write(f'Deleting records from {schema} table(s) "{tables}" belonging to project number: {project_number}\n')
+        # if log_file: 
+        log_file.write(f'Deleting records from {schema} table(s) "{tables}" belonging to project number: {project_number}\n')
         
         total_rows_deleted = 0
         
@@ -291,18 +303,17 @@ class OutputTablesService:
                 fd.close()
                 print(f'{delete_query} \n')
 
-                if log_file: 
-                    log_file.write(f'{delete_query} \n')
-
+                # if log_file: 
+                # log_file.write(f'{delete_query} \n')
                 # try:
                 
                 cursor.execute(delete_query, project_number)
                 rows_deleted = cursor.rowcount
                 total_rows_deleted += rows_deleted
 
-                print(f'Rows deleted: {rows_deleted}')
-                if log_file: 
-                    log_file.write(f'Rows deleted: {rows_deleted}\n')
+                print(f'{table} - rows deleted: {rows_deleted}')
+                # if log_file: 
+                log_file.write(f'{table} - rows deleted: {rows_deleted}\n')
                     
                 db_conn.commit()
 
@@ -318,10 +329,10 @@ class OutputTablesService:
         print(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.')
         print(f'{total_rows_deleted} rows deleted.')
 
-        if log_file: 
-            log_file.write(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.\n')
-            log_file.write(f'{total_rows_deleted} rows deleted.\n')
-            log_file.close()
+        # if log_file: 
+        log_file.write(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.\n')
+        log_file.write(f'{total_rows_deleted} rows deleted.\n')
+            # log_file.close()
                   
         
         return total_rows_deleted

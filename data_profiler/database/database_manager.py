@@ -11,13 +11,27 @@ from cryptography.fernet import Fernet
 
 class DatabaseConnection():
 
-    def __init__(self, dev: bool = False):
+    def __init__(self, dev: bool = False) -> Connection:
         self.dev = dev
 
+        # try:
+        #     self.connection = self._create_server_connection()
+        # except pyodbc.InterfaceError as e:
+        #     print('__init__')
+        #     raise pyodbc.InterfaceError(e)
+        # else:
+        #     return self.connection
+        
     def __enter__(self) -> Connection:
         self.connection_string = self._get_connection_string()
-        self.connection = self._create_server_connection()
-        return self.connection
+        
+        try:
+            self.connection = self._create_server_connection()
+        except pyodbc.InterfaceError as e:
+            print('__enter__')
+            raise e
+        else:
+            return self.connection
 
     def __exit__(self, exception_type, exception_value, exception_traceback):
         if exception_type is None:
@@ -46,8 +60,9 @@ class DatabaseConnection():
             print(f'Connecting to DB, attempt {tries}')
             try:
                 connection = pyodbc.connect(self.connection_string)
+                # connection = pyodbc.connect('bas')
                 connection.cursor()
-            except Exception as err:
+            except pyodbc.Error as err:
                 continue
             else:
                 successful_connection = True
@@ -55,7 +70,7 @@ class DatabaseConnection():
                 tries += 1
 
         if not successful_connection:
-            raise Exception('Could not connect to database.')
+            raise pyodbc.InterfaceError('Could not connect to database.')
         
         return connection
     

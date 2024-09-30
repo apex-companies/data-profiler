@@ -64,9 +64,9 @@ INBOUND_HEADER_UPLOAD_REQUIRED_DTYPES = {
     # 'ProjectNumber': 'object',
     'ReceiptNumber': 'object',
     'ArrivalDate': 'date', 
-    'ArrivalTime': 'object' , 
+    'ArrivalTime': 'time' , 
     'ExpectedDate': 'date', 
-    'ExpectedTime': 'object', 
+    'ExpectedTime': 'time', 
     'Carrier': 'object', 
     'Mode': 'object'
 }
