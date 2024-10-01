@@ -17,4 +17,5 @@ class TransformResponse(BaseModel):
     success: bool = False
     message: str = ''
     rows_inserted: TransformRowsInserted = TransformRowsInserted()
+    log_file_path: str = ''
 

@@ -23,7 +23,9 @@ from ..models.Responses import TransformRowsInserted, TransformResponse
 
 class TransformService:
 
-    def __init__(self, dev: bool = False):
+    def __init__(self, project_number: str, transform_options: TransformOptions, dev: bool = False):
+        self.project_number = project_number
+        self.transform_options = transform_options
         self.dev = dev
 
     def __enter__(self):
@@ -38,13 +40,13 @@ class TransformService:
 
     # Transforms the raw data dataframes and insert into the OutputTables_Dev schema
     # Returns total rows inserted
-    def transform_and_persist_dataframes(self, project_number: str, transform_options: TransformOptions,
-                                        item_master_df: pd.DataFrame, inbound_header_df: pd.DataFrame, inbound_details_df: pd.DataFrame,
+    # def transform_and_persist_dataframes(self, project_number: str, transform_options: TransformOptions,
+    def transform_and_persist_dataframes(self, item_master_df: pd.DataFrame, inbound_header_df: pd.DataFrame, inbound_details_df: pd.DataFrame,
                                         inventory_df: pd.DataFrame, order_header_df: pd.DataFrame, order_details_df: pd.DataFrame,
                                         log_file: TextIOWrapper) -> TransformResponse:
 
         rows_inserted_obj = TransformRowsInserted()
-        transform_response = TransformResponse(project_number=project_number)
+        transform_response = TransformResponse(project_number=self.project_number)
         total_rows_inserted = 0
 
         # # Create log file, if dev
@@ -54,49 +56,83 @@ class TransformService:
         #     log_file.write(f'PROJECT NUMBER: {project_number}\n')
 
         '''STEP 1: Create output tables '''
+
+        # Dataframes
+        item_master_data = pd.DataFrame()
+        inbound_header = pd.DataFrame()
+        inbound_details = pd.DataFrame()
+        outbound_data = pd.DataFrame()
+        order_velocity_combinations = pd.DataFrame()
+        inventory_data = pd.DataFrame()
+        velocity_summary = pd.DataFrame()
+        outbound_data_by_order = pd.DataFrame()
+        daily_order_profile_by_velocity = pd.DataFrame()
+        velocity_by_month = pd.DataFrame()
+        project_number_velocity = pd.DataFrame()
+        project_number_order_number = pd.DataFrame()
+        velocity_ladder = pd.DataFrame()
+
+        velocity_analysis = pd.DataFrame(columns=['SKU', 'Velocity'])
+
         st = time()
         log_file.write(f'2. CREATE OUTPUT TABLES\n')
 
         # Start with Item Master
-        item_master_data = self.create_item_master(project_num=project_number, item_master=item_master_df)
+        item_master_data = self.create_item_master(project_num=self.project_number, item_master=item_master_df)
         log_file.write(f'Item Master rows: {len(item_master_data)}\n')
 
-        # Create outbound to get velocity
-        outbound_data = self.create_outbound_data(project_num=project_number, order_header_df=order_header_df, order_details_df=order_details_df, item_master_df=item_master_data,
-                                            transform_options=transform_options)
-        log_file.write(f'Outbound Data rows: {len(outbound_data)}\n')
-        outbound_skus = set(outbound_data['SKU'].unique().tolist())
+        # Create outbound so we can determine velocities
+        outbound_skus = []
+        if self.transform_options.process_outbound_data:
+            outbound_data = self.create_outbound_data(project_num=self.project_number, order_header_df=order_header_df, order_details_df=order_details_df, item_master_df=item_master_data)
+                                                # transform_options=self.transform_options)
+            log_file.write(f'Outbound Data rows: {len(outbound_data)}\n')
+            outbound_skus = set(outbound_data['SKU'].unique().tolist())
 
-        velocity_analysis = self.run_velocity_analysis(outbound_df=outbound_data)
-        item_master_data = item_master_data.merge(velocity_analysis[['SKU', 'Velocity']], on='SKU', how='left')
-        item_master_data.fillna({'Velocity': 'X'}, inplace=True)
+            # Run velocity analysis, and add velocity to Item Master, Outbound Data
+            velocity_analysis = self.run_velocity_analysis(outbound_df=outbound_data)
+
+            outbound_data = outbound_data.merge(velocity_analysis[['SKU', 'Velocity']], on='SKU', how='left')
+            outbound_data['Velocity'] = outbound_data['Velocity'].fillna('X')
+
+            item_master_data = item_master_data.merge(velocity_analysis[['SKU', 'Velocity']], on='SKU', how='left')
+            item_master_data['Velocity'] = item_master_data['Velocity'].fillna('X')
+        else:
+            # Fill velocity in with X
+            item_master_data['Velocity'] = 'X'
         
         # The rest
-        inbound_header = self.create_inbound_header(project_num=project_number, inbound_header_df=inbound_header_df, inbound_details_df=inbound_details_df, transform_options=transform_options)
-        log_file.write(f'Inbound Header rows: {len(inbound_header)}\n')
-        inbound_details = self.create_inbound_details(project_num=project_number, inbound_details_df=inbound_details_df, item_master_df=item_master_data, transform_options=transform_options)
-        log_file.write(f'Inbound Details rows: {len(inbound_details)}\n')
+        inbound_skus = []
+        if self.transform_options.process_inbound_data:
+            inbound_header = self.create_inbound_header(project_num=self.project_number, inbound_header_df=inbound_header_df, inbound_details_df=inbound_details_df)#, transform_options=transform_options)
+            log_file.write(f'Inbound Header rows: {len(inbound_header)}\n')
+            inbound_details = self.create_inbound_details(project_num=self.project_number, inbound_details_df=inbound_details_df, item_master_df=item_master_data)#, transform_options=self.transform_options)
+            log_file.write(f'Inbound Details rows: {len(inbound_details)}\n')
 
-        inventory_data = self.create_inventory_data(project_num=project_number, inventory_df=inventory_df, velocity_analysis=velocity_analysis, outbound_skus=outbound_skus, item_master_df=item_master_data)
-        log_file.write(f'Inventory Data rows: {len(inventory_data)}\n')
+            inbound_skus = set(inbound_details['SKU'].unique().tolist())
 
-        order_velocity_combinations = self.create_order_velocity_combinations(project_num=project_number, outbound_df=outbound_data[['OrderNumber', 'Velocity']])
-        log_file.write(f'Order Velocity Combinations rows: {len(order_velocity_combinations)}\n')
-        velocity_summary = self.create_velocity_summary(project_num=project_number, velocity_analysis_df=velocity_analysis, inventory_df=inventory_data)
-        log_file.write(f'Velocity Summary rows: {len(velocity_summary)}\n')
-        outbound_data_by_order = self.create_outbound_data_by_order(project_num=project_number, outbound_df=outbound_data)
-        log_file.write(f'Outbound Data by Order rows: {len(outbound_data_by_order)}\n')
-        daily_order_profile_by_velocity = self.create_daily_order_profile_by_velocity(project_num=project_number, outbound_df=outbound_data, velocity_summary=velocity_summary)    
-        log_file.write(f'Daily Order Profile rows: {len(daily_order_profile_by_velocity)}\n')
-        velocity_by_month = self.create_velocity_by_month(project_num=project_number, outbound_df=outbound_data, velocity_analysis=velocity_analysis)
-        log_file.write(f'Velocity by Month rows: {len(velocity_by_month)}\n')
-        project_number_velocity = self.create_project_number_velocity(project_num=project_number)
-        log_file.write(f'Project Number - Velocity rows: {len(project_number_velocity)}\n')
-        order_nums = outbound_data['OrderNumber'].unique().tolist()
-        project_number_order_number = self.create_project_number_order_number(project_num=project_number, order_numbers=order_nums)
-        log_file.write(f'Project Number - Order Number rows: {len(project_number_order_number)}\n')
-        velocity_ladder = self.create_velocity_ladder(project_num=project_number, velocity_analysis=velocity_analysis)
-        log_file.write(f'Velocity Ladder rows: {len(velocity_ladder)}\n')
+        if self.transform_options.process_inventory_data:
+            inventory_data = self.create_inventory_data(project_num=self.project_number, inventory_df=inventory_df, velocity_analysis=velocity_analysis, inbound_skus=inbound_skus, item_master_df=item_master_data)
+            log_file.write(f'Inventory Data rows: {len(inventory_data)}\n')
+
+        if self.transform_options.process_outbound_data:
+            order_velocity_combinations = self.create_order_velocity_combinations(project_num=self.project_number, outbound_df=outbound_data[['OrderNumber', 'Velocity']])
+            log_file.write(f'Order Velocity Combinations rows: {len(order_velocity_combinations)}\n')
+            velocity_summary = self.create_velocity_summary(project_num=self.project_number, velocity_analysis_df=velocity_analysis, inventory_df=inventory_data)
+            log_file.write(f'Velocity Summary rows: {len(velocity_summary)}\n')
+            outbound_data_by_order = self.create_outbound_data_by_order(project_num=self.project_number, outbound_df=outbound_data)
+            log_file.write(f'Outbound Data by Order rows: {len(outbound_data_by_order)}\n')
+            daily_order_profile_by_velocity = self.create_daily_order_profile_by_velocity(project_num=self.project_number, outbound_df=outbound_data, velocity_summary=velocity_summary)    
+            log_file.write(f'Daily Order Profile rows: {len(daily_order_profile_by_velocity)}\n')
+            velocity_by_month = self.create_velocity_by_month(project_num=self.project_number, outbound_df=outbound_data, velocity_analysis=velocity_analysis)
+            log_file.write(f'Velocity by Month rows: {len(velocity_by_month)}\n')
+            project_number_velocity = self.create_project_number_velocity(project_num=self.project_number)
+            log_file.write(f'Project Number - Velocity rows: {len(project_number_velocity)}\n')
+            order_nums = outbound_data['OrderNumber'].unique().tolist()
+            project_number_order_number = self.create_project_number_order_number(project_num=self.project_number, order_numbers=order_nums)
+            log_file.write(f'Project Number - Order Number rows: {len(project_number_order_number)}\n')
+            velocity_ladder = self.create_velocity_ladder(project_num=self.project_number, velocity_analysis=velocity_analysis)
+            log_file.write(f'Velocity Ladder rows: {len(velocity_ladder)}\n')
 
         # Reorder columns to match sql queries
         item_master_data = item_master_data.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['ItemMaster'])
@@ -134,7 +170,7 @@ class TransformService:
 
         # FIRST - insert new row into company table
         # Note: in future, this will likely be done elsewhere (perhaps by PowerApps/PowerAutomate form)
-        # total_rows_inserted += insert_new_project_to_project_table(project_number=project_number, sql_file=SQL_FILE_MAPPER['Project'], project_name=project_info.project_name,
+        # total_rows_inserted += insert_new_project_to_project_table(project_number=self.project_number, sql_file=SQL_FILE_MAPPER['Project'], project_name=project_info.project_name,
                                                                 #    company_name=project_info.company_name, location=project_info.company_location, salesman=project_info.salesperson, 
                                                                 #    start_date=project_info.start_date,email=project_info.email, weekend_date_rule=variables_and_transform_options.weekend_date_rule.value, 
                                                                 #    date_for_analysis=variables_and_transform_options.date_for_analysis.value, notes=project_info.notes)
@@ -317,6 +353,10 @@ class TransformService:
         return item_master_return
 
     def create_inbound_header(self, project_num: str, inbound_header_df: pd.DataFrame, inbound_details_df: pd.DataFrame, transform_options: TransformOptions) -> pd.DataFrame:
+        if len(inbound_header_df) == 0:
+            print(f'No inbound data. Skipping inbound header')
+            return inbound_header_df
+        
         print(f'creating inbound header...')
         '''ProjectNumber ReceiptNumber ArrivalDate ArrivalTime ExpectedDate ExpectedTime Carrier  Mode'''
         
@@ -332,18 +372,7 @@ class TransformService:
         inbound_header = inbound_header.merge(inbound_by_receipt, on='ReceiptNumber', how='left')
 
         # Adjust weekend dates
-        inbound_header = self.adjust_weekend_dates(inbound_header, 'ArrivalDate', transform_options.weekend_date_rule)
-        # if transform_options.weekend_date_rule == WeekendDateRules.nearest_weekday:
-        #     inbound_header['ArrivalDate'] = np.where(inbound_header['ArrivalDate'].dt.day_name() == 'Saturday', inbound_header['ArrivalDate'] - timedelta(days=1), inbound_header['ArrivalDate'])   # to friday
-        #     inbound_header['ArrivalDate'] = np.where(inbound_header['ArrivalDate'].dt.day_name() == 'Sunday', inbound_header['ArrivalDate'] + timedelta(days=1), inbound_header['ArrivalDate'])     # to monday
-        # elif transform_options.weekend_date_rule == WeekendDateRules.all_to_monday:
-        #     inbound_header['ArrivalDate'] = np.where(inbound_header['ArrivalDate'].dt.day_name() == 'Saturday', inbound_header['ArrivalDate'] + timedelta(days=2), inbound_header['ArrivalDate'])
-        #     inbound_header['ArrivalDate'] = np.where(inbound_header['ArrivalDate'].dt.day_name() == 'Sunday', inbound_header['ArrivalDate'] + timedelta(days=1), inbound_header['ArrivalDate'])
-        # elif transform_options.weekend_date_rule == WeekendDateRules.all_to_friday:
-        #     inbound_header['ArrivalDate'] = np.where(inbound_header['ArrivalDate'].dt.day_name() == 'Saturday', inbound_header['ArrivalDate'] - timedelta(days=1), inbound_header['ArrivalDate'])
-        #     inbound_header['ArrivalDate'] = np.where(inbound_header['ArrivalDate'].dt.day_name() == 'Sunday', inbound_header['ArrivalDate'] - timedelta(days=2), inbound_header['ArrivalDate'])
-        # elif transform_options.weekend_date_rule == WeekendDateRules.as_is:
-        #     pass
+        inbound_header = self.adjust_weekend_dates(inbound_header, 'ArrivalDate')
 
         # Add ProjectNumber_SKU, ProjectNumber_ReceiptNumber
         inbound_header['ProjectNumber'] = project_num
@@ -351,7 +380,11 @@ class TransformService:
 
         return inbound_header
 
-    def create_inbound_details(self, project_num: str, inbound_details_df: pd.DataFrame, item_master_df: pd.DataFrame, transform_options: TransformOptions) -> pd.DataFrame:
+    def create_inbound_details(self, project_num: str, inbound_details_df: pd.DataFrame, item_master_df: pd.DataFrame) -> pd.DataFrame: # , transform_options: TransformOptions) -> pd.DataFrame:
+        if len(inbound_details_df) == 0:
+            print(f'No inbound data. Skipping inbound details')
+            return inbound_details_df
+        
         print(f'creating inbound details...')
         '''ProjectNumber ReceiptNumber   SKU UnitOfMeasure  Quantity VendorID SourcePoint'''
         
@@ -372,11 +405,15 @@ class TransformService:
 
         return inbound_details
 
-    def create_outbound_data(self, project_num: str, order_header_df: pd.DataFrame, order_details_df: pd.DataFrame, item_master_df: pd.DataFrame, transform_options: TransformOptions) -> pd.DataFrame:
+    def create_outbound_data(self, project_num: str, order_header_df: pd.DataFrame, order_details_df: pd.DataFrame, item_master_df: pd.DataFrame) -> pd.DataFrame: #, transform_options: TransformOptions)         
         print(f'creating outbound data...')
 
         # Join Order Details and Order Header to form Outbound Data
         outbound_data = order_details_df.merge(order_header_df, on='OrderNumber', how='left')
+
+        if len(outbound_data) == 0:
+            print(f'No order data. Skipping outbound data')
+            return outbound_data
 
         # Make sure dates are actually dates
         outbound_data['ShipDate'] = pd.to_datetime(outbound_data['ShipDate'], dayfirst=True, format='mixed')
@@ -384,26 +421,15 @@ class TransformService:
         outbound_data['ReceivedDate'] = pd.to_datetime(outbound_data['ReceivedDate'], dayfirst=True, format='mixed')
 
         # Set Date = chosen date for analysis
-        if transform_options.date_for_analysis == DateForAnalysis.RECEIVED_DATE:
+        if self.transform_options.date_for_analysis == DateForAnalysis.RECEIVED_DATE:
             outbound_data['Date'] = outbound_data[DateForAnalysis.RECEIVED_DATE]
-        elif transform_options.date_for_analysis == DateForAnalysis.PICK_DATE:
+        elif self.transform_options.date_for_analysis == DateForAnalysis.PICK_DATE:
             outbound_data['Date'] = outbound_data[DateForAnalysis.PICK_DATE]
-        elif transform_options.date_for_analysis == DateForAnalysis.SHIP_DATE:
+        elif self.transform_options.date_for_analysis == DateForAnalysis.SHIP_DATE:
             outbound_data['Date'] = outbound_data[DateForAnalysis.SHIP_DATE]
 
         # Adjust weekend dates
-        outbound_data = self.adjust_weekend_dates(outbound_data, 'Date', transform_options.weekend_date_rule)
-        # if transform_options.weekend_date_rule == WeekendDateRules.nearest_weekday:
-        #     outbound_data['Date'] = np.where(outbound_data['Date'].dt.day_name() == 'Saturday', outbound_data['Date'] - timedelta(days=1), outbound_data['Date'])   # to friday
-        #     outbound_data['Date'] = np.where(outbound_data['Date'].dt.day_name() == 'Sunday', outbound_data['Date'] + timedelta(days=1), outbound_data['Date'])     # to monday
-        # elif transform_options.weekend_date_rule == WeekendDateRules.all_to_monday:
-        #     outbound_data['Date'] = np.where(outbound_data['Date'].dt.day_name() == 'Saturday', outbound_data['Date'] + timedelta(days=2), outbound_data['Date'])
-        #     outbound_data['Date'] = np.where(outbound_data['Date'].dt.day_name() == 'Sunday', outbound_data['Date'] + timedelta(days=1), outbound_data['Date'])
-        # elif transform_options.weekend_date_rule == WeekendDateRules.all_to_friday:
-        #     outbound_data['Date'] = np.where(outbound_data['Date'].dt.day_name() == 'Saturday', outbound_data['Date'] - timedelta(days=1), outbound_data['Date'])
-        #     outbound_data['Date'] = np.where(outbound_data['Date'].dt.day_name() == 'Sunday', outbound_data['Date'] - timedelta(days=2), outbound_data['Date'])
-        # elif transform_options.weekend_date_rule == WeekendDateRules.as_is:
-        #     pass
+        outbound_data = self.adjust_weekend_dates(outbound_data, 'Date')
 
         # Add weekday
         outbound_data['Weekday'] = outbound_data['Date'].dt.day_name()
@@ -417,10 +443,6 @@ class TransformService:
         # Add Units per Line range to Outbound Data
         upl_ranges = [(0,1), (1,2), (2,5), (5,10),(10,'max')]
         outbound_data['UnitsPerLineRange'] = outbound_data['Quantity'].apply(lambda x: self.find_range(x, upl_ranges))
-
-        # Add velocity
-        velocity_analysis = self.run_velocity_analysis(outbound_data)
-        outbound_data = outbound_data.merge(velocity_analysis[['SKU', 'Velocity']], on='SKU', how='left')
 
         # Add ProjectNumber_SKU, ProjectNumber_OrderNumber
         outbound_data['ProjectNumber_SKU'] = project_num + '-' + outbound_data['SKU'].astype(str)
@@ -444,6 +466,10 @@ class TransformService:
 
 
     def create_order_velocity_combinations(self, project_num: str, outbound_df: pd.DataFrame) -> pd.DataFrame:
+        if len(outbound_df) == 0:
+            print(f'No order data. Skipping order velocity combinations')
+            return outbound_df
+
         print(f'creating order velocity combinations...')
 
         order_velocity_combos = outbound_df.groupby('OrderNumber').agg(velocity_set=('Velocity', 'unique')).reset_index()
@@ -458,7 +484,11 @@ class TransformService:
         return order_velocity_combos[['ProjectNumber_OrderNumber', 'OrderNumber', 'VelocityCombination']]
 
 
-    def create_inventory_data(self, project_num: str, inventory_df: pd.DataFrame, velocity_analysis: pd.DataFrame, outbound_skus: set, item_master_df: pd.DataFrame) -> pd.DataFrame:
+    def create_inventory_data(self, project_num: str, inventory_df: pd.DataFrame, velocity_analysis: pd.DataFrame, inbound_skus: set, item_master_df: pd.DataFrame) -> pd.DataFrame:
+        if len(inventory_df) == 0:
+            print(f'No inventory data. Skipping inventory')
+            return inventory_df
+        
         print(f'creating inventory...')
 
         # Add velocity. Fill in any inactive SKUs with "X" for velocity
@@ -466,7 +496,7 @@ class TransformService:
         inventory_data['Velocity'] = inventory_data['Velocity'].fillna(value='X')
 
         # TODO - this will eventually be "ExistsInInbound"
-        inventory_data['ExistsInOutbound'] = np.where(inventory_data['SKU'].isin(outbound_skus),True,False)
+        inventory_data['ExistsInInbound'] = np.where(inventory_data['SKU'].isin(inbound_skus), True, False)
         inventory_data['Period'] = pd.to_datetime(inventory_data['Period'], dayfirst=True, format='mixed')
 
         # Add ProjectNumber_SKU
@@ -483,11 +513,6 @@ class TransformService:
         inventory_data['LineCube'] = inventory_data.apply(lambda x: self.calc_line_cube(row=x), axis=1)
         inventory_data['LineWeight'] = inventory_data.apply(lambda x: self.calc_line_weight(row=x), axis=1)
 
-        # add any missing columns
-        # for col in OUTPUT_TABLES_INVENTORY_DATA_COLS:
-        #     if col not in inventory_data.columns:
-        #         inventory_data[col] = '--'
-
         # Fill in any nulls cells with empty string
         inventory_data.replace(to_replace=pd.NA, value='', inplace=True)
 
@@ -495,12 +520,19 @@ class TransformService:
 
 
     def create_velocity_summary(self, project_num: str, velocity_analysis_df: pd.DataFrame, inventory_df: pd.DataFrame) -> pd.DataFrame:
+        if len(velocity_analysis_df) == 0:
+            print(f'No order data. Skipping velocity summary')
+            return pd.DataFrame()
+        
         print(f'creating velocity summary...')
 
-        # Group velocity analysis and inventory by velocity, summarize
+        # Group velocity analysis to summarize by velocity
         velocity_summary = velocity_analysis_df.groupby('Velocity').agg(ActiveSKUs=('SKU', 'nunique'), Lines=('Lines', 'sum'), Units=('Units', 'sum')).reset_index()
-        inventory_by_velocity = inventory_df.groupby('Velocity').agg(OnHandSKUs=('SKU', 'nunique'), QtyOnHand=('Quantity', 'sum')).reset_index()   
-        velocity_summary = velocity_summary.merge(inventory_by_velocity, on='Velocity', how='left').fillna(value=0)
+        
+        # If processing inventory, summarize inventory by velocity and add it back
+        if self.transform_options.process_inventory_data:
+            inventory_by_velocity = inventory_df.groupby('Velocity').agg(OnHandSKUs=('SKU', 'nunique'), QtyOnHand=('Quantity', 'sum')).reset_index()   
+            velocity_summary = velocity_summary.merge(inventory_by_velocity, on='Velocity', how='left').fillna(value=0)
 
         # Velocity -> ProjectNumber_Velocity
         velocity_summary['ProjectNumber_Velocity'] = project_num + '-' + velocity_summary['Velocity'].astype(str)
@@ -512,6 +544,10 @@ class TransformService:
 
 
     def create_outbound_data_by_order(self, project_num: str, outbound_df: pd.DataFrame) -> pd.DataFrame:
+        if len(outbound_df) == 0:
+            print(f'No order data. Skipping outbound by order')
+            return pd.DataFrame()
+        
         print(f'creating outbound data by order...')
 
         outbound_by_order = outbound_df.groupby('OrderNumber').agg(Date=('Date', 'first'), Lines=('Date', 'size'),\
@@ -541,6 +577,10 @@ class TransformService:
 
 
     def create_daily_order_profile_by_velocity(self, project_num: str, outbound_df: pd.DataFrame, velocity_summary: pd.DataFrame) -> pd.DataFrame:
+        if len(outbound_df) == 0:
+            print(f'No order data. Skipping daily order profile')
+            return pd.DataFrame()
+        
         print(f'creating daily order profile...')
 
         outbound_by_day_velocity = outbound_df.groupby(by=['Date', 'Velocity']).agg(Orders=('OrderNumber', 'nunique'), Lines=('Date', 'size'),
@@ -575,6 +615,10 @@ class TransformService:
 
 
     def create_velocity_by_month(self, project_num: str, outbound_df: pd.DataFrame, velocity_analysis: pd.DataFrame) -> pd.DataFrame:
+        if len(outbound_df) == 0:
+            print(f'No order data. Skipping velocity by month')
+            return pd.DataFrame()
+        
         print(f'creating velocity by month...')
         
         OUTBOUND_SKUS = set(outbound_df['SKU'].unique().tolist())
@@ -627,7 +671,7 @@ class TransformService:
         return velocity_by_month
 
 
-    def create_project_number_velocity(self, project_num: str) -> pd.DataFrame:
+    def create_project_number_velocity(self, project_num: str) -> pd.DataFrame:       
         print(f'creating project number velocity...')
 
         projectnum_velocity = pd.DataFrame(columns=['ProjectNumber_Velocity', 'ProjectNumber', 'Velocity'])
@@ -642,6 +686,10 @@ class TransformService:
 
 
     def create_project_number_order_number(self, project_num: str, order_numbers: list) -> pd.DataFrame:
+        if len(order_numbers) == 0:
+            print(f'No order data. Skipping project number order number')
+            return pd.DataFrame()
+        
         print(f'creating project number order number...')
 
         projectnum_ordernum = pd.DataFrame(columns=['ProjectNumber_OrderNumber', 'ProjectNumber', 'OrderNumber'])
@@ -656,6 +704,10 @@ class TransformService:
 
 
     def create_velocity_ladder(self, project_num: str, velocity_analysis: pd.DataFrame) -> pd.DataFrame:
+        if len(velocity_analysis) == 0:
+            print(f'No order data. Skipping velocity ladder')
+            return pd.DataFrame()
+
         print(f'creating velocity ladder...')
 
         velocity_ladder = velocity_analysis.copy(deep=True)
@@ -753,18 +805,18 @@ class TransformService:
 
         return row[f'{uom}Weight'] * quantity
 
-    def adjust_weekend_dates(self, df: pd.DataFrame, date_col: str, weekend_date_rule: WeekendDateRules):
+    def adjust_weekend_dates(self, df: pd.DataFrame, date_col: str):
         # Adjust weekend dates
-        if weekend_date_rule == WeekendDateRules.NEAREST_WEEKDAY:
+        if self.transform_options.weekend_date_rule == WeekendDateRules.NEAREST_WEEKDAY:
             df[date_col] = np.where(df[date_col].dt.day_name() == 'Saturday', df[date_col] - timedelta(days=1), df[date_col])   # to friday
             df[date_col] = np.where(df[date_col].dt.day_name() == 'Sunday', df[date_col] + timedelta(days=1), df[date_col])     # to monday
-        elif weekend_date_rule == WeekendDateRules.ALL_TO_MONDAY:
+        elif self.transform_options.weekend_date_rule == WeekendDateRules.ALL_TO_MONDAY:
             df[date_col] = np.where(df[date_col].dt.day_name() == 'Saturday', df[date_col] + timedelta(days=2), df[date_col])
             df[date_col] = np.where(df[date_col].dt.day_name() == 'Sunday', df[date_col] + timedelta(days=1), df[date_col])
-        elif weekend_date_rule == WeekendDateRules.ALL_TO_FRIDAY:
+        elif self.transform_options.weekend_date_rule == WeekendDateRules.ALL_TO_FRIDAY:
             df[date_col] = np.where(df[date_col].dt.day_name() == 'Saturday', df[date_col] - timedelta(days=1), df[date_col])
             df[date_col] = np.where(df[date_col].dt.day_name() == 'Sunday', df[date_col] - timedelta(days=2), df[date_col])
-        elif weekend_date_rule == WeekendDateRules.AS_IS:
+        elif self.transform_options.weekend_date_rule == WeekendDateRules.AS_IS:
             pass
 
         return df

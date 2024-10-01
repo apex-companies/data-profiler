@@ -26,3 +26,6 @@ class WeekendDateRules(str, Enum):
 class TransformOptions(BaseModel):
     date_for_analysis: DateForAnalysis | None = None
     weekend_date_rule: WeekendDateRules | None = None
+    process_inbound_data: bool = True
+    process_inventory_data: bool = True
+    process_outbound_data: bool = True

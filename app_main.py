@@ -48,10 +48,13 @@ dp = DataProfiler(project_number='TESTNATIVE', dev=True)
 # print(dp.get_output_tables_projects())
 print(dp.get_project_info())
 
-print(dp.transform_and_upload_data(data_directory="C:\\Users\\jack.miller\\Documents\\Apex\\Consulting\\Client Studies\\CJ Logistics\\data\\clean - only pallet pick",
-                                   transform_options=TransformOptions(date_for_analysis=DateForAnalysis.SHIP_DATE, weekend_date_rule=WeekendDateRules.AS_IS)))
+# print(dp.transform_and_upload_data(data_directory="C:\\Users\\jack.miller\\Documents\\Apex\\Consulting\\Client Studies\\CJ Logistics\\data\\clean - only pallet pick",
+# print(dp.transform_and_upload_data(data_directory="C:\\Users\\jack.miller\\Documents\\Apex\\Consulting\\Client Studies\\Mondelez\\data\\Kent - AAS24-018539\\clean",
+# print(dp.transform_and_upload_data(data_directory="test data sets/MDLZ Kent - no ib",
+#                                    transform_options=TransformOptions(date_for_analysis=DateForAnalysis.SHIP_DATE, weekend_date_rule=WeekendDateRules.AS_IS,
+#                                                                       process_inbound_data=False)))
 
-# print(dp.delete_project_data())
+print(dp.delete_project_data())
 
 # 9:45:00 AM   2550000010     395703
 
