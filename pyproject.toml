@@ -8,6 +8,10 @@ packages = [{include = "data_profiler"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
+pydantic = "^2.9.2"
+pyodbc = "^5.1.0"
+cryptography = "^43.0.1"
+pandas = "^2.2.3"
 
 
 [build-system]
