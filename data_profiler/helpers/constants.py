@@ -1,6 +1,20 @@
 
 from enum import Enum
 
+
+###############
+### General ###
+###############
+
+# Resources
+RESOURCES_DIR = './resources'
+RESOURCES_DIR_DEV = './resources'
+
+
+
+
+
+
 ######################
 ### Uploaded Files ###
 ######################
