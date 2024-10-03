@@ -65,7 +65,7 @@ app.mainloop()
 # # print(dp.transform_and_upload_data(data_directory="C:\\Users\\jack.miller\\Documents\\Apex\\Consulting\\Client Studies\\Mondelez\\data\\Kent - AAS24-018539\\clean",
 # print(dp.transform_and_upload_data(data_directory="test data sets/MDLZ Kent - no ib",
 #                                    transform_options=TransformOptions(date_for_analysis=DateForAnalysis.SHIP_DATE, weekend_date_rule=WeekendDateRules.AS_IS,
-#                                                                       process_inbound_data=False)))
+#                                                                       process_inbound_data=False, process_outbound_data=False)))
 
 # # print(dp.delete_project_data())
 

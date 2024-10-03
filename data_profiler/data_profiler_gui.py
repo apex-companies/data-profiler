@@ -20,6 +20,7 @@ from .frames.custom_widgets import StaticValueWithLabel, ConfirmDeleteDialog
 from .data_profiler import DataProfiler
 
 from apex_gui.apex_app import ApexApp
+from apex_gui.frames.notification_dialogs import NotificationDialog
 from apex_gui.frames.styled_widgets import Page, PageContainer, Section, Frame, SectionHeaderLabel, PositiveButton, NeutralButton, NegativeButton, IconButton
 from apex_gui.frames.custom_widgets import EntryWithLabel
 from apex_gui.styles.fonts import AppSubtitleFont, SectionHeaderFont, SectionSubheaderFont
@@ -57,6 +58,7 @@ class DataProfilerGUI(ApexApp):
         # https://stackoverflow.com/questions/34276663/tkinter-gui-layout-using-frames-and-grid
         # self._create_self()
         self._create_start_frame()
+        self._create_loading_frame()
         # self._create_home_frame()
         # # self._create_project_number_frame()
         # self._create_switches_frame()
@@ -64,12 +66,13 @@ class DataProfilerGUI(ApexApp):
         # self._create_loading_frame()
 
         ''' Grid self '''
-        self._grid_start_frame()
+        # self._grid_start_frame()
+        # self._grid_loading_frame()
         # self._grid_home_frame()
 
         ''' Toggle grids '''
         # Ungrid everything but start
-        # self._toggle_frame_grid(frame=self.home_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
         self._toggle_project_number_frame_grid(grid=False)
 
         self._toggle_frame_grid(frame=self.start_frame, grid=True)
@@ -93,6 +96,9 @@ class DataProfilerGUI(ApexApp):
 
         # Submit
         self.start_frame_submit = PositiveButton(self.start_frame_content_frame, text="Submit", command=self._start_frame_submit_action)
+
+        # Grid
+        self._grid_start_frame()
 
     def _create_home_frame(self): #, project_info: ExistingProjectProjectInfo):
         self.home_frame = Page(self)
@@ -132,12 +138,22 @@ class DataProfilerGUI(ApexApp):
         self.home_frame_order_header_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Order Header File', value=str(self.project_info.uploaded_file_paths.order_header))
         self.home_frame_order_details_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Order Details File', value=str(self.project_info.uploaded_file_paths.order_details))
 
-        self.delete_project_data_button = NeutralButton(self.home_frame_data_info_frame, text='Delete Project Data', command=self.delete_project_data_action,
-                                                        state='disabled' if not self.project_info.data_uploaded else 'normal')
+        self.delete_project_data_button = NeutralButton(self.home_frame_data_info_frame, text='Delete Project Data', command=self.delete_project_data_action)
+        self.home_frame_upload_data_button = PositiveButton(self.home_frame_data_info_frame, text='Upload Data', command=self.upload_data_action)
 
-
+        # Grid
         self._grid_home_frame()
 
+    def _create_loading_frame(self):
+        self.loading_frame = Page(self)
+
+        self.loading_frame_content_frame = Section(self.loading_frame)
+
+        self.loading_frame_text_var = StringVar(self.loading_frame_content_frame, 'Loading...')
+        self.loading_frame_label = CTkLabel(self.loading_frame_content_frame, textvariable=self.loading_frame_text_var, wraplength=450)
+
+        # Grid
+        self._grid_loading_frame()
 
     ''' Grid frames '''
 
@@ -220,8 +236,27 @@ class DataProfilerGUI(ApexApp):
         self.home_frame_order_header_file.grid(row=8, column=0, sticky='ew', padx=50, pady=(20, 0))
         self.home_frame_order_details_file.grid(row=9, column=0, sticky='ew', padx=50, pady=(20, 20))
 
-        self.delete_project_data_button.grid(row=10, column=0, padx=50, pady=(20, 20))
+        if self.project_info.data_uploaded:
+            self.delete_project_data_button.grid(row=10, column=0, padx=50, pady=(20, 20))
+        else:
+            self.home_frame_upload_data_button.grid(row=10, column=0, padx=50, pady=(20, 20))
 
+    def _grid_loading_frame(self):
+        # Parent = self
+        # self.loading_frame.grid(row=1,column=0, sticky='nsew')
+        self.grid_page(self.loading_frame)
+
+        # Parent = loading_frame
+        self.loading_frame.grid_columnconfigure(0, weight=1)
+        self.loading_frame.grid_rowconfigure(0, weight=1)
+
+        self.loading_frame_content_frame.grid(row=0, column=0)
+
+        # Parent = loading_frame_content_frame
+        self.loading_frame_content_frame.grid_columnconfigure(0, weight=1)
+        self.loading_frame_content_frame.grid_rowconfigure(0, weight=1)
+
+        self.loading_frame_label.grid(row=0, column=0, padx=50, pady=50)
 
     ''' Toggle grid '''
 
@@ -286,20 +321,74 @@ class DataProfilerGUI(ApexApp):
             print('INFO IS THE SAME. DONT DO ANYTHING')
         
         else:
-            print(f'--------------------- OLD ---------------------------')
-            print(current_project_info.model_dump())
-            print(f'--------------------- NEW ---------------------------')
-            pprint(new_project_info.model_dump())
-            print(f'SUBMITTING TO DB')
-            self.DataProfiler.update_project_info(new_project_info=new_project_info)
-            self._refresh_project_info()
-            print(f'DONE')
+            confirm_dialog = ConfirmDeleteDialog(self, title='Confirm Save', 
+                                                text=f'Are you sure you would like to save project info changes for {self._get_project_number()}?',
+                                                positive_action=self.save_project_info_changes,
+                                                negative_action=self.void)
+            
+            confirm_dialog.attributes('-topmost', True)
+            confirm_dialog.mainloop()
+
+        return
+    
+    def void(self):
+        return
+
+    def save_project_info_changes(self):
+        # Show loading frame while executing
+        self._set_loading_frame_text('Saving changes...')
+        self._toggle_frame_grid(frame=self.home_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
+        self.update()
+
+        # Create new project info object using inputs
+        current_project_info = self._get_project_info()
+
+        new_project_info = ExistingProjectProjectInfo(
+            project_number=self._get_project_number(),
+            project_name=self.home_frame_project_name.get_variable_value(),
+            company_name=self.home_frame_company.get_variable_value(),
+            company_location=self.home_frame_company_location.get_variable_value(),
+            salesperson=self.home_frame_salesperson.get_variable_value(),
+            email=self.home_frame_email.get_variable_value(),
+            start_date=self.home_frame_start_date.get_variable_value(),
+            notes=self.home_frame_notes.get_variable_value(),
+            data_uploaded=current_project_info.data_uploaded,
+            upload_date=current_project_info.upload_date,
+            transform_options=current_project_info.transform_options,
+            uploaded_file_paths=current_project_info.uploaded_file_paths
+        )
+        
+        # Submit changes to DB
+        print(f'--------------------- OLD ---------------------------')
+        print(current_project_info.model_dump())
+        print(f'--------------------- NEW ---------------------------')
+        pprint(new_project_info.model_dump())
+        print(f'SUBMITTING TO DB')
+        self.DataProfiler.update_project_info(new_project_info=new_project_info)
+        self._refresh_project_info()
+        print(f'DONE')
+
+        # Show self again
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+        self._toggle_frame_grid(frame=self.home_frame, grid=True)
+        self.update()
+
+        notification_dialog = NotificationDialog(self, title='Success!', text='Saved project info changes to database.')
+
+        # Display notification of results
+        notification_dialog.attributes('-topmost', True)
+        notification_dialog.mainloop()
+
+
+    def upload_data_action(self):
+        pass
 
     def delete_project_data_action(self):
         confirm_dialog = ConfirmDeleteDialog(self, title='Confirm Deletion', 
                                              text=f'Are you sure you would like to delete project data for {self._get_project_number()}?',
                                              positive_action=self.delete_project_data,
-                                             negative_action=None)
+                                             negative_action=self.void)
         
         confirm_dialog.attributes('-topmost', True)
         confirm_dialog.mainloop()
@@ -307,6 +396,12 @@ class DataProfilerGUI(ApexApp):
         return
     
     def delete_project_data(self):
+        # Show loading frame while executing
+        self._set_loading_frame_text('Deleting project data...')
+        self._toggle_frame_grid(frame=self.home_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
+        self.update()
+
         if not self._get_project_info().data_uploaded:
             print(f'NOTHING TO DELETE')
         else:
@@ -314,6 +409,21 @@ class DataProfilerGUI(ApexApp):
             self.DataProfiler.delete_project_data()
             self._refresh_project_info()
             print(f'DONE')
+        
+        self._create_home_frame()
+
+        # Show self again
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+        self._toggle_frame_grid(frame=self.home_frame, grid=True)
+        self.update()
+
+        notification_dialog = NotificationDialog(self, title='Success!', text='Deleted project data successfully.')
+
+        # Display notification of results
+        notification_dialog.attributes('-topmost', True)
+        notification_dialog.mainloop()
+
+
 
     ''' Critical functions '''
 
@@ -334,3 +444,6 @@ class DataProfilerGUI(ApexApp):
     
     def _refresh_project_info(self):
         self.project_info = self.DataProfiler.get_project_info()
+
+    def _set_loading_frame_text(self, text: str):
+        self.loading_frame_text_var.set(text)

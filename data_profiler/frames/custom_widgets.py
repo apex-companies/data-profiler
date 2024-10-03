@@ -39,9 +39,9 @@ class ConfirmDeleteDialog(NotificationDialog):
         self.positive_action_btn.grid(row=0, column=1, padx=(5,0))
 
     def positive_action(self):
-        self.positive_action_func()
         self.destroy()
+        self.positive_action_func()
     
     def negative_action(self):
-        self.negative_action_func()
         self.destroy()
+        self.negative_action_func()

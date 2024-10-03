@@ -167,11 +167,11 @@ class DataProfiler:
             # order_header = f'{data_directory}/{UploadFileTypes.ORDER_HEADER.value}.csv',
             # order_details = f'{data_directory}/{UploadFileTypes.ORDER_DETAILS.value}.csv'
             item_master = data_directory_validation.item_master.file_path,
-            inbound_header = data_directory_validation.inbound_header.file_path,
-            inbound_details = data_directory_validation.inbound_details.file_path,
-            inventory = data_directory_validation.inventory.file_path,
-            order_header = data_directory_validation.order_header.file_path,
-            order_details = data_directory_validation.order_details.file_path
+            inbound_header = data_directory_validation.inbound_header.file_path if transform_options.process_inbound_data else '',
+            inbound_details = data_directory_validation.inbound_details.file_path if transform_options.process_inbound_data else '',
+            inventory = data_directory_validation.inventory.file_path if transform_options.process_inventory_data else '',
+            order_header = data_directory_validation.order_header.file_path if transform_options.process_outbound_data else '',
+            order_details = data_directory_validation.order_details.file_path if transform_options.process_outbound_data else ''
             # item_master = UploadedFile(file_type=UploadFileTypes.ITEM_MASTER, file_path=f'{data_directory}/{UploadFileTypes.ITEM_MASTER.value}.csv'),
             # inbound_header = UploadedFile(file_type=UploadFileTypes.INBOUND_HEADER, file_path=f'{data_directory}/{UploadFileTypes.INBOUND_HEADER.value}.csv'),
             # inbound_details = UploadedFile(file_type=UploadFileTypes.INBOUND_DETAILS, file_path=f'{data_directory}/{UploadFileTypes.INBOUND_DETAILS.value}.csv'),
