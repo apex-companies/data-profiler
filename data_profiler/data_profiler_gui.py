@@ -14,15 +14,16 @@ from customtkinter import CTkScrollableFrame, CTkLabel, StringVar, CTkEntry, CTk
 from PIL import Image
 
 from .models.ProjectInfo import ExistingProjectProjectInfo
+from .models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
 from .helpers.constants import RESOURCES_DIR, RESOURCES_DIR_DEV
-from .frames.custom_widgets import StaticValueWithLabel, ConfirmDeleteDialog
+from .frames.custom_widgets import StaticValueWithLabel, ConfirmDeleteDialog, DropdownWithLabel
 
 from .data_profiler import DataProfiler
 
 from apex_gui.apex_app import ApexApp
 from apex_gui.frames.notification_dialogs import NotificationDialog
 from apex_gui.frames.styled_widgets import Page, PageContainer, Section, Frame, SectionHeaderLabel, PositiveButton, NeutralButton, NegativeButton, IconButton
-from apex_gui.frames.custom_widgets import EntryWithLabel
+from apex_gui.frames.custom_widgets import EntryWithLabel, FileBrowser, CheckbuttonWithLabel
 from apex_gui.styles.fonts import AppSubtitleFont, SectionHeaderFont, SectionSubheaderFont
 from apex_gui.styles.colors import *
 from apex_gui.helpers.constants import EntryType
@@ -59,6 +60,7 @@ class DataProfilerGUI(ApexApp):
         # self._create_self()
         self._create_start_frame()
         self._create_loading_frame()
+        self._create_upload_data_frame()
         # self._create_home_frame()
         # # self._create_project_number_frame()
         # self._create_switches_frame()
@@ -73,6 +75,7 @@ class DataProfilerGUI(ApexApp):
         ''' Toggle grids '''
         # Ungrid everything but start
         self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
         self._toggle_project_number_frame_grid(grid=False)
 
         self._toggle_frame_grid(frame=self.start_frame, grid=True)
@@ -139,10 +142,35 @@ class DataProfilerGUI(ApexApp):
         self.home_frame_order_details_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Order Details File', value=str(self.project_info.uploaded_file_paths.order_details))
 
         self.delete_project_data_button = NeutralButton(self.home_frame_data_info_frame, text='Delete Project Data', command=self.delete_project_data_action)
-        self.home_frame_upload_data_button = PositiveButton(self.home_frame_data_info_frame, text='Upload Data', command=self.upload_data_action)
+        self.home_frame_upload_data_button = PositiveButton(self.home_frame_data_info_frame, text='Upload Data', command=self.show_upload_data_frame_action)
 
         # Grid
         self._grid_home_frame()
+
+
+    def _create_upload_data_frame(self):
+        self.upload_frame = Page(self)
+
+        self.upload_frame_content_frame = Section(self.upload_frame)
+
+        self.upload_frame_title = CTkLabel(self.upload_frame_content_frame, text='Upload Project Data', font=SectionHeaderFont())
+
+        self.upload_frame_data_directory_browse = FileBrowser(self.upload_frame_content_frame, label_text='Select a data directory', path_type='folder', label_font=SectionSubheaderFont())
+
+        self.upload_frame_date_for_analysis = DropdownWithLabel(self.upload_frame_content_frame, label_text='Date for Analysis', default_val=DateForAnalysis.PICK_DATE.value,
+                                                                dropdown_values=[DateForAnalysis.RECEIVED_DATE.value, DateForAnalysis.PICK_DATE.value, DateForAnalysis.SHIP_DATE.value])
+        self.upload_frame_weekend_date_rule = DropdownWithLabel(self.upload_frame_content_frame, label_text='Weekend Date Rule', default_val=WeekendDateRules.AS_IS.value,
+                                                                dropdown_values=[WeekendDateRules.NEAREST_WEEKDAY.value, WeekendDateRules.ALL_TO_FRIDAY.value, WeekendDateRules.ALL_TO_MONDAY.value, WeekendDateRules.AS_IS.value])
+
+        self.upload_frame_process_inbound_data = CheckbuttonWithLabel(self.upload_frame_content_frame, label_text='Process Inbound Data', default_val=True)
+        self.upload_frame_process_inventory_data = CheckbuttonWithLabel(self.upload_frame_content_frame, label_text='Process Inventory Data', default_val=True)
+        self.upload_frame_process_outbound_data = CheckbuttonWithLabel(self.upload_frame_content_frame, label_text='Process Outbound Data', default_val=True)
+
+        self.upload_frame_submit_btn = PositiveButton(self.upload_frame_content_frame, text='Submit', command=self.upload_data_action)
+
+        # Grid
+        self._grid_upload_frame()
+
 
     def _create_loading_frame(self):
         self.loading_frame = Page(self)
@@ -154,6 +182,7 @@ class DataProfilerGUI(ApexApp):
 
         # Grid
         self._grid_loading_frame()
+
 
     ''' Grid frames '''
 
@@ -241,6 +270,29 @@ class DataProfilerGUI(ApexApp):
         else:
             self.home_frame_upload_data_button.grid(row=10, column=0, padx=50, pady=(20, 20))
 
+    def _grid_upload_frame(self):
+        # Parent = self
+        self.grid_page(self.upload_frame)
+
+        # Parent = upload_frame
+        self.upload_frame.grid_columnconfigure(0, weight=1)
+        self.upload_frame.grid_rowconfigure(0, weight=1)
+
+        self.upload_frame_content_frame.grid(row=0, column=0)
+
+        # Parent = upload_frame_content_frame
+        self.upload_frame_title.grid(row=0, column=0, sticky='ew', padx=50, pady=(20,0))
+
+        self.upload_frame_data_directory_browse.grid(row=1, column=0, sticky='ew', padx=50, pady=(50, 0))
+        self.upload_frame_date_for_analysis.grid(row=2, column=0, padx=50, sticky='ew', pady=(20, 0))
+        self.upload_frame_weekend_date_rule.grid(row=3, column=0, sticky='ew', padx=50, pady=(20, 0))
+        self.upload_frame_process_inbound_data.grid(row=4, column=0, sticky='ew', padx=50, pady=(20, 0))
+        self.upload_frame_process_inventory_data.grid(row=5, column=0, sticky='ew', padx=50, pady=(20, 0))
+        self.upload_frame_process_outbound_data.grid(row=6, column=0, sticky='ew', padx=50, pady=(20, 50))
+
+        self.upload_frame_submit_btn.grid(row=7, column=0, sticky='ew', padx=50, pady=20)
+
+
     def _grid_loading_frame(self):
         # Parent = self
         # self.loading_frame.grid(row=1,column=0, sticky='nsew')
@@ -286,18 +338,31 @@ class DataProfilerGUI(ApexApp):
     ''' Button actions '''
 
     def _start_frame_submit_action(self):
+        # Show loading frame while executing
+        self._set_loading_frame_text('Loading...')
+        self._toggle_frame_grid(frame=self.start_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
+        self.update()
+
         # Initialize a DataProfiler instance
         self._init_data_profiler()
 
         # Does the project number exist?
         if self.DataProfiler.get_project_exists():
             # Create home frame with project info
-            self._create_home_frame()#project_info=self.DataProfiler.get_project_info())
+            self._create_home_frame() #project_info=self.DataProfiler.get_project_info())
 
-            self._toggle_frame_grid(frame=self.start_frame, grid=False)
+            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
             self._toggle_frame_grid(frame=self.home_frame, grid=True)
 
             self._toggle_project_number_frame_grid(grid=True)
+
+        else:
+            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+            self._toggle_frame_grid(frame=self.start_frame, grid=True)
+
+        self.update()
+
 
     def save_project_info_changes_action(self):
         current_project_info = self._get_project_info()
@@ -381,8 +446,66 @@ class DataProfilerGUI(ApexApp):
         notification_dialog.mainloop()
 
 
+    # def validate_data_directory(self):
+
+    #     pass
+
     def upload_data_action(self):
-        pass
+        data_dir = self.upload_frame_data_directory_browse.get_path()
+
+        transform_options = TransformOptions(
+            date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
+            weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
+            process_inbound_data=self.upload_frame_process_inbound_data.get_value(),
+            process_inventory_data=self.upload_frame_process_inventory_data.get_value(),
+            process_outbound_data=self.upload_frame_process_outbound_data.get_value(),
+        )
+
+        data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
+        if not data_directory_validation.is_valid:
+            errors_str = '\n'.join(data_directory_validation.errors_list)
+            # Display error
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Data directory is not valid:\n{errors_str}')
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+
+            print(f'DATA DIR NOT VALID')
+            return
+        
+        # Show loading frame while executing
+        self._set_loading_frame_text('Transforming and uploading data...')
+        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
+        self.update()
+
+        results = self.DataProfiler.transform_and_upload_data(data_directory=data_dir, transform_options=transform_options)
+
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+        if not results.success:
+            self._toggle_frame_grid(frame=self.upload_frame, grid=True)
+
+            # Display notification of results
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble with the upload:\n{results.message}')
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+
+        else:
+            self._refresh_project_info()
+            self._create_home_frame()
+
+            # Back to home
+            self._toggle_frame_grid(frame=self.home_frame, grid=True)
+
+            # Display notification of results
+            notification_dialog = NotificationDialog(self, title='Success!', text=f'Successful transformation and data upload:\n{results.rows_inserted.model_dump()}')
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+
+
+    def show_upload_data_frame_action(self):
+        self._toggle_frame_grid(self.home_frame, grid=False)
+        self._toggle_frame_grid(self.upload_frame, grid=True)
+
 
     def delete_project_data_action(self):
         confirm_dialog = ConfirmDeleteDialog(self, title='Confirm Deletion', 

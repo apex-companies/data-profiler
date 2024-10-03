@@ -34,7 +34,7 @@ from .services.transform_service import TransformService
 
 class DataProfiler:
 
-    def __init__(self, project_number: Annotated[str, 'Apex Project Number'], dev: bool = False):
+    def __init__(self, project_number: str, dev: bool = False):
         
         # Instantiate variables
         self.project_number = project_number
@@ -52,7 +52,7 @@ class DataProfiler:
         
         # If project exists, update relevant variables
         project_numbers = self.get_output_tables_projects()
-        if project_number in project_numbers:
+        if project_number in set(project_numbers):
             self.project_exists = True
             self.refresh_project_info()
         
@@ -112,7 +112,7 @@ class DataProfiler:
             raise ValueError('Project already has data uploaded. If you would like to update project data, delete it and re-upload.')
         
         # Validate data directory
-        data_directory_validation = self.validate_data_directory(data_directory=data_directory)
+        data_directory_validation = self.validate_data_directory(data_directory=data_directory, transform_options=transform_options)
         pprint(data_directory_validation.model_dump())
 
         if not data_directory_validation.is_valid:
@@ -424,7 +424,7 @@ class DataProfiler:
     ''' Main Functions - Validation '''
 
 
-    def validate_data_directory(self, data_directory: str) -> DataDirectoryValidation: 
+    def validate_data_directory(self, data_directory: str, transform_options: TransformOptions) -> DataDirectoryValidation: 
         '''
         Validates a given data directory. 
 
@@ -455,52 +455,55 @@ class DataProfiler:
         else:
             validation_obj.errors_list.append(FILE_ERROR_MISSING_ITEM_MASTER)
 
-        # Inbound Header
-        if validation_obj.inbound_header.is_present:
-            validation_obj.given_files.append(UploadFileTypes.INBOUND_HEADER.value)
-
-            if len(validation_obj.inbound_header.missing_columns) > 0:
-                validation_obj.errors_list.append(FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS)
-        else:
-            if validation_obj.inbound_details.is_present:
-                validation_obj.errors_list.append(FILE_ERROR_INBOUND_NO_HEADER)     # Inbound Details given with no Inbound Header
-
-        # Inbound Details
-        if validation_obj.inbound_details.is_present:
-            validation_obj.given_files.append(UploadFileTypes.INBOUND_DETAILS.value)
-
-            if len(validation_obj.inbound_details.missing_columns) > 0:
-                validation_obj.errors_list.append(FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS)
-        else:
+        if transform_options.process_inbound_data:
+            # Inbound Header
             if validation_obj.inbound_header.is_present:
-                validation_obj.errors_list.append(FILE_ERROR_INBOUND_NO_DETAILS)     # Inbound Header given with no Inbound Details
+                validation_obj.given_files.append(UploadFileTypes.INBOUND_HEADER.value)
 
-        # Inventory
-        if validation_obj.inventory.is_present:
-            validation_obj.given_files.append(UploadFileTypes.INVENTORY.value)
+                if len(validation_obj.inbound_header.missing_columns) > 0:
+                    validation_obj.errors_list.append(FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS)
+            else:
+                if validation_obj.inbound_details.is_present:
+                    validation_obj.errors_list.append(FILE_ERROR_INBOUND_NO_HEADER)     # Inbound Details given with no Inbound Header
 
-            if len(validation_obj.inventory.missing_columns) > 0:
-                validation_obj.errors_list.append(FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS)
+            # Inbound Details
+            if validation_obj.inbound_details.is_present:
+                validation_obj.given_files.append(UploadFileTypes.INBOUND_DETAILS.value)
 
-        # Order Header
-        if validation_obj.order_header.is_present:
-            validation_obj.given_files.append(UploadFileTypes.ORDER_HEADER.value)
+                if len(validation_obj.inbound_details.missing_columns) > 0:
+                    validation_obj.errors_list.append(FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS)
+            else:
+                if validation_obj.inbound_header.is_present:
+                    validation_obj.errors_list.append(FILE_ERROR_INBOUND_NO_DETAILS)     # Inbound Header given with no Inbound Details
 
-            if len(validation_obj.order_header.missing_columns) > 0:
-                validation_obj.errors_list.append(FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS)
-        else:
-            if validation_obj.order_details.is_present:
-                validation_obj.errors_list.append(FILE_ERROR_OUTBOUND_NO_HEADER)     # Outbound Header given with no Outbound Details
+        if transform_options.process_inventory_data:
+            # Inventory
+            if validation_obj.inventory.is_present:
+                validation_obj.given_files.append(UploadFileTypes.INVENTORY.value)
 
-        # Order Details
-        if validation_obj.order_details.is_present:
-            validation_obj.given_files.append(UploadFileTypes.ORDER_DETAILS.value)
+                if len(validation_obj.inventory.missing_columns) > 0:
+                    validation_obj.errors_list.append(FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS)
 
-            if len(validation_obj.order_details.missing_columns) > 0:
-                validation_obj.errors_list.append(FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS)
-        else:
+        if transform_options.process_outbound_data:
+            # Order Header
             if validation_obj.order_header.is_present:
-                validation_obj.errors_list.append(FILE_ERROR_OUTBOUND_NO_DETAILS)     # Outbound Header given with no Outbound Details
+                validation_obj.given_files.append(UploadFileTypes.ORDER_HEADER.value)
+
+                if len(validation_obj.order_header.missing_columns) > 0:
+                    validation_obj.errors_list.append(FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS)
+            else:
+                if validation_obj.order_details.is_present:
+                    validation_obj.errors_list.append(FILE_ERROR_OUTBOUND_NO_HEADER)     # Outbound Header given with no Outbound Details
+
+            # Order Details
+            if validation_obj.order_details.is_present:
+                validation_obj.given_files.append(UploadFileTypes.ORDER_DETAILS.value)
+
+                if len(validation_obj.order_details.missing_columns) > 0:
+                    validation_obj.errors_list.append(FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS)
+            else:
+                if validation_obj.order_header.is_present:
+                    validation_obj.errors_list.append(FILE_ERROR_OUTBOUND_NO_DETAILS)     # Outbound Header given with no Outbound Details
 
         if len(validation_obj.errors_list) > 0:
             validation_obj.is_valid = False
