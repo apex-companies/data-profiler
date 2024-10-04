@@ -13,7 +13,7 @@ from customtkinter import CTkScrollableFrame, CTkLabel, StringVar, CTkEntry, CTk
       CTkTextbox, CTkImage, CTkOptionMenu
 from PIL import Image
 
-from .models.ProjectInfo import ExistingProjectProjectInfo
+from .models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
 from .helpers.constants import RESOURCES_DIR, RESOURCES_DIR_DEV
 from .frames.custom_widgets import StaticValueWithLabel, ConfirmDeleteDialog, DropdownWithLabel
@@ -54,11 +54,16 @@ class DataProfilerGUI(ApexApp):
         self.DataProfiler: DataProfiler = None
         self.project_info: ExistingProjectProjectInfo = None
 
+        ''' Icons '''
+        back_icon_path = f'{RESOURCES_DIR_DEV if self.dev else RESOURCES_DIR}/back-icon-win-10.png'
+        self.back_icon = CTkImage(light_image=Image.open(back_icon_path), size=(26, 26))
+
         ''' Create self '''
 
         # https://stackoverflow.com/questions/34276663/tkinter-gui-layout-using-frames-and-grid
         # self._create_self()
         self._create_start_frame()
+        self._create_new_project_frame()
         self._create_loading_frame()
         self._create_upload_data_frame()
         # self._create_home_frame()
@@ -76,6 +81,7 @@ class DataProfilerGUI(ApexApp):
         # Ungrid everything but start
         self._toggle_frame_grid(frame=self.loading_frame, grid=False)
         self._toggle_frame_grid(frame=self.upload_frame, grid=False)
+        self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
         self._toggle_project_number_frame_grid(grid=False)
 
         self._toggle_frame_grid(frame=self.start_frame, grid=True)
@@ -103,12 +109,39 @@ class DataProfilerGUI(ApexApp):
         # Grid
         self._grid_start_frame()
 
-    def _create_home_frame(self): #, project_info: ExistingProjectProjectInfo):
+    def _create_new_project_frame(self):
+        self.new_project_frame = Page(self)
+
+        self.new_project_frame_header_frame = CTkFrame(self.new_project_frame, fg_color=APEX_LIGHT_GRAY, corner_radius=0)
+        self.new_project_frame_title = CTkLabel(self.new_project_frame_header_frame, text='Start New Project', font=AppSubtitleFont())
+        self.new_project_frame_logout_btn = IconButton(self.new_project_frame_header_frame, image=self.back_icon, command=self.logout_action)
+
+        self.new_project_frame_content_frame = Frame(self.new_project_frame)
+
+        self.new_project_frame_project_info_frame = Section(self.new_project_frame_content_frame)
+        
+        # self.new_project_frame_project_number = StaticValueWithLabel(self.new_project_frame_project_info_frame, value=self._get_project_number(), label_text='Project Number')
+        self.new_project_frame_project_name = EntryWithLabel(self.new_project_frame_project_info_frame, label_text='Project Name', default_val='', entry_type=EntryType.String)
+        self.new_project_frame_company = EntryWithLabel(self.new_project_frame_project_info_frame, label_text='Company', default_val='', entry_type=EntryType.String)
+        self.new_project_frame_company_location = EntryWithLabel(self.new_project_frame_project_info_frame, label_text='Location', default_val='', entry_type=EntryType.String)
+        self.new_project_frame_salesperson = EntryWithLabel(self.new_project_frame_project_info_frame, label_text='Salesperson', default_val='', entry_type=EntryType.String)
+        self.new_project_frame_email = EntryWithLabel(self.new_project_frame_project_info_frame, label_text='Email', default_val='', entry_type=EntryType.String)
+        self.new_project_frame_start_date = EntryWithLabel(self.new_project_frame_project_info_frame, label_text='Start Date (yyyy-mm-dd)', default_val='', entry_type=EntryType.Date)
+        self.new_project_frame_notes = EntryWithLabel(self.new_project_frame_project_info_frame, label_text='Notes', default_val='', entry_type=EntryType.String)
+        
+        self.new_project_frame_submit_project_info_btn = PositiveButton(self.new_project_frame_project_info_frame, text='Create Project', command=self.create_project_action)
+
+        # Grid
+        self._grid_new_project_frame()
+
+    def _create_home_frame(self):
         self.home_frame = Page(self)
 
         self.home_frame_header_frame = CTkFrame(self.home_frame, fg_color=APEX_LIGHT_GRAY, corner_radius=0)
         self.home_frame_title = CTkLabel(self.home_frame_header_frame, text='Data Profile Dashboard', font=AppSubtitleFont())
         
+        self.home_frame_logout_btn = IconButton(self.home_frame_header_frame, image=self.back_icon, command=self.logout_action)
+
         self.home_frame_content_container = CTkScrollableFrame(self.home_frame, fg_color='transparent', corner_radius=0)
         
         self.home_frame_project_info_container = Frame(self.home_frame_content_container)
@@ -122,7 +155,7 @@ class DataProfilerGUI(ApexApp):
         self.home_frame_company_location = EntryWithLabel(self.home_frame_project_info_frame, label_text='Location', default_val=self.project_info.company_location, entry_type=EntryType.String)
         self.home_frame_salesperson = EntryWithLabel(self.home_frame_project_info_frame, label_text='Salesperson', default_val=self.project_info.salesperson, entry_type=EntryType.String)
         self.home_frame_email = EntryWithLabel(self.home_frame_project_info_frame, label_text='Email', default_val=self.project_info.email, entry_type=EntryType.String)
-        self.home_frame_start_date = EntryWithLabel(self.home_frame_project_info_frame, label_text='Start Date', default_val=self.project_info.start_date, entry_type=EntryType.String)
+        self.home_frame_start_date = EntryWithLabel(self.home_frame_project_info_frame, label_text='Start Date (yyyy-mm-dd)', default_val=self.project_info.start_date, entry_type=EntryType.String)
         self.home_frame_notes = EntryWithLabel(self.home_frame_project_info_frame, label_text='Notes', default_val=self.project_info.notes, entry_type=EntryType.String)
         
         self.save_project_info_changes_button = PositiveButton(self.home_frame_project_info_frame, text='Save Changes', command=self.save_project_info_changes_action)
@@ -151,22 +184,29 @@ class DataProfilerGUI(ApexApp):
     def _create_upload_data_frame(self):
         self.upload_frame = Page(self)
 
-        self.upload_frame_content_frame = Section(self.upload_frame)
+        self.upload_frame_header_frame = CTkFrame(self.upload_frame, fg_color=APEX_LIGHT_GRAY, corner_radius=0)
+        
+        self.upload_frame_title = CTkLabel(self.upload_frame_header_frame, text='Upload Project Data', font=AppSubtitleFont())
+        self.upload_frame_back_to_home_btn = IconButton(self.upload_frame_header_frame, image=self.back_icon, command=self.upload_frame_back_to_home_action)
 
-        self.upload_frame_title = CTkLabel(self.upload_frame_content_frame, text='Upload Project Data', font=SectionHeaderFont())
+        self.upload_frame_content_frame = Frame(self.upload_frame)
 
-        self.upload_frame_data_directory_browse = FileBrowser(self.upload_frame_content_frame, label_text='Select a data directory', path_type='folder', label_font=SectionSubheaderFont())
+        self.upload_frame_upload_section = Section(self.upload_frame_content_frame)
 
-        self.upload_frame_date_for_analysis = DropdownWithLabel(self.upload_frame_content_frame, label_text='Date for Analysis', default_val=DateForAnalysis.PICK_DATE.value,
+        # self.upload_frame_title = CTkLabel(self.upload_frame_content_frame, text='Upload Project Data', font=SectionHeaderFont())
+
+        self.upload_frame_data_directory_browse = FileBrowser(self.upload_frame_upload_section, label_text='Select a data directory', path_type='folder', label_font=SectionSubheaderFont())
+
+        self.upload_frame_date_for_analysis = DropdownWithLabel(self.upload_frame_upload_section, label_text='Date for Analysis', default_val=DateForAnalysis.PICK_DATE.value,
                                                                 dropdown_values=[DateForAnalysis.RECEIVED_DATE.value, DateForAnalysis.PICK_DATE.value, DateForAnalysis.SHIP_DATE.value])
-        self.upload_frame_weekend_date_rule = DropdownWithLabel(self.upload_frame_content_frame, label_text='Weekend Date Rule', default_val=WeekendDateRules.AS_IS.value,
+        self.upload_frame_weekend_date_rule = DropdownWithLabel(self.upload_frame_upload_section, label_text='Weekend Date Rule', default_val=WeekendDateRules.AS_IS.value,
                                                                 dropdown_values=[WeekendDateRules.NEAREST_WEEKDAY.value, WeekendDateRules.ALL_TO_FRIDAY.value, WeekendDateRules.ALL_TO_MONDAY.value, WeekendDateRules.AS_IS.value])
 
-        self.upload_frame_process_inbound_data = CheckbuttonWithLabel(self.upload_frame_content_frame, label_text='Process Inbound Data', default_val=True)
-        self.upload_frame_process_inventory_data = CheckbuttonWithLabel(self.upload_frame_content_frame, label_text='Process Inventory Data', default_val=True)
-        self.upload_frame_process_outbound_data = CheckbuttonWithLabel(self.upload_frame_content_frame, label_text='Process Outbound Data', default_val=True)
+        self.upload_frame_process_inbound_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Inbound Data', default_val=True)
+        self.upload_frame_process_inventory_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Inventory Data', default_val=True)
+        self.upload_frame_process_outbound_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Outbound Data', default_val=True)
 
-        self.upload_frame_submit_btn = PositiveButton(self.upload_frame_content_frame, text='Submit', command=self.upload_data_action)
+        self.upload_frame_submit_btn = PositiveButton(self.upload_frame_upload_section, text='Submit', command=self.upload_data_action)
 
         # Grid
         self._grid_upload_frame()
@@ -202,6 +242,43 @@ class DataProfilerGUI(ApexApp):
         self.select_project_number_dropdown.grid(row=2, column=0, padx=50, sticky='ew', pady=(10, 50))
         self.start_frame_submit.grid(row=3, column=0, sticky='ew', padx=50, pady=20)
 
+    def _grid_new_project_frame(self):
+        # Parent = self
+        self.grid_page(self.new_project_frame)
+
+        self.new_project_frame.grid_columnconfigure(0, weight=1)
+        self.new_project_frame.grid_rowconfigure(1, weight=1)
+
+        # Parent = new_project_frame
+        self.new_project_frame_header_frame.grid(row=0, column=0, sticky='ew')
+        self.new_project_frame_content_frame.grid(row=1, column=0, sticky='nsew')
+        
+        # Parent = new_project_frame_header_frame
+        self.new_project_frame_header_frame.grid_columnconfigure(0, weight=1)
+
+        self.new_project_frame_title.grid(row=0, column=0, sticky='ew', pady=5)
+        self.new_project_frame_logout_btn.grid(row=0, column=0, sticky='w', padx=(19,0), pady=5)
+
+        # Parent = new_project_frame_content_frame
+        self.new_project_frame_content_frame.grid_rowconfigure(0, weight=1)
+        self.new_project_frame_content_frame.grid_columnconfigure(0, weight=1)
+
+        self.new_project_frame_project_info_frame.grid(row=0, column=0)
+
+        # Parent = home_frame_project_info_frame
+        self.new_project_frame_project_info_frame.grid_columnconfigure(0, weight=1)
+
+        # self.new_project_frame_project_number.grid(row=0, column=0, sticky='ew', padx=50, pady=(20, 0))
+        self.new_project_frame_project_name.grid(row=1, column=0, sticky='ew', padx=50, pady=(20, 0))
+        self.new_project_frame_company.grid(row=2, column=0, sticky='ew', padx=50, pady=(20, 0))
+        self.new_project_frame_company_location.grid(row=3, column=0, sticky='ew', padx=50, pady=(20, 0))
+        self.new_project_frame_salesperson.grid(row=4, column=0, sticky='ew', padx=50, pady=(20, 0))
+        self.new_project_frame_email.grid(row=5, column=0, sticky='ew', padx=50, pady=(20, 0))
+        self.new_project_frame_start_date.grid(row=6, column=0, sticky='ew', padx=50, pady=(20, 0))
+        self.new_project_frame_notes.grid(row=7, column=0, sticky='ew', padx=50, pady=20)
+        
+        self.new_project_frame_submit_project_info_btn.grid(row=8, column=0, padx=50, pady=20)
+
 
     def _grid_home_frame(self):
         # Parent = self
@@ -218,6 +295,7 @@ class DataProfilerGUI(ApexApp):
         self.home_frame_header_frame.grid_columnconfigure(0, weight=1)
 
         self.home_frame_title.grid(row=0, column=0, sticky='ew', pady=5)
+        self.home_frame_logout_btn.grid(row=0, column=0, sticky='w', padx=(19,0), pady=5)
 
         # Parent = home_frame_container
         self.home_frame_content_container.grid_rowconfigure(0, weight=1)
@@ -276,13 +354,24 @@ class DataProfilerGUI(ApexApp):
 
         # Parent = upload_frame
         self.upload_frame.grid_columnconfigure(0, weight=1)
-        self.upload_frame.grid_rowconfigure(0, weight=1)
+        self.upload_frame.grid_rowconfigure(1, weight=1)
 
-        self.upload_frame_content_frame.grid(row=0, column=0)
+        self.upload_frame_header_frame.grid(row=0, column=0, sticky='ew')
+        self.upload_frame_content_frame.grid(row=1, column=0, sticky='nsew')
+        
+        # Parent = home_frame_header_frame
+        self.upload_frame_header_frame.grid_columnconfigure(0, weight=1)
 
+        self.upload_frame_title.grid(row=0, column=0, sticky='ew', pady=5)
+        self.upload_frame_back_to_home_btn.grid(row=0, column=0, sticky='w', padx=(19,0), pady=5)
+        
         # Parent = upload_frame_content_frame
-        self.upload_frame_title.grid(row=0, column=0, sticky='ew', padx=50, pady=(20,0))
+        self.upload_frame_content_frame.grid_columnconfigure(0, weight=1)
+        self.upload_frame_content_frame.grid_rowconfigure(0, weight=1)
 
+        self.upload_frame_upload_section.grid(row=0, column=0)
+
+        # Parent = upload_frame_upload_section
         self.upload_frame_data_directory_browse.grid(row=1, column=0, sticky='ew', padx=50, pady=(50, 0))
         self.upload_frame_date_for_analysis.grid(row=2, column=0, padx=50, sticky='ew', pady=(20, 0))
         self.upload_frame_weekend_date_rule.grid(row=3, column=0, sticky='ew', padx=50, pady=(20, 0))
@@ -358,11 +447,88 @@ class DataProfilerGUI(ApexApp):
             self._toggle_project_number_frame_grid(grid=True)
 
         else:
-            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-            self._toggle_frame_grid(frame=self.start_frame, grid=True)
+            confirm_dialog = ConfirmDeleteDialog(self, title='Data Profiler', 
+                                             text=f'A data project for "{self._get_project_number()}" does not yet exist. Would you like to start one?',
+                                             positive_action=self.show_new_project_frame,
+                                             negative_action=self.logout_action)
+        
+            confirm_dialog.attributes('-topmost', True)
+            confirm_dialog.mainloop()
+
+            # return
+            # self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+            # self._toggle_frame_grid(frame=self.start_frame, grid=True)
 
         self.update()
 
+    def show_new_project_frame(self):
+        self._toggle_frame_grid(self.loading_frame, False)
+        self._toggle_frame_grid(self.start_frame, False)
+        self._toggle_frame_grid(self.new_project_frame, True)
+        self._toggle_project_number_frame_grid(grid=True)
+
+        self.update()
+
+
+    def create_project_action(self):
+
+        # Validate inputs
+        if not self.new_project_frame_start_date.has_valid_input():
+            # Display notification of results
+            message = f'Invalid date format for Start Date:\n{self.new_project_frame_start_date.get_variable_value()}\n\nDate format should be "yyyy-mm-dd"'
+            notification_dialog = NotificationDialog(self, title='Error', text=message)
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+            return
+        
+        # Show loading frame while executing
+        self._set_loading_frame_text('Creating new project...')
+        self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
+        self.update()
+
+        # Create obj
+        new_project_info = BaseProjectInfo(
+            project_number=self._get_project_number(),
+            project_name=self.new_project_frame_project_name.get_variable_value(),
+            company_name=self.new_project_frame_company.get_variable_value(),
+            company_location=self.new_project_frame_company_location.get_variable_value(),
+            email=self.new_project_frame_email.get_variable_value(),
+            salesperson=self.new_project_frame_salesperson.get_variable_value(),
+            start_date=self.new_project_frame_start_date.get_variable_value(),
+            notes=self.new_project_frame_notes.get_variable_value()
+        )
+
+        self.DataProfiler.create_new_project(project_info=new_project_info)
+
+        self._refresh_project_info()
+        self._create_home_frame()
+
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+        self._toggle_frame_grid(frame=self.home_frame, grid=True)
+        self.update()
+
+        # Display notification of results
+        notification_dialog = NotificationDialog(self, title='Success!', text=f'Created new data project for {self._get_project_number()}')
+        notification_dialog.attributes('-topmost', True)
+        notification_dialog.mainloop()
+
+
+    def logout_action(self):
+        # Destroy our data profiler instance
+        self._destroy_data_profiler()
+
+        # Grid only start frame
+        if hasattr(self, 'home_frame'):
+            self._toggle_frame_grid(frame=self.home_frame, grid=False)
+
+        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
+        self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+
+        self._toggle_project_number_frame_grid(grid=False)
+        self._toggle_frame_grid(frame=self.start_frame, grid=True)
+        self.update()
 
     def save_project_info_changes_action(self):
         current_project_info = self._get_project_info()
@@ -446,9 +612,14 @@ class DataProfilerGUI(ApexApp):
         notification_dialog.mainloop()
 
 
-    # def validate_data_directory(self):
+    def validate_data_directory(self):
+        pass
 
-    #     pass
+    def upload_frame_back_to_home_action(self):
+        # Show self again
+        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
+        self._toggle_frame_grid(frame=self.home_frame, grid=True)
+        self.update()
 
     def upload_data_action(self):
         data_dir = self.upload_frame_data_directory_browse.get_path()
@@ -547,12 +718,15 @@ class DataProfilerGUI(ApexApp):
         notification_dialog.mainloop()
 
 
-
     ''' Critical functions '''
 
     def _init_data_profiler(self):
         self.DataProfiler = DataProfiler(project_number=self._get_project_number(), dev=self.dev)
         self._refresh_project_info()
+
+    def _destroy_data_profiler(self):
+        self.DataProfiler = None
+        self.project_info = None
 
     ''' Getters/Setters '''
 
