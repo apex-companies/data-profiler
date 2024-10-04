@@ -1,34 +1,24 @@
-from datetime import datetime
+
+
+import re
 
 
 
-date = '2024-10-02'
-date1 = '10022024'
-date2 = '10/02/2024'
-date3 = '2024-15-45'
+str1 = 'i have this [hehe] & (i dont)@#$%'
+str2 = 'i don\'t got \tthis!'
+str3 = '<danger><html></html>'
+str4 = 'some\of\thes{e}, dumpers^^ \n'
+str5 = 'its so #over, | its so back*.'
 
-datebad = 'iofjwe'
+# re_clean_str = r'[\(\)\|\\\/\[\]\{\}\<\>]'
+re_clean_str = r'[@#$%^&*`<>/{}\[\]|\\()\n\r\t]'
 
+def clean(s):
+    print(s)
+    print(re.sub(re_clean_str, '', s))
 
-
-def check_date(val: str):
-    print("The original string is : " + str(val))
-
-    # checking if format matches the date 
-    res = True
-    fmt = '%Y-%m-%d'
-
-    # using try-except to check for truth value
-    try:
-        datetime.strptime(val, fmt)
-    except ValueError:
-        return False
-    return True
-
-    # print("Does date match format? : " + str(res))
-
-
-print(check_date(date))
-print(check_date(date1))
-print(check_date(date2))
-print(check_date(date3))
+clean(str1)
+clean(str2)
+clean(str3)
+clean(str4)
+clean(str5)

@@ -62,14 +62,22 @@ class DataProfiler:
 
     ## Create ##
 
-    def create_new_project(self, project_info: BaseProjectInfo) -> ExistingProjectProjectInfo:
+    def create_new_project(self, project_info: BaseProjectInfo) -> bool:
+        '''
+        Create new project row in Project table
+
+        Return
+        ------
+        True for successful insert, False if something went wrong
+        
+        '''
         if self.get_project_exists():
             return 'Project already exists. Try updating it instead'
         
         rows_inserted = self.OutputTablesService.insert_new_project_to_project_table(project_info=project_info)
-        print(rows_inserted)
-
-        self.refresh_project_info()
+        if rows_inserted == 1:
+            self.project_exists = True
+            self.refresh_project_info()
 
         return self.get_project_info()
     

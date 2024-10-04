@@ -499,19 +499,39 @@ class DataProfilerGUI(ApexApp):
             notes=self.new_project_frame_notes.get_variable_value()
         )
 
-        self.DataProfiler.create_new_project(project_info=new_project_info)
+        success = self.DataProfiler.create_new_project(project_info=new_project_info)
 
-        self._refresh_project_info()
-        self._create_home_frame()
+        if success:
+            self._refresh_project_info()
+            self._create_home_frame()
 
-        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-        self._toggle_frame_grid(frame=self.home_frame, grid=True)
-        self.update()
+            # Clear new project form
+            self.new_project_frame_project_name.clear_input(),
+            self.new_project_frame_company.clear_input(),
+            self.new_project_frame_company_location.clear_input(),
+            self.new_project_frame_email.clear_input(),
+            self.new_project_frame_salesperson.clear_input(),
+            self.new_project_frame_start_date.clear_input(),
+            self.new_project_frame_notes.clear_input()
 
-        # Display notification of results
-        notification_dialog = NotificationDialog(self, title='Success!', text=f'Created new data project for {self._get_project_number()}')
-        notification_dialog.attributes('-topmost', True)
-        notification_dialog.mainloop()
+            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+            self._toggle_frame_grid(frame=self.home_frame, grid=True)
+            self.update()
+
+            # Display notification of results
+            notification_dialog = NotificationDialog(self, title='Success!', text=f'Created new data project for {self._get_project_number()}')
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+        
+        else:
+            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+            self._toggle_frame_grid(frame=self.new_project_frame, grid=True)
+            self.update()
+
+            # Display notification of results
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Something went wrong when creating new project for {self._get_project_number()}')
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
 
 
     def logout_action(self):
