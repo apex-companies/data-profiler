@@ -1,0 +1,17 @@
+INSERT INTO [OutputTables_Prod].[DailyOrderProfileByVelocity] ([ProjectNumber_Velocity]
+      ,[AvgDailySKUs]
+      ,[AvgDailyOrders]
+      ,[AvgDailyLines]
+      ,[AvgDailyUnits]
+      ,[DailySKUsSD]
+      ,[DailyOrdersSD]
+      ,[DailyLinesSD]
+      ,[DailyUnitsSD]
+      ,[ActiveSKUs]
+      ,[OnHandSKUs]
+      ,[QtyOnHand]
+      ,[Plus1StDevSKUs]
+      ,[Plus1StDevOrders]
+      ,[Plus1StDevLines]
+      ,[Plus1StDevUnits])
+VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
