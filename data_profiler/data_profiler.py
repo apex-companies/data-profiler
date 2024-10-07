@@ -47,7 +47,7 @@ class DataProfiler:
         self.project_exists = False
         self.project_info = None
         
-        self.OutputTablesService = OutputTablesService(dev=self.dev)
+        # self.OutputTablesService = OutputTablesService(dev=self.dev)
         # self.TransformService = TransformService(dev=self.dev)
         
         # If project exists, update relevant variables
@@ -74,10 +74,11 @@ class DataProfiler:
         if self.get_project_exists():
             return 'Project already exists. Try updating it instead'
         
-        rows_inserted = self.OutputTablesService.insert_new_project_to_project_table(project_info=project_info)
-        if rows_inserted == 1:
-            self.project_exists = True
-            self.refresh_project_info()
+        with OutputTablesService(dev=self.dev) as service:
+            rows_inserted = service.insert_new_project_to_project_table(project_info=project_info)
+            if rows_inserted == 1:
+                self.project_exists = True
+                self.refresh_project_info()
 
         return self.get_project_info()
     
@@ -85,14 +86,18 @@ class DataProfiler:
     ## Read ##
 
     def get_output_tables_projects(self) -> list[str]:
-        return self.OutputTablesService.get_output_tables_project_numbers()
+        project_numbers = []
+        with OutputTablesService(dev=self.dev) as service:
+            project_numbers = service.get_output_tables_project_numbers()
+        return project_numbers
 
     def refresh_project_info(self):
         if not self.get_project_exists():
             # TODO - raise an error? how to handle these
             return 'Project does not yet exist'
         
-        self.project_info = self.OutputTablesService.get_project_info(self.get_project_number())
+        with OutputTablesService(dev=self.dev) as service:
+            self.project_info = service.get_project_info(self.get_project_number())
 
 
     ## Update ##
@@ -101,8 +106,10 @@ class DataProfiler:
         if not self.get_project_exists():
             return 'Project does not yet exist'
         
-        rows_inserted = self.OutputTablesService.update_project_in_project_table(new_project_info=new_project_info)
-        print(rows_inserted)
+        rows_inserted = 0
+        with OutputTablesService(dev=self.dev) as service:
+            rows_inserted = service.update_project_in_project_table(new_project_info=new_project_info)
+            print(rows_inserted)
 
         self.refresh_project_info()
 
@@ -411,7 +418,9 @@ class DataProfiler:
             log_file = open(f'{self.get_outputs_dir()}/{project_info.project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_delete_from_output_tables.txt', 'w+')
             log_file.write(f'PROJECT NUMBER: {project_info.project_number}\n\n')
 
-        rows_deleted = self.OutputTablesService.delete_project_data(project_number=project_info.project_number, log_file=log_file)
+        rows_deleted = 0
+        with OutputTablesService(dev=self.dev) as service:
+            rows_deleted = service.delete_project_data(project_number=project_info.project_number, log_file=log_file)
 
         # Update row in Project
         new_project_info = self.get_project_info().model_copy()
@@ -426,6 +435,24 @@ class DataProfiler:
             log_file.close()
 
         print(self.get_project_info())
+        return rows_deleted
+    
+    def delete_project(self):
+        if not self.get_project_exists():
+            return 'Project does not yet exist'
+        
+        project_info = self.get_project_info()
+
+        if project_info.data_uploaded:
+            return 'Please delete project data before deleting project.'
+        
+        # log_file = open(f'{self.get_outputs_dir()}/{project_info.project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_delete_from_output_tables.txt', 'w+')
+        # log_file.write(f'PROJECT NUMBER: {project_info.project_number}\n\n')
+
+        rows_deleted = 0
+        with OutputTablesService(dev=self.dev) as service:
+            rows_deleted = service.delete_project(project_number=project_info.project_number)
+
         return rows_deleted
 
 

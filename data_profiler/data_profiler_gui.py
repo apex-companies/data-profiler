@@ -9,7 +9,7 @@ GUI for data profiler app. Creates an instance of DataProfiler as backend logic 
 from pprint import pprint
 
 import customtkinter
-from customtkinter import CTkScrollableFrame, CTkLabel, StringVar, CTkEntry, CTkFrame,\
+from customtkinter import CTkScrollableFrame, CTkLabel, StringVar, CTkButton, CTkFrame,\
       CTkTextbox, CTkImage, CTkOptionMenu
 from PIL import Image
 
@@ -37,11 +37,13 @@ class DataProfilerGUI(ApexApp):
         Constructs an instance of the DataProfiler app. Use dev=True if running locally in a python environment.
         """
 
-        theme_path = f'{RESOURCES_DIR_DEV if dev else RESOURCES_DIR}/apex-theme.json'
+        self.resources_dir = f'{RESOURCES_DIR_DEV if dev else RESOURCES_DIR}'
+
+        theme_path = f'{self.resources_dir}/apex-theme.json'
         customtkinter.set_default_color_theme(theme_path)
 
-        icon_path = f'{RESOURCES_DIR_DEV if dev else RESOURCES_DIR}/apex-a.ico'
-        logo_url = f'{RESOURCES_DIR_DEV if dev else RESOURCES_DIR}/apex-a.png'
+        icon_path = f'{self.resources_dir}/apex-a.ico'
+        logo_url = f'{self.resources_dir}/apex-a.png'
         logo = Image.open(logo_url)
 
         super().__init__(title='Data Profiler', icon_path=icon_path, logo=logo, dev=dev)
@@ -55,8 +57,8 @@ class DataProfilerGUI(ApexApp):
         self.project_info: ExistingProjectProjectInfo = None
 
         ''' Icons '''
-        back_icon_path = f'{RESOURCES_DIR_DEV if self.dev else RESOURCES_DIR}/back-icon-win-10.png'
-        self.back_icon = CTkImage(light_image=Image.open(back_icon_path), size=(26, 26))
+        self.back_icon = CTkImage(light_image=Image.open(f'{self.resources_dir}/back-icon-win-10.png'), size=(26, 26))
+        self.trash_icon = CTkImage(light_image=Image.open(f'{self.resources_dir}/trash-icon-win-10.png'), size=(26, 26))
 
         ''' Create self '''
 
@@ -138,9 +140,10 @@ class DataProfilerGUI(ApexApp):
         self.home_frame = Page(self)
 
         self.home_frame_header_frame = CTkFrame(self.home_frame, fg_color=APEX_LIGHT_GRAY, corner_radius=0)
-        self.home_frame_title = CTkLabel(self.home_frame_header_frame, text='Data Profile Dashboard', font=AppSubtitleFont())
-        
+
+        self.home_frame_title = CTkLabel(self.home_frame_header_frame, text='Data Profile Dashboard', font=AppSubtitleFont())        
         self.home_frame_logout_btn = IconButton(self.home_frame_header_frame, image=self.back_icon, command=self.logout_action)
+        self.home_frame_delete_project_frame = IconButton(self.home_frame_header_frame, image=self.trash_icon, command=self.delete_project_action)
 
         self.home_frame_content_container = CTkScrollableFrame(self.home_frame, fg_color='transparent', corner_radius=0)
         
@@ -296,6 +299,7 @@ class DataProfilerGUI(ApexApp):
 
         self.home_frame_title.grid(row=0, column=0, sticky='ew', pady=5)
         self.home_frame_logout_btn.grid(row=0, column=0, sticky='w', padx=(19,0), pady=5)
+        self.home_frame_delete_project_frame.grid(row=0, column=0, sticky='e', padx=(0,19), pady=5)
 
         # Parent = home_frame_container
         self.home_frame_content_container.grid_rowconfigure(0, weight=1)
@@ -446,6 +450,8 @@ class DataProfilerGUI(ApexApp):
 
             self._toggle_project_number_frame_grid(grid=True)
 
+            print(self._get_project_info())
+
         else:
             confirm_dialog = ConfirmDeleteDialog(self, title='Data Profiler', 
                                              text=f'A data project for "{self._get_project_number()}" does not yet exist. Would you like to start one?',
@@ -568,6 +574,11 @@ class DataProfilerGUI(ApexApp):
             uploaded_file_paths=current_project_info.uploaded_file_paths
         )
 
+        print(f'--------------------- OLD ---------------------------')
+        pprint(current_project_info.model_dump())
+        print(f'--------------------- NEW ---------------------------')
+        pprint(new_project_info.model_dump())
+
         if new_project_info == current_project_info:
             print('INFO IS THE SAME. DONT DO ANYTHING')
         
@@ -611,10 +622,6 @@ class DataProfilerGUI(ApexApp):
         )
         
         # Submit changes to DB
-        print(f'--------------------- OLD ---------------------------')
-        print(current_project_info.model_dump())
-        print(f'--------------------- NEW ---------------------------')
-        pprint(new_project_info.model_dump())
         print(f'SUBMITTING TO DB')
         self.DataProfiler.update_project_info(new_project_info=new_project_info)
         self._refresh_project_info()
@@ -692,10 +699,68 @@ class DataProfilerGUI(ApexApp):
             notification_dialog.attributes('-topmost', True)
             notification_dialog.mainloop()
 
+        return
+
 
     def show_upload_data_frame_action(self):
         self._toggle_frame_grid(self.home_frame, grid=False)
         self._toggle_frame_grid(self.upload_frame, grid=True)
+        return
+
+
+    def delete_project_action(self):
+
+        message = ''
+        if self._get_project_info().data_uploaded:
+            # message = f'Are you sure you would like to delete project {self._get_project_number()} AND all its data?'
+            message = f'Please delete project data before deleting project.'
+
+            # Display notification of results
+            notification_dialog = NotificationDialog(self, title='Data Profiler', text=message)
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+
+        else:
+            message = f'Are you sure you would like to delete project {self._get_project_number()}?'
+
+            confirm_dialog = ConfirmDeleteDialog(self, title='Confirm Deletion', 
+                                                text=message,
+                                                positive_action=self.delete_project,
+                                                negative_action=self.void)
+            
+            confirm_dialog.attributes('-topmost', True)
+            confirm_dialog.mainloop()
+        
+        return
+    
+    def delete_project(self):
+        # Show loading frame while executing
+        self._set_loading_frame_text('Deleting...')
+        self._toggle_frame_grid(frame=self.home_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
+        self.update()
+
+        # Delete project data
+        if self._get_project_info().data_uploaded:
+            self._set_loading_frame_text('Deleting project data...')
+            self.update()
+            self.DataProfiler.delete_project_data()
+        
+        # Delete project
+        self._set_loading_frame_text('Deleting project...')
+        self.update()
+        self.DataProfiler.delete_project()
+
+        # Show self again
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+        self._toggle_frame_grid(frame=self.start_frame, grid=True)
+        self.update()
+
+        # Display notification of results
+        notification_dialog = NotificationDialog(self, title='Success!', text='Deleted project and its data successfully.')        
+        notification_dialog.attributes('-topmost', True)
+        notification_dialog.mainloop()
+        return
 
 
     def delete_project_data_action(self):
@@ -706,7 +771,6 @@ class DataProfilerGUI(ApexApp):
         
         confirm_dialog.attributes('-topmost', True)
         confirm_dialog.mainloop()
-
         return
     
     def delete_project_data(self):
@@ -736,6 +800,7 @@ class DataProfilerGUI(ApexApp):
         # Display notification of results
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
+        return
 
 
     ''' Critical functions '''
