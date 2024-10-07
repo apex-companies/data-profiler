@@ -1,24 +1,35 @@
 
+from pydantic import BaseModel
+from pprint import pprint
+from data_profiler.models.Responses import TransformRowsInserted
 
-import re
+
+rows = TransformRowsInserted(
+    total_rows_inserted=1000,
+    skus=100,
+    inbound_receipts=55,
+    inbound_lines=1039,
+    inventory_lines=904,
+    outbound_orders=657,
+    outbound_lines=12034
+)
 
 
+def pretty_print_rows_inserted(rows: TransformRowsInserted):
+    s = ''
 
-str1 = 'i have this [hehe] & (i dont)@#$%'
-str2 = 'i don\'t got \tthis!'
-str3 = '<danger><html></html>'
-str4 = 'some\of\thes{e}, dumpers^^ \n'
-str5 = 'its so #over, | its so back*.'
+    s += f'Total rows inserted: {rows.total_rows_inserted}\n'
+    s += f'SKUs: {rows.skus}\n'
+    s += f'Inbound Receipts: {rows.inbound_receipts}\n'
+    s += f'Inbound Lines: {rows.inbound_lines}\n'
+    s += f'Inventory Lines: {rows.inventory_lines}\n'
+    s += f'Outbound Orders: {rows.outbound_orders}\n'
+    s += f'Outbound Lines: {rows.outbound_lines}'
 
-# re_clean_str = r'[\(\)\|\\\/\[\]\{\}\<\>]'
-re_clean_str = r'[@#$%^&*`<>/{}\[\]|\\()\n\r\t]'
+    return s
 
-def clean(s):
-    print(s)
-    print(re.sub(re_clean_str, '', s))
+s = pretty_print_rows_inserted(rows)
 
-clean(str1)
-clean(str2)
-clean(str3)
-clean(str4)
-clean(str5)
+m = f'Successful transform!\n\n{s}\n\nSee results in folder.'
+
+print(m)

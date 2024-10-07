@@ -19,3 +19,11 @@ class TransformResponse(BaseModel):
     rows_inserted: TransformRowsInserted = TransformRowsInserted()
     log_file_path: str = ''
 
+
+class DeleteResponse(BaseModel):
+    project_number: str
+    success: bool = True
+    errors_encountered: list = []
+    rows_deleted: int = 0
+    log_file_path: str = ''
+

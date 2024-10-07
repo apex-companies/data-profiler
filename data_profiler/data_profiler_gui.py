@@ -15,8 +15,9 @@ from PIL import Image
 
 from .models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
+from .models.Responses import TransformRowsInserted
 from .helpers.constants import RESOURCES_DIR, RESOURCES_DIR_DEV
-from .frames.custom_widgets import StaticValueWithLabel, ConfirmDeleteDialog, DropdownWithLabel
+from .frames.custom_widgets import StaticValueWithLabel, ConfirmDeleteDialog, DropdownWithLabel, ResultsDialogWithLogFile
 
 from .data_profiler import DataProfiler
 
@@ -198,7 +199,7 @@ class DataProfilerGUI(ApexApp):
 
         # self.upload_frame_title = CTkLabel(self.upload_frame_content_frame, text='Upload Project Data', font=SectionHeaderFont())
 
-        self.upload_frame_data_directory_browse = FileBrowser(self.upload_frame_upload_section, label_text='Select a data directory', path_type='folder', label_font=SectionSubheaderFont())
+        self.upload_frame_data_directory_browse = FileBrowser(self.upload_frame_upload_section, label_text='Select a data directory', path_type='folder', label_font=SectionSubheaderFont())#, btn_action=self.validate_data_directory)
 
         self.upload_frame_date_for_analysis = DropdownWithLabel(self.upload_frame_upload_section, label_text='Date for Analysis', default_val=DateForAnalysis.PICK_DATE.value,
                                                                 dropdown_values=[DateForAnalysis.RECEIVED_DATE.value, DateForAnalysis.PICK_DATE.value, DateForAnalysis.SHIP_DATE.value])
@@ -209,7 +210,7 @@ class DataProfilerGUI(ApexApp):
         self.upload_frame_process_inventory_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Inventory Data', default_val=True)
         self.upload_frame_process_outbound_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Outbound Data', default_val=True)
 
-        self.upload_frame_submit_btn = PositiveButton(self.upload_frame_upload_section, text='Submit', command=self.upload_data_action)
+        self.upload_frame_submit_btn = PositiveButton(self.upload_frame_upload_section, text='Submit', command=self.upload_data_action)#, state='disabled')
 
         # Grid
         self._grid_upload_frame()
@@ -475,7 +476,6 @@ class DataProfilerGUI(ApexApp):
 
         self.update()
 
-
     def create_project_action(self):
 
         # Validate inputs
@@ -505,9 +505,11 @@ class DataProfilerGUI(ApexApp):
             notes=self.new_project_frame_notes.get_variable_value()
         )
 
-        success = self.DataProfiler.create_new_project(project_info=new_project_info)
+        rows_inserted = self.DataProfiler.create_new_project(project_info=new_project_info)
 
-        if success:
+        notification_dialog = None
+        if rows_inserted == 1:
+            # Create home page with project info
             self._refresh_project_info()
             self._create_home_frame()
 
@@ -526,8 +528,6 @@ class DataProfilerGUI(ApexApp):
 
             # Display notification of results
             notification_dialog = NotificationDialog(self, title='Success!', text=f'Created new data project for {self._get_project_number()}')
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
         
         else:
             self._toggle_frame_grid(frame=self.loading_frame, grid=False)
@@ -536,9 +536,10 @@ class DataProfilerGUI(ApexApp):
 
             # Display notification of results
             notification_dialog = NotificationDialog(self, title='Error', text=f'Something went wrong when creating new project for {self._get_project_number()}')
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
 
+        notification_dialog.attributes('-topmost', True)
+        notification_dialog.mainloop()
+        return
 
     def logout_action(self):
         # Destroy our data profiler instance
@@ -622,31 +623,59 @@ class DataProfilerGUI(ApexApp):
         )
         
         # Submit changes to DB
-        print(f'SUBMITTING TO DB')
-        self.DataProfiler.update_project_info(new_project_info=new_project_info)
-        self._refresh_project_info()
-        print(f'DONE')
+        rows_updated = self.DataProfiler.update_project_info(new_project_info=new_project_info)
+
+        notification_dialog = None
+        if rows_updated == 1:
+            # Update home page
+            self._refresh_project_info()
+            self._create_home_frame()
+
+            notification_dialog = NotificationDialog(self, title='Success!', text='Saved project info changes to database.')
+        else:
+            notification_dialog = NotificationDialog(self, title='Error', text='Could not save project info changes to database.')
 
         # Show self again
         self._toggle_frame_grid(frame=self.loading_frame, grid=False)
         self._toggle_frame_grid(frame=self.home_frame, grid=True)
         self.update()
 
-        notification_dialog = NotificationDialog(self, title='Success!', text='Saved project info changes to database.')
-
         # Display notification of results
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
-
-
-    def validate_data_directory(self):
-        pass
+        return
 
     def upload_frame_back_to_home_action(self):
         # Show self again
         self._toggle_frame_grid(frame=self.upload_frame, grid=False)
         self._toggle_frame_grid(frame=self.home_frame, grid=True)
         self.update()
+
+
+    # def validate_data_directory(self):
+    #     data_dir = self.upload_frame_data_directory_browse.get_path()
+        
+    #     transform_options = TransformOptions(
+    #         date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
+    #         weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
+    #         process_inbound_data=self.upload_frame_process_inbound_data.get_value(),
+    #         process_inventory_data=self.upload_frame_process_inventory_data.get_value(),
+    #         process_outbound_data=self.upload_frame_process_outbound_data.get_value(),
+    #     )
+
+    #     data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
+    #     if not data_directory_validation.is_valid:
+    #         errors_str = '\n'.join(data_directory_validation.errors_list)
+    #         # Display error
+    #         notification_dialog = NotificationDialog(self, title='Error', text=f'Data directory is not valid:\n{errors_str}')
+    #         notification_dialog.attributes('-topmost', True)
+    #         notification_dialog.mainloop()
+
+    #         print(f'DATA DIR NOT VALID')
+    #         return
+    #     else:
+    #         self.upload_frame_submit_btn.configure(state='normal')
+
 
     def upload_data_action(self):
         data_dir = self.upload_frame_data_directory_browse.get_path()
@@ -661,9 +690,11 @@ class DataProfilerGUI(ApexApp):
 
         data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
         if not data_directory_validation.is_valid:
-            errors_str = '\n'.join(data_directory_validation.errors_list)
+            errors_str = '\n\n'.join(data_directory_validation.errors_list)
+            message = f'Data directory is not valid:\n\n{errors_str}'
+
             # Display error
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Data directory is not valid:\n{errors_str}')
+            notification_dialog = NotificationDialog(self, title='Error', text=message)
             notification_dialog.attributes('-topmost', True)
             notification_dialog.mainloop()
 
@@ -676,29 +707,38 @@ class DataProfilerGUI(ApexApp):
         self._toggle_frame_grid(frame=self.loading_frame, grid=True)
         self.update()
 
+        # Transform and upload
         results = self.DataProfiler.transform_and_upload_data(data_directory=data_dir, transform_options=transform_options)
 
+        # Navigate appropriately based on success
+        message = ''
         self._toggle_frame_grid(frame=self.loading_frame, grid=False)
         if not results.success:
+            # Back to upload frame
             self._toggle_frame_grid(frame=self.upload_frame, grid=True)
 
             # Display notification of results
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble with the upload:\n{results.message}')
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
-
+            message = f'Trouble with the upload:\n{results.message}' 
         else:
+            # Reset upload page
+            self._create_upload_data_frame()
+            self._toggle_frame_grid(frame=self.upload_frame, grid=False)
+            
+            # Back to home
             self._refresh_project_info()
             self._create_home_frame()
-
-            # Back to home
             self._toggle_frame_grid(frame=self.home_frame, grid=True)
 
             # Display notification of results
-            notification_dialog = NotificationDialog(self, title='Success!', text=f'Successful transformation and data upload:\n{results.rows_inserted.model_dump()}')
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
-
+            message = f'Successful transformation and data upload!\n\n{self.pretty_print_rows_inserted(results.rows_inserted)}'
+            
+        # Report results
+        notification_dialog = ResultsDialogWithLogFile(self, 
+                                                       success=results.success, 
+                                                       text=message, 
+                                                       log_file_path=results.log_file_path)         
+        notification_dialog.attributes('-topmost', True)
+        notification_dialog.mainloop()
         return
 
 
@@ -709,62 +749,60 @@ class DataProfilerGUI(ApexApp):
 
 
     def delete_project_action(self):
+        
+        notification_dialog = None
 
-        message = ''
         if self._get_project_info().data_uploaded:
-            # message = f'Are you sure you would like to delete project {self._get_project_number()} AND all its data?'
             message = f'Please delete project data before deleting project.'
-
-            # Display notification of results
             notification_dialog = NotificationDialog(self, title='Data Profiler', text=message)
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
-
         else:
             message = f'Are you sure you would like to delete project {self._get_project_number()}?'
-
-            confirm_dialog = ConfirmDeleteDialog(self, title='Confirm Deletion', 
-                                                text=message,
-                                                positive_action=self.delete_project,
-                                                negative_action=self.void)
+            notification_dialog = ConfirmDeleteDialog(self, 
+                                                      title='Confirm Deletion', 
+                                                        text=message,
+                                                        positive_action=self.delete_project,
+                                                        negative_action=self.void)
             
-            confirm_dialog.attributes('-topmost', True)
-            confirm_dialog.mainloop()
-        
+        notification_dialog.attributes('-topmost', True)
+        notification_dialog.mainloop()
         return
     
     def delete_project(self):
         # Show loading frame while executing
-        self._set_loading_frame_text('Deleting...')
+        self._set_loading_frame_text('Deleting project...')
         self._toggle_frame_grid(frame=self.home_frame, grid=False)
         self._toggle_frame_grid(frame=self.loading_frame, grid=True)
         self.update()
 
-        # Delete project data
-        if self._get_project_info().data_uploaded:
-            self._set_loading_frame_text('Deleting project data...')
-            self.update()
-            self.DataProfiler.delete_project_data()
-        
         # Delete project
-        self._set_loading_frame_text('Deleting project...')
-        self.update()
-        self.DataProfiler.delete_project()
+        rows_deleted = self.DataProfiler.delete_project()
 
-        # Show self again
-        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-        self._toggle_frame_grid(frame=self.start_frame, grid=True)
-        self.update()
+        if rows_deleted == 1:
+            # Show self again
+            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+            self._toggle_frame_grid(frame=self.start_frame, grid=True)
+            self.update()
+    
+            # Display notification of results
+            notification_dialog = NotificationDialog(self, title='Success!', text='Deleted project successfully.')        
+        
+        else:
+            # Show self again
+            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+            self._toggle_frame_grid(frame=self.home_frame, grid=True)
+            self.update()
 
-        # Display notification of results
-        notification_dialog = NotificationDialog(self, title='Success!', text='Deleted project and its data successfully.')        
+            # Display notification of results
+            notification_dialog = NotificationDialog(self, title='Error', text='Trouble deleting project. Try again.')        
+        
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
         return
 
 
     def delete_project_data_action(self):
-        confirm_dialog = ConfirmDeleteDialog(self, title='Confirm Deletion', 
+        confirm_dialog = ConfirmDeleteDialog(self, 
+                                             title='Confirm Deletion', 
                                              text=f'Are you sure you would like to delete project data for {self._get_project_number()}?',
                                              positive_action=self.delete_project_data,
                                              negative_action=self.void)
@@ -774,30 +812,37 @@ class DataProfilerGUI(ApexApp):
         return
     
     def delete_project_data(self):
+        if not self._get_project_info().data_uploaded:
+            print(f'NOTHING TO DELETE')
+            return
+
         # Show loading frame while executing
         self._set_loading_frame_text('Deleting project data...')
         self._toggle_frame_grid(frame=self.home_frame, grid=False)
         self._toggle_frame_grid(frame=self.loading_frame, grid=True)
         self.update()
 
-        if not self._get_project_info().data_uploaded:
-            print(f'NOTHING TO DELETE')
-        else:
-            print(f'DELETING PROJECT DATA')
-            self.DataProfiler.delete_project_data()
+        results = self.DataProfiler.delete_project_data()
+
+        message = ''
+        if results.success:
             self._refresh_project_info()
-            print(f'DONE')
-        
-        self._create_home_frame()
+            self._create_home_frame()
+
+            message = 'Deleted project data successfully.'
+        else:
+            message = f'Encountered {len(results.errors_encountered)} errors when attempting to delete project data.'
 
         # Show self again
         self._toggle_frame_grid(frame=self.loading_frame, grid=False)
         self._toggle_frame_grid(frame=self.home_frame, grid=True)
         self.update()
 
-        notification_dialog = NotificationDialog(self, title='Success!', text='Deleted project data successfully.')
-
         # Display notification of results
+        notification_dialog = ResultsDialogWithLogFile(self, 
+                                                       success=results.success, 
+                                                       text=message, 
+                                                       log_file_path=results.log_file_path)
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
         return
@@ -812,6 +857,21 @@ class DataProfilerGUI(ApexApp):
     def _destroy_data_profiler(self):
         self.DataProfiler = None
         self.project_info = None
+
+    ''' Helpers '''
+
+    def pretty_print_rows_inserted(self, rows: TransformRowsInserted):
+        return_str = ''
+
+        return_str += f'Total rows inserted: {rows.total_rows_inserted}\n'
+        return_str += f'SKUs: {rows.skus}\n'
+        return_str += f'Inbound Receipts: {rows.inbound_receipts}\n'
+        return_str += f'Inbound Lines: {rows.inbound_lines}\n'
+        return_str += f'Inventory Lines: {rows.inventory_lines}\n'
+        return_str += f'Outbound Orders: {rows.outbound_orders}\n'
+        return_str += f'Outbound Lines: {rows.outbound_lines}'
+
+        return return_str
 
     ''' Getters/Setters '''
 

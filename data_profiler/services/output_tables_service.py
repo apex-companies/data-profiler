@@ -14,6 +14,7 @@ import pyodbc
 
 from ..models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
 from ..models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
+from ..models.Responses import DeleteResponse
 
 from ..database.database_manager import DatabaseConnection
 from ..database.helpers.constants import DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT, OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT,\
@@ -42,22 +43,17 @@ class OutputTablesService:
         results = []
 
         # try:
-        #     db_conn = DatabaseConnection(dev=self.dev)
-        # except pyodbc.InterfaceError as e:
-        #     print(' - get projects - ')
-        # else:
-        try:
-            with DatabaseConnection(dev=self.dev) as db_conn:
-                # with db_conn:
-                cursor = db_conn.cursor()
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            # with db_conn:
+            cursor = db_conn.cursor()
 
-                cursor.execute(query)
-                results = [result[0] for result in cursor.fetchall()]
-                
-                cursor.close()
+            cursor.execute(query)
+            results = [result[0] for result in cursor.fetchall()]
+            
+            cursor.close()
         
-        except pyodbc.InterfaceError as e:
-            print(f' get projects. unsuccessful connect ')
+        # except pyodbc.InterfaceError as e:
+        #     print(f' get projects. unsuccessful connect ')
 
 
         return results
@@ -252,7 +248,7 @@ class OutputTablesService:
 
 
     # TODO - don't delete from Project. But update DataUploaded to False
-    def delete_project_data(self, project_number: str, log_file: TextIOWrapper) -> int:
+    def delete_project_data(self, project_number: str, log_file: TextIOWrapper) -> DeleteResponse:
         '''
         Delete from OutputTables schema
         Removes records from all relevant DB tables belonging to the given project_number
@@ -260,12 +256,8 @@ class OutputTablesService:
         Returns total number of deleted rows or -1 if error
         '''
 
-        # Create log file, if dev
-        # log_file = None
-        # if self.dev:
-        #     log_file = open(f'logs/{project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_delete_from_output_tables.txt', 'w+')
-        #     log_file.write(f'PROJECT NUMBER: {project_number}\n')
-        
+        response = DeleteResponse(project_number=project_number)
+
         # Configure schema and sql file mapper
         tables = 'all'                          # NOTE - this is from old code, when RawData was still used. We no longer need to be able to delete one table at a time, but it could be a future requirement
         schema = ''
@@ -305,39 +297,42 @@ class OutputTablesService:
                 fd.close()
                 print(f'{delete_query} \n')
 
-                # if log_file: 
-                # log_file.write(f'{delete_query} \n')
-                # try:
+                try:
                 
-                cursor.execute(delete_query, project_number)
-                rows_deleted = cursor.rowcount
-                total_rows_deleted += rows_deleted
+                    cursor.execute(delete_query, project_number)
+                    rows_deleted = cursor.rowcount
+                    total_rows_deleted += rows_deleted
 
-                print(f'{table} - rows deleted: {rows_deleted}')
-                # if log_file: 
-                log_file.write(f'{table} - rows deleted: {rows_deleted}\n')
-                    
-                db_conn.commit()
+                    print(f'{table} - rows deleted: {rows_deleted}')
+                    log_file.write(f'{table} - rows deleted: {rows_deleted}\n')
+                        
+                    db_conn.commit()
 
-                # except pyodbc.Error as e:
-                #     print(f'Error deleting by project number: {e}')
-                #     if log_file: log_file.write(f'Error deleting by project number: {e}\n')
-                #     print(f'Query: {delete_query}')
-                #     if log_file: log_file.write(f'Query: {delete_query}\n')
-            
+                except pyodbc.Error as e:
+                    print(f'Error deleting by project number: {e}')
+                    log_file.write(f'Error deleting by project number: {e}\n')
+
+                    response.success = False
+                    response.errors_encountered.append(e)
+
             cursor.close()  
             
         delete_et = time()
         print(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.')
         print(f'{total_rows_deleted} rows deleted.')
 
-        # if log_file: 
-        log_file.write(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.\n')
-        log_file.write(f'{total_rows_deleted} rows deleted.\n')
-            # log_file.close()
-                  
+        if response.success:
+            log_file.write('\nSuccess!\n')
+        else:
+            log_file.write(f'\n{len(response.errors_encountered)} errors while deleting. Unsuccessful. Try again.\n') 
         
-        return total_rows_deleted
+        log_file.write(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.\n\n')
+        log_file.write(f'{total_rows_deleted} rows deleted.\n')
+                  
+        response.rows_deleted = total_rows_deleted
+
+        return response
+    
     
     def delete_project(self, project_number: str) -> int:
         print(f'Deleting project: {project_number}')
