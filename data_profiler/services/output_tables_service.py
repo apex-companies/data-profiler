@@ -18,12 +18,21 @@ from ..models.TransformOptions import DateForAnalysis, WeekendDateRules, Transfo
 from ..database.database_manager import DatabaseConnection
 from ..database.helpers.constants import DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT, OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT,\
     DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT,\
-    OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT, SCHEMAS, DEV_OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER, OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER
+    OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT, SCHEMAS, DEV_OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER, OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER,\
+    OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT
 
 class OutputTablesService:
 
     def __init__(self, dev: bool = False):
         self.dev = dev
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, exception_traceback):
+        if exception_type is not None:
+            print(f'------ OUTPUT TABLES EXCEPTION ------\n{exception_type = }\n{exception_value = }\n{exception_traceback = }\n')
+            raise exception_value
 
     def get_output_tables_project_numbers(self) -> list[str]:
         ''' Returns list of project numbers '''
@@ -241,13 +250,6 @@ class OutputTablesService:
 
 #     return row_count
 
-    def delete_project(self, project_number: str):
-        # get_project_info()
-        # if project.has_uploaded_data == True:
-        #       please delete project data before deleting project
-        #
-        # delete from Project
-        pass
 
     # TODO - don't delete from Project. But update DataUploaded to False
     def delete_project_data(self, project_number: str, log_file: TextIOWrapper) -> int:
@@ -336,3 +338,28 @@ class OutputTablesService:
                   
         
         return total_rows_deleted
+    
+    def delete_project(self, project_number: str) -> int:
+        print(f'Deleting project: {project_number}')
+        
+        row_count = 0
+
+        # Get query from sql file
+        sql_file = DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT if self.dev else OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT
+
+        f = open(sql_file)
+        delete_query = f.read()
+        f.close()
+
+        # Connect and run query    
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            cursor = db_conn.cursor()
+
+            print(delete_query)
+            cursor.execute(delete_query, project_number)
+            row_count = cursor.rowcount
+            db_conn.commit()
+
+            cursor.close()
+
+        return row_count
