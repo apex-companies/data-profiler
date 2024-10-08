@@ -7,5 +7,16 @@ INSERT INTO [OutputTables_Prod].[Project] ([ProjectNumber]
     ,[Date Start]
     ,[DateForAnalysis]
     ,[WeekendDateRule]
-    ,[Notes])
-VALUES (?,?,?,?,?,?,?,?,?,?);
+    ,[Notes]
+    ,[DataUploaded]
+    ,[UploadDate]
+    ,[ItemMasterFilePath]
+    ,[InboundHeaderFilePath]
+    ,[InboundDetailsFilePath]
+    ,[InventoryFilePath]
+    ,[OrderHeaderFilePath]
+    ,[OrderDetailsFilePath]
+    ,[ProcessInboundData]
+    ,[ProcessInventoryData]
+    ,[ProcessOutboundData])
+VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);

@@ -16,5 +16,8 @@ INSERT INTO [OutputTables_Dev].[Project]
       ,[InboundDetailsFilePath]
       ,[InventoryFilePath]
       ,[OrderHeaderFilePath]
-      ,[OrderDetailsFilePath])
-VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+      ,[OrderDetailsFilePath]
+      ,[ProcessInboundData]
+      ,[ProcessInventoryData]
+      ,[ProcessOutboundData])
+VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);

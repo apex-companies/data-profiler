@@ -178,12 +178,17 @@ class DataProfilerGUI(ApexApp):
         # LEVEL 3 - Parent = home_frame_data_info_frame
         date_for_analysis = self.project_info.transform_options.date_for_analysis.value if self.project_info.transform_options.date_for_analysis else ''
         weekend_date_rule = self.project_info.transform_options.weekend_date_rule.value if self.project_info.transform_options.weekend_date_rule else ''
+        # process_inbound_data = self.project_info.transform_options.process_inbound_data if self.project_info.transform_options.process_inbound_data else False
+        # weekend_date_rule = self.project_info.transform_options.weekend_date_rule.value if self.project_info.transform_options.process_inventory_data else False
+        # weekend_date_rule = self.project_info.transform_options.weekend_date_rule.value if self.project_info.transform_options.process_outbound_data else False
 
         self.home_frame_data_uploaded = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Data Uploaded', value=str(self.project_info.data_uploaded))#, alignment='vertical')
-        # self.home_frame_data_uploaded = EntryWithLabel(self.home_frame_data_info_frame, label_text='Data Uploaded', value=str(self.project_info.data_uploaded))
         self.home_frame_upload_date = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Upload Date', value=str(self.project_info.upload_date))#, alignment='vertical')
         self.home_frame_date_for_analysis = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Date for Analysis', value=date_for_analysis)#, alignment='vertical')
         self.home_frame_weekend_date_rule = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Weekend Date Rule', value=weekend_date_rule)#, alignment='vertical')
+        self.home_frame_inbound_processed = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Inbound Processed', value=self.project_info.transform_options.process_inbound_data)#, alignment='vertical')
+        self.home_frame_inventory_processed = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Inventory Processed', value=self.project_info.transform_options.process_inventory_data)#, alignment='vertical')
+        self.home_frame_outbound_processed = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Outbound Processed', value=self.project_info.transform_options.process_outbound_data)#, alignment='vertical')
         # self.home_frame_item_master_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Item Master File', value=str(self.project_info.uploaded_file_paths.item_master)[len(self.project_info.uploaded_file_paths.item_master) - 30:])#, alignment='vertical')
         # self.home_frame_inbound_header_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Inbound Header File', value=str(self.project_info.uploaded_file_paths.inbound_header)[len(self.project_info.uploaded_file_paths.inbound_header) - 30:])#, alignment='vertical')
         # self.home_frame_inbound_details_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Inbound Details File', value=str(self.project_info.uploaded_file_paths.inbound_details)[len(self.project_info.uploaded_file_paths.inbound_details) - 30:])#, alignment='vertical')
@@ -327,9 +332,13 @@ class DataProfilerGUI(ApexApp):
         self.home_frame_data_info_frame.grid_columnconfigure(0, weight=1)
         
         self.home_frame_data_uploaded.grid(row=0, column=0, sticky='ew', padx=20, pady=(5, 0))
-        self.home_frame_upload_date.grid(row=1, column=0, sticky='ew', padx=20, pady=(20, 0))
-        self.home_frame_date_for_analysis.grid(row=2, column=0, sticky='ew', padx=20, pady=(20, 0))
-        self.home_frame_weekend_date_rule.grid(row=3, column=0, sticky='ew', padx=20, pady=(20, 5))
+        if self._get_project_info().data_uploaded:
+            self.home_frame_upload_date.grid(row=1, column=0, sticky='ew', padx=20, pady=(20, 0))
+            self.home_frame_date_for_analysis.grid(row=2, column=0, sticky='ew', padx=20, pady=(20, 0))
+            self.home_frame_weekend_date_rule.grid(row=3, column=0, sticky='ew', padx=20, pady=(20, 0))
+            self.home_frame_inbound_processed.grid(row=4, column=0, sticky='ew', padx=20, pady=(20, 0))
+            self.home_frame_inventory_processed.grid(row=5, column=0, sticky='ew', padx=20, pady=(20, 0))
+            self.home_frame_outbound_processed.grid(row=6, column=0, sticky='ew', padx=20, pady=(20, 5))
         # self.home_frame_item_master_file.grid(row=4, column=0, sticky='ew', padx=50, pady=(20, 0))
         # self.home_frame_inbound_header_file.grid(row=5, column=0, sticky='ew', padx=50, pady=(20, 0))
         # self.home_frame_inbound_details_file.grid(row=6, column=0, sticky='ew', padx=50, pady=(20, 0))

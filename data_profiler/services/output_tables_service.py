@@ -124,7 +124,10 @@ class OutputTablesService:
         # Create ProjectInfoExistingProject object and return
         transform_options = TransformOptions(
             date_for_analysis=results[7] if results[7] else None,
-            weekend_date_rule=results[8] if results[8] else None
+            weekend_date_rule=results[8] if results[8] else None,
+            process_inbound_data=results[18] if results[18] else False,
+            process_inventory_data=results[19] if results[19] else False,
+            process_outbound_data=results[20] if results[20] else False
         )
 
         upload_paths = UploadedFilePaths(
@@ -173,7 +176,7 @@ class OutputTablesService:
         # Setup query arguments. IMPORTANT to be in same order as insert_into_project.sql query
         query_args = [project_info.project_number, project_info.company_name, project_info.salesperson, project_info.company_location, 
                       project_info.project_name, project_info.email, project_info.start_date, None, None, project_info.notes, False, 
-                      None, None, None, None, None, None, None]
+                      None, None, None, None, None, None, None, None, None, None]
 
         # Connect and run query    
         # try:
@@ -214,6 +217,7 @@ class OutputTablesService:
                       new_project_info.data_uploaded, new_project_info.upload_date, new_project_info.uploaded_file_paths.item_master, 
                       new_project_info.uploaded_file_paths.inbound_header, new_project_info.uploaded_file_paths.inbound_details, 
                       new_project_info.uploaded_file_paths.inventory, new_project_info.uploaded_file_paths.order_header, new_project_info.uploaded_file_paths.order_details, 
+                      new_project_info.transform_options.process_inbound_data, new_project_info.transform_options.process_inventory_data, new_project_info.transform_options.process_outbound_data,
                       new_project_info.project_number]
 
         # Connect and run query    

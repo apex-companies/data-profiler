@@ -16,5 +16,8 @@ SELECT [ProjectNumber]
       ,[InventoryFilePath]
       ,[OrderHeaderFilePath]
       ,[OrderDetailsFilePath]
+      ,[ProcessInboundData]
+      ,[ProcessInventoryData]
+      ,[ProcessOutboundData]
 FROM [OutputTables_Prod].[Project]
 WHERE [ProjectNumber] = ?
