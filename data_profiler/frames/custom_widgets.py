@@ -8,7 +8,7 @@ from typing import Literal, Callable
 from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkOptionMenu, CTkSwitch, filedialog, StringVar, DoubleVar, BooleanVar
 
 from apex_gui.frames.custom_widgets import Frame
-from apex_gui.frames.notification_dialogs import NotificationDialog
+from apex_gui.frames.notification_dialogs import NotificationDialog, ResultsDialog
 from apex_gui.frames.styled_widgets import PositiveButton, NegativeButton
 from apex_gui.styles.colors import *
 from apex_gui.styles.fonts import AppFont
@@ -57,7 +57,7 @@ class ConfirmDeleteDialog(NotificationDialog):
         self.positive_action_func: Callable = positive_action
         self.negative_action_func: Callable = negative_action
 
-        self.negative_action_btn = PositiveButton(self.get_action_buttons_frame(), text='No', command=self.negative_action)
+        self.negative_action_btn = NegativeButton(self.get_action_buttons_frame(), text='No', command=self.negative_action)
         self.negative_action_btn.grid(row=0, column=0)
 
         self.positive_action_btn = PositiveButton(self.get_action_buttons_frame(), text='Yes', command=self.positive_action)
@@ -70,3 +70,9 @@ class ConfirmDeleteDialog(NotificationDialog):
     def negative_action(self):
         self.destroy()
         self.negative_action_func()
+
+
+class ResultsDialogWithLogFile(ResultsDialog):
+    def __init__(self, master, success: bool, text: str, log_file_path: str):
+        title = 'Success!' if success else 'Error'
+        super().__init__(master, title=title, body_text=text, button_text='Open Log', results_dir=log_file_path)

@@ -8,27 +8,21 @@ import pyodbc
 from pyodbc import Connection
 from cryptography.fernet import Fernet
 
+from apex_gui.frames.notification_dialogs import StartUpErrorDialog
 
 class DatabaseConnection():
 
     def __init__(self, dev: bool = False) -> Connection:
         self.dev = dev
 
-        # try:
-        #     self.connection = self._create_server_connection()
-        # except pyodbc.InterfaceError as e:
-        #     print('__init__')
-        #     raise pyodbc.InterfaceError(e)
-        # else:
-        #     return self.connection
-        
     def __enter__(self) -> Connection:
         self.connection_string = self._get_connection_string()
         
         try:
             self.connection = self._create_server_connection()
         except pyodbc.InterfaceError as e:
-            print('__enter__')
+            error_dialog = StartUpErrorDialog(text=f'CRITICAL:\n\nCould not connect to database. Please quit the application and try again.')
+            error_dialog.mainloop()
             raise e
         else:
             return self.connection
@@ -38,6 +32,9 @@ class DatabaseConnection():
             self.connection.close()
         else:
             print(f'{exception_type = }\n{exception_value = }\n{exception_traceback = }\n')
+            # error_dialog = StartUpErrorDialog(text=f'{exception_value}')
+            # error_dialog.mainloop()
+            self.connection.close()
             raise exception_value
         
     # Use Fernet cipher to decrypt connection string
@@ -59,7 +56,7 @@ class DatabaseConnection():
         while not successful_connection and tries < retries:
             print(f'Connecting to DB, attempt {tries}')
             try:
-                connection = pyodbc.connect(self.connection_string)
+                connection = pyodbc.connect(self.connection_string, timeout=15)
                 # connection = pyodbc.connect('bas')
                 connection.cursor()
             except pyodbc.Error as err:
