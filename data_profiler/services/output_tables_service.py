@@ -12,6 +12,8 @@ from io import TextIOWrapper
 import pyodbc
 # from pyodbc import DatabaseError, Row
 
+from apex_gui.frames.notification_dialogs import StartUpErrorDialog
+
 from ..models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
 from ..models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
 from ..models.Responses import DeleteResponse
@@ -33,6 +35,10 @@ class OutputTablesService:
     def __exit__(self, exception_type, exception_value, exception_traceback):
         if exception_type is not None:
             print(f'------ OUTPUT TABLES EXCEPTION ------\n{exception_type = }\n{exception_value = }\n{exception_traceback = }\n')
+            # error_dialog = StartUpErrorDialog(text=f'OUTPUT TABLES SERVICE SAYS: \n{exception_value}')
+            # error_dialog.mainloop()
+
+            # print(f'out of mainloop')
             raise exception_value
 
     def get_output_tables_project_numbers(self) -> list[str]:
@@ -120,11 +126,6 @@ class OutputTablesService:
             date_for_analysis=results[7] if results[7] else None,
             weekend_date_rule=results[8] if results[8] else None
         )
-        # if results[7] and results[8]:
-        #     transform_options = TransformOptions(
-        #         date_for_analysis=DateForAnalysis(results[7]),
-        #         weekend_date_rule=WeekendDateRules(results[8])
-        #     )
 
         upload_paths = UploadedFilePaths(
             item_master=results[12] if results[12] else '',
@@ -175,6 +176,7 @@ class OutputTablesService:
                       None, None, None, None, None, None, None]
 
         # Connect and run query    
+        # try:
         with DatabaseConnection(dev=self.dev) as db_conn:
             cursor = db_conn.cursor()
 
@@ -185,7 +187,10 @@ class OutputTablesService:
             db_conn.commit()
 
             cursor.close()
+        # except pyodbc.Error as e:
+            # print(f'Some error: {e}')
 
+        print(f'returning from insertion. {row_count}')
         return row_count
     
     # Updates the project's row in Project

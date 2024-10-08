@@ -159,7 +159,7 @@ class DataProfilerGUI(ApexApp):
         self.home_frame_company_location = EntryWithLabel(self.home_frame_project_info_frame, label_text='Location', default_val=self.project_info.company_location, entry_type=EntryType.String)
         self.home_frame_salesperson = EntryWithLabel(self.home_frame_project_info_frame, label_text='Salesperson', default_val=self.project_info.salesperson, entry_type=EntryType.String)
         self.home_frame_email = EntryWithLabel(self.home_frame_project_info_frame, label_text='Email', default_val=self.project_info.email, entry_type=EntryType.String)
-        self.home_frame_start_date = EntryWithLabel(self.home_frame_project_info_frame, label_text='Start Date (yyyy-mm-dd)', default_val=self.project_info.start_date, entry_type=EntryType.String)
+        self.home_frame_start_date = EntryWithLabel(self.home_frame_project_info_frame, label_text='Start Date (yyyy-mm-dd)', default_val=self.project_info.start_date, entry_type=EntryType.Date)
         self.home_frame_notes = EntryWithLabel(self.home_frame_project_info_frame, label_text='Notes', default_val=self.project_info.notes, entry_type=EntryType.String)
         
         self.save_project_info_changes_button = PositiveButton(self.home_frame_project_info_frame, text='Save Changes', command=self.save_project_info_changes_action)
@@ -505,10 +505,12 @@ class DataProfilerGUI(ApexApp):
             notes=self.new_project_frame_notes.get_variable_value()
         )
 
-        rows_inserted = self.DataProfiler.create_new_project(project_info=new_project_info)
+        # rows_inserted = self.DataProfiler.create_new_project(project_info=new_project_info)
+        response = self.DataProfiler.create_new_project(project_info=new_project_info)
 
         notification_dialog = None
-        if rows_inserted == 1:
+        # if rows_inserted == 1:
+        if response.success:
             # Create home page with project info
             self._refresh_project_info()
             self._create_home_frame()
@@ -535,7 +537,8 @@ class DataProfilerGUI(ApexApp):
             self.update()
 
             # Display notification of results
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Something went wrong when creating new project for {self._get_project_number()}')
+            message = f'Something went wrong when creating new project for {self._get_project_number()}:\n\n{response.error_message}'
+            notification_dialog = NotificationDialog(self, title='Error', text=message)
 
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
@@ -558,6 +561,17 @@ class DataProfilerGUI(ApexApp):
         self.update()
 
     def save_project_info_changes_action(self):
+        # Validate inputs
+        if not self.home_frame_start_date.has_valid_input():
+            # Display notification of results
+            message = f'Invalid date given for Start Date ({self.home_frame_start_date.get_variable_value()})\n\nDate format should be "yyyy-mm-dd"'
+
+            notification_dialog = NotificationDialog(self, title='Error', text=message)
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+            return
+            
+        # Create objects
         current_project_info = self._get_project_info()
 
         new_project_info = ExistingProjectProjectInfo(
@@ -583,7 +597,7 @@ class DataProfilerGUI(ApexApp):
         if new_project_info == current_project_info:
             print('INFO IS THE SAME. DONT DO ANYTHING')
         
-        else:
+        else:       
             confirm_dialog = ConfirmDeleteDialog(self, title='Confirm Save', 
                                                 text=f'Are you sure you would like to save project info changes for {self._get_project_number()}?',
                                                 positive_action=self.save_project_info_changes,
@@ -623,17 +637,19 @@ class DataProfilerGUI(ApexApp):
         )
         
         # Submit changes to DB
-        rows_updated = self.DataProfiler.update_project_info(new_project_info=new_project_info)
+        # rows_updated = self.DataProfiler.update_project_info(new_project_info=new_project_info)
+        response = self.DataProfiler.update_project_info(new_project_info=new_project_info)
 
         notification_dialog = None
-        if rows_updated == 1:
+        # if rows_updated == 1:
+        if response.success:
             # Update home page
             self._refresh_project_info()
             self._create_home_frame()
 
             notification_dialog = NotificationDialog(self, title='Success!', text='Saved project info changes to database.')
         else:
-            notification_dialog = NotificationDialog(self, title='Error', text='Could not save project info changes to database.')
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Could not save project info changes to database:\n\n{response.error_message}')
 
         # Show self again
         self._toggle_frame_grid(frame=self.loading_frame, grid=False)
@@ -652,34 +668,10 @@ class DataProfilerGUI(ApexApp):
         self.update()
 
 
-    # def validate_data_directory(self):
-    #     data_dir = self.upload_frame_data_directory_browse.get_path()
-        
-    #     transform_options = TransformOptions(
-    #         date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
-    #         weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
-    #         process_inbound_data=self.upload_frame_process_inbound_data.get_value(),
-    #         process_inventory_data=self.upload_frame_process_inventory_data.get_value(),
-    #         process_outbound_data=self.upload_frame_process_outbound_data.get_value(),
-    #     )
-
-    #     data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
-    #     if not data_directory_validation.is_valid:
-    #         errors_str = '\n'.join(data_directory_validation.errors_list)
-    #         # Display error
-    #         notification_dialog = NotificationDialog(self, title='Error', text=f'Data directory is not valid:\n{errors_str}')
-    #         notification_dialog.attributes('-topmost', True)
-    #         notification_dialog.mainloop()
-
-    #         print(f'DATA DIR NOT VALID')
-    #         return
-    #     else:
-    #         self.upload_frame_submit_btn.configure(state='normal')
-
-
-    def upload_data_action(self):
+    ''' UNUSED '''
+    def validate_data_directory(self):
         data_dir = self.upload_frame_data_directory_browse.get_path()
-
+        
         transform_options = TransformOptions(
             date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
             weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
@@ -688,6 +680,33 @@ class DataProfilerGUI(ApexApp):
             process_outbound_data=self.upload_frame_process_outbound_data.get_value(),
         )
 
+        data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
+        if not data_directory_validation.is_valid:
+            errors_str = '\n'.join(data_directory_validation.errors_list)
+            # Display error
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Data directory is not valid:\n{errors_str}')
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+
+            print(f'DATA DIR NOT VALID')
+            return
+        else:
+            self.upload_frame_submit_btn.configure(state='normal')
+
+
+    def upload_data_action(self):
+        data_dir = self.upload_frame_data_directory_browse.get_path()
+
+        # Transform options don't need validation (cuz they're dropdowns and checkboxes)
+        transform_options = TransformOptions(
+            date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
+            weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
+            process_inbound_data=self.upload_frame_process_inbound_data.get_value(),
+            process_inventory_data=self.upload_frame_process_inventory_data.get_value(),
+            process_outbound_data=self.upload_frame_process_outbound_data.get_value(),
+        )
+
+        # Validate data directory
         data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
         if not data_directory_validation.is_valid:
             errors_str = '\n\n'.join(data_directory_validation.errors_list)
@@ -775,9 +794,11 @@ class DataProfilerGUI(ApexApp):
         self.update()
 
         # Delete project
-        rows_deleted = self.DataProfiler.delete_project()
+        # rows_deleted = self.DataProfiler.delete_project()
+        response = self.DataProfiler.delete_project()
 
-        if rows_deleted == 1:
+        # if rows_deleted == 1:
+        if response.success:
             # Show self again
             self._toggle_frame_grid(frame=self.loading_frame, grid=False)
             self._toggle_frame_grid(frame=self.start_frame, grid=True)
@@ -793,7 +814,7 @@ class DataProfilerGUI(ApexApp):
             self.update()
 
             # Display notification of results
-            notification_dialog = NotificationDialog(self, title='Error', text='Trouble deleting project. Try again.')        
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble deleting project:\n\n{response.error_message}')        
         
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
@@ -831,7 +852,7 @@ class DataProfilerGUI(ApexApp):
 
             message = 'Deleted project data successfully.'
         else:
-            message = f'Encountered {len(results.errors_encountered)} errors when attempting to delete project data.'
+            message = f'Encountered {len(results.errors_encountered)} errors when attempting to delete project data. Check log.'
 
         # Show self again
         self._toggle_frame_grid(frame=self.loading_frame, grid=False)

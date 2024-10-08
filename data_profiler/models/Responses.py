@@ -27,3 +27,10 @@ class DeleteResponse(BaseModel):
     rows_deleted: int = 0
     log_file_path: str = ''
 
+
+class DBWriteResponse(BaseModel):
+    success: bool = False
+    rows_affected: int = 0
+    error_message: str = ''
+
+
