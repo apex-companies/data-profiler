@@ -709,8 +709,6 @@ class DataProfilerGUI(ApexApp):
 
             print(f'DATA DIR NOT VALID')
             return
-        else:
-            self.upload_frame_submit_btn.configure(state='normal')
 
 
     def upload_data_action(self):
