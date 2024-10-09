@@ -6,11 +6,11 @@ Oct 2024
 Main Python class for DataProfiler app logic. This class shouldn't interact directly with DB - hand off to Service classes for this
 '''
 
+# Python
 import os
 from io import TextIOWrapper
 from time import time
 from datetime import datetime, timedelta
-from typing import Annotated
 import math
 from pathlib import Path
 from pprint import pprint
@@ -18,12 +18,13 @@ from pprint import pprint
 import pandas as pd
 import pyodbc
 
+# Data Profiler
 from .models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo, UploadedFilePaths
 from .models.TransformOptions import TransformOptions
 from .models.Responses import DBWriteResponse, TransformResponse, DeleteResponse
-from .models.DataFiles import DataDirectoryValidation, FileValidation, DIRECTORY_ERROR_DOES_NOT_EXIST, FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS, FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS,\
-    FILE_ERROR_INBOUND_NO_HEADER, FILE_ERROR_INBOUND_NO_DETAILS, FILE_ERROR_INVENTORY_MISSING_COLUMNS, FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS, FILE_ERROR_MISSING_ITEM_MASTER,\
-    FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS, FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS, FILE_ERROR_OUTBOUND_NO_HEADER , FILE_ERROR_OUTBOUND_NO_DETAILS, FILE_ERROR_MISSING_INVENTORY,\
+from .models.DataFiles import DataDirectoryValidation, FileValidation, DIRECTORY_ERROR_DOES_NOT_EXIST, FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS,\
+    FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS, FILE_ERROR_INVENTORY_MISSING_COLUMNS, FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS, FILE_ERROR_MISSING_ITEM_MASTER,\
+    FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS, FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS, FILE_ERROR_MISSING_INVENTORY,\
     FILE_ERROR_MISSING_INBOUND_HEADER, FILE_ERROR_MISSING_INBOUND_DETAILS, FILE_ERROR_MISSING_OUTBOUND_HEADER, FILE_ERROR_MISSING_OUTBOUND_DETAILS
 
 from .helpers.constants import UploadFileTypes, UPLOADS_REQUIRED_COLUMNS_MAPPER, UPLOADS_REQUIRED_DTYPES_MAPPER, DTYPES_DEFAULT_VALUES
@@ -50,7 +51,6 @@ class DataProfiler:
         self.project_info = None
         
         # If project exists, update relevant variables
-        # project_numbers = self.get_output_tables_projects()
         project_numbers = self.get_output_tables_projects()
         if project_number in set(project_numbers):
             self.project_exists = True
@@ -58,7 +58,6 @@ class DataProfiler:
         
 
     ''' Main functions - Create, Read, Update, Delete (CRUD) '''
-
 
     ## Create ##
 
@@ -68,7 +67,7 @@ class DataProfiler:
 
         Return
         ------
-        True for successful insert, False if something went wrong
+        DBWriteResponse
         
         '''
         if self.get_project_exists():
@@ -76,7 +75,6 @@ class DataProfiler:
         
         response = DBWriteResponse()
 
-        # rows_inserted = 0
         try:
             with OutputTablesService(dev=self.dev) as service:
                 response.rows_affected = service.insert_new_project_to_project_table(project_info=project_info)
@@ -105,8 +103,7 @@ class DataProfiler:
 
     def refresh_project_info(self):
         if not self.get_project_exists():
-            # TODO - raise an error? how to handle these
-            return 'Project does not yet exist'
+            raise ValueError('Project does not yet exist')
         
         with OutputTablesService(dev=self.dev) as service:
             self.project_info = service.get_project_info(self.get_project_number())
@@ -116,11 +113,10 @@ class DataProfiler:
 
     def update_project_info(self, new_project_info: ExistingProjectProjectInfo) -> DBWriteResponse:
         if not self.get_project_exists():
-            return 'Project does not yet exist'
+            raise ValueError('Project does not yet exist')
         
         response = DBWriteResponse()
 
-        # rows_inserted = 0
         try:
             with OutputTablesService(dev=self.dev) as service:
                 response.rows_affected = service.update_project_in_project_table(new_project_info=new_project_info)
@@ -145,7 +141,7 @@ class DataProfiler:
         if project_info.data_uploaded:
             raise ValueError('Project already has data uploaded. If you would like to update project data, delete it and re-upload.')
         
-        # Validate data directory
+        ## 1. Validate data directory ##
         data_directory_validation = self.validate_data_directory(data_directory=data_directory, transform_options=transform_options)
         pprint(data_directory_validation.model_dump())
 
@@ -153,7 +149,6 @@ class DataProfiler:
             errors_str = '\n\n'.join(data_directory_validation.errors_list)
             raise ValueError(f'Invalid data directory: {errors_str}')
         
-        # Validate uploaded files
         uploaded_files = UploadedFilePaths(
             item_master = data_directory_validation.item_master.file_path,
             inbound_header = data_directory_validation.inbound_header.file_path if transform_options.process_inbound_data else '',
@@ -163,7 +158,7 @@ class DataProfiler:
             order_details = data_directory_validation.order_details.file_path if transform_options.process_outbound_data else ''
         )
         
-        # START: read files
+        ## 2. Read files ##
     
         # Create log file
         log_file_path = f'{self.get_outputs_dir()}/{project_info.project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_transform.txt'
@@ -208,7 +203,6 @@ class DataProfiler:
             master_errors_dict[UploadFileTypes.ITEM_MASTER.value] = item_master_errors_list
         IM_SKUS = item_master['SKU'].unique().tolist()
 
-        # if data_directory_validation.inbound_header.is_present and data_directory_validation.inbound_details.is_present:
         if transform_options.process_inbound_data:
             inbound_header, inbound_header_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.INBOUND_HEADER, file_path=uploaded_files.inbound_header, log_file=log_file)
             print(inbound_header.head())
@@ -228,7 +222,6 @@ class DataProfiler:
             IBH_RECEIPTS = inbound_header['ReceiptNumber'].unique().tolist()
             IBD_RECEIPTS = inbound_details['ReceiptNumber'].unique().tolist()
 
-        # if data_directory_validation.inventory.is_present:
         if transform_options.process_inventory_data:
             inventory, inventory_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.INVENTORY, file_path=uploaded_files.inventory, log_file=log_file)
             print(inventory.head())
@@ -239,7 +232,6 @@ class DataProfiler:
 
             INV_SKUS = inventory['SKU'].unique().tolist()
 
-        # if data_directory_validation.order_header.is_present and data_directory_validation.order_details.is_present:
         if transform_options.process_outbound_data:
             order_header, order_header_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.ORDER_HEADER, file_path=uploaded_files.order_header, log_file=log_file)
             print(order_header.head())
@@ -268,6 +260,8 @@ class DataProfiler:
 
             return transform_response
         
+        ## 3. Validate files once they're read ##
+
         # SKU Checks
         bad_im_skus = self._validate_primary_keys(IM_SKUS)
 
@@ -331,13 +325,12 @@ class DataProfiler:
 
             return transform_response
 
-        # Transform and persist data
+        ## 4. Transform and persist data ##
+
         transform_st = time()
         print('Transforming...')
     
-        # IDEA - return rows_inserted of -1 if error
         transform_response = None
-        
         with TransformService(project_number=project_info.project_number, transform_options=transform_options, dev=self.dev) as service:
             transform_response = service.transform_and_persist_dataframes(item_master_df=item_master, inbound_header_df=inbound_header, inbound_details_df=inbound_details,
                                                             inventory_df=inventory, order_header_df=order_header, order_details_df=order_details,
@@ -372,10 +365,11 @@ class DataProfiler:
 
     def delete_project_data(self, log_file: TextIOWrapper | None = None) -> DeleteResponse:
         if not self.get_project_exists():
-            return 'Project does not yet exist'
+            raise ValueError('Project does not yet exist')
         
         project_info = self.get_project_info()
 
+        # Start log file
         log_file_given = (log_file != None)
         log_file_path = ''
         if not log_file_given:
@@ -386,6 +380,7 @@ class DataProfiler:
             log_file = open(log_file_path, 'w+')
             log_file.write(f'PROJECT NUMBER: {project_info.project_number}\n\n')
 
+        # Try delete
         response = None
         with OutputTablesService(dev=self.dev) as service:
             response = service.delete_project_data(project_number=project_info.project_number, log_file=log_file)
@@ -408,16 +403,15 @@ class DataProfiler:
     
     def delete_project(self) -> DBWriteResponse:
         if not self.get_project_exists():
-            return 'Project does not yet exist'
+            raise ValueError('Project does not yet exist')
         
         project_info = self.get_project_info()
 
         if project_info.data_uploaded:
-            return 'Please delete project data before deleting project.'
+            raise ValueError('Please delete project data before deleting project.')
         
+        # Try delete
         response = DBWriteResponse()
-
-        # rows_deleted = 0
         try:
             with OutputTablesService(dev=self.dev) as service:
                 response.rows_affected = service.delete_project(project_number=project_info.project_number)
@@ -434,12 +428,13 @@ class DataProfiler:
 
     ''' Main Functions - Validation '''
 
-
     def validate_data_directory(self, data_directory: str, transform_options: TransformOptions) -> DataDirectoryValidation: 
         '''
-        Validates a given data directory. 
+        Validates a data directory. 
 
-        Valid data directory = 1) All files are present and 2) those files have all required column headers
+        Valid data directory =  
+            1) All files are present  
+            2) those files have all required column headers
         '''
 
         validation_obj = DataDirectoryValidation(file_path=data_directory)
@@ -556,10 +551,18 @@ class DataProfiler:
         # Otherwise, it's valid
         return validation_obj
 
+
+    ''' Main Function - Read & Cleanse data '''
+
     def _read_and_cleanse_uploaded_data_file(self, file_type: UploadFileTypes, file_path: str, log_file: TextIOWrapper) -> tuple[pd.DataFrame, list]:
 
-        # Convert column types to match database and re-order columns. Find type errors now before attempting DB transactions
-        # Returns cleansed dataframe
+        ''' 
+        Reads given file and returns a cleansed dataframe. Converts column types to match database and re-order columns. Finds type errors now before attempting DB transactions.
+
+        Return
+        ------
+        pd.DataFrame
+        '''
 
         log_file.write(f'Reading {file_type.value}\n')
 
