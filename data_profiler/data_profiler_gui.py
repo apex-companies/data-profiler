@@ -13,7 +13,7 @@ from customtkinter import CTkLabel, StringVar, CTkFrame,CTkImage
 from PIL import Image
 
 # DataProfiler
-from .models.ProjectInfo import ExistingProjectProjectInfo
+from .models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
 from .models.Responses import TransformRowsInserted
 from .helpers.constants import RESOURCES_DIR, RESOURCES_DIR_DEV
@@ -179,10 +179,8 @@ class DataProfilerGUI(ApexApp):
         # self.home_frame_order_header_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Order Header File', value=str(self.project_info.uploaded_file_paths.order_header)[len(self.project_info.uploaded_file_paths.order_header) - 30:])#, alignment='vertical')
         # self.home_frame_order_details_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Order Details File', value=str(self.project_info.uploaded_file_paths.order_details)[len(self.project_info.uploaded_file_paths.order_details) - 30:])#, alignment='vertical')
 
-
         # Grid
         self._grid_home_frame()
-
 
     def _create_upload_data_frame(self):
         self.upload_frame = Page(self)
@@ -215,7 +213,6 @@ class DataProfilerGUI(ApexApp):
 
         # Grid
         self._grid_upload_frame()
-
 
     def _create_loading_frame(self):
         self.loading_frame = Page(self)
@@ -281,7 +278,6 @@ class DataProfilerGUI(ApexApp):
         self.new_project_frame_content_title.grid(row=0, column=0, sticky='ew', padx=50, pady=(20, 0))
         self.new_project_frame_project_info_section.grid(row=1, column=0, sticky='ns', padx=5, pady=20)
         self.new_project_frame_submit_btn.grid(row=2, column=0, padx=50, pady=(0, 20))
-
 
     def _grid_home_frame(self):
         # Parent = self
@@ -349,7 +345,6 @@ class DataProfilerGUI(ApexApp):
         # self.home_frame_order_header_file.grid(row=8, column=0, sticky='ew', padx=50, pady=(20, 0))
         # self.home_frame_order_details_file.grid(row=9, column=0, sticky='ew', padx=50, pady=(20, 20))
 
-
     def _grid_upload_frame(self):
         # Parent = self
         self.grid_page(self.upload_frame)
@@ -386,7 +381,6 @@ class DataProfilerGUI(ApexApp):
         self.upload_frame_process_inventory_data.grid(row=4, column=0, sticky='ew', padx=20, pady=(20, 0))
         self.upload_frame_process_outbound_data.grid(row=5, column=0, sticky='ew', padx=20, pady=(20, 5))        
 
-
     def _grid_loading_frame(self):
         # Parent = self
         self.grid_page(self.loading_frame)
@@ -403,6 +397,7 @@ class DataProfilerGUI(ApexApp):
 
         self.loading_frame_label.grid(row=0, column=0, padx=50, pady=50)
 
+
     ''' Toggle grid '''
 
     def _toggle_frame_grid(self, frame: CTkFrame, grid: bool):
@@ -416,61 +411,18 @@ class DataProfilerGUI(ApexApp):
             self.get_title_frame().set_project_number(self._get_project_number())
             self.get_title_frame().grid_project_number_frame()
         else:
-            self.get_title_frame().ungrid_project_number_frame()
+            self.get_title_frame().ungrid_project_number_frame()  
+    
 
-
-    ''' Button actions '''
-
-    def _start_frame_submit_action(self):
-        if not self._get_project_number():
-            return
-        
-        # Show loading frame while executing
-        self._set_loading_frame_text('Loading...')
-        self._toggle_frame_grid(frame=self.start_frame, grid=False)
-        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
-        self.update()
-
-        # Initialize a DataProfiler instance
-        self._init_data_profiler()
-
-        # Does the project number exist?
-        if self.DataProfiler.get_project_exists():
-            # Create home frame
-            self._create_home_frame()
-
-            # Navigate to hom
-            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-            self._toggle_frame_grid(frame=self.home_frame, grid=True)
-            self._toggle_project_number_frame_grid(grid=True)
-
-            print(self._get_project_info())
-        else:
-            confirm_dialog = ConfirmDeleteDialog(self, title='Data Profiler', 
-                                             text=f'A data project for "{self._get_project_number()}" does not yet exist. Would you like to start one?',
-                                             positive_action=self.show_new_project_frame,
-                                             negative_action=self.logout_action)
-        
-            confirm_dialog.attributes('-topmost', True)
-            confirm_dialog.mainloop()
-
-        self.update()
-
-    def show_new_project_frame(self):
-        self._toggle_frame_grid(self.loading_frame, False)
-        self._toggle_frame_grid(self.start_frame, False)
-        self._toggle_frame_grid(self.new_project_frame, True)
-        self._toggle_project_number_frame_grid(grid=True)
-
-        self.update()
+    ''' Main CRUD functions '''
+    
+    ## Create ##
 
     def create_project_action(self):
 
         # Validate inputs
-        # if not self.new_project_frame_start_date.has_valid_input():
-        # if not self.new_project_frame_project_info_frame.has_valid_inputs():
         if not self.new_project_frame_project_info_section.has_valid_inputs():
-            # Display notification of results
+            # NOTE - currently the date is the only possible error
             message = f'Invalid date format for Start Date:\n{self.new_project_frame_project_info_section.start_date.get_variable_value()}\n\nDate format should be "yyyy-mm-dd"'
 
             notification_dialog = NotificationDialog(self, title='Error', text=message)
@@ -484,39 +436,19 @@ class DataProfilerGUI(ApexApp):
         self._toggle_frame_grid(frame=self.loading_frame, grid=True)
         self.update()
 
-        # Create obj
-        # new_project_info = BaseProjectInfo(
-        #     project_number=self._get_project_number(),
-        #     project_name=self.new_project_frame_project_name.get_variable_value(),
-        #     company_name=self.new_project_frame_company.get_variable_value(),
-        #     company_location=self.new_project_frame_company_location.get_variable_value(),
-        #     email=self.new_project_frame_email.get_variable_value(),
-        #     salesperson=self.new_project_frame_salesperson.get_variable_value(),
-        #     start_date=self.new_project_frame_start_date.get_variable_value(),
-        #     notes=self.new_project_frame_notes.get_variable_value()
-        # )
         new_project_info = self.new_project_frame_project_info_section.get_project_info_inputs(self._get_project_number())
-
-        # rows_inserted = self.DataProfiler.create_new_project(project_info=new_project_info)
         response = self.DataProfiler.create_new_project(project_info=new_project_info)
 
         notification_dialog = None
-        # if rows_inserted == 1:
         if response.success:
             # Create home page with project info
             self._refresh_project_info()
             self._create_home_frame()
 
             # Clear new project form
-            # self.new_project_frame_project_name.clear_input(),
-            # self.new_project_frame_company.clear_input(),
-            # self.new_project_frame_company_location.clear_input(),
-            # self.new_project_frame_email.clear_input(),
-            # self.new_project_frame_salesperson.clear_input(),
-            # self.new_project_frame_start_date.clear_input(),
-            # self.new_project_frame_notes.clear_input()
             self.new_project_frame_project_info_section.clear_frame()
 
+            # Navigate to home
             self._toggle_frame_grid(frame=self.loading_frame, grid=False)
             self._toggle_frame_grid(frame=self.home_frame, grid=True)
             self.update()
@@ -525,6 +457,7 @@ class DataProfilerGUI(ApexApp):
             notification_dialog = NotificationDialog(self, title='Success!', text=f'Created new data project for {self._get_project_number()}')
         
         else:
+            # Navigate back to new project screen
             self._toggle_frame_grid(frame=self.loading_frame, grid=False)
             self._toggle_frame_grid(frame=self.new_project_frame, grid=True)
             self.update()
@@ -536,181 +469,7 @@ class DataProfilerGUI(ApexApp):
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
         return
-
-    def logout_action(self):
-        # Destroy our data profiler instance
-        self._destroy_data_profiler()
-
-        # Grid only start frame
-        if hasattr(self, 'home_frame'):
-            self._toggle_frame_grid(frame=self.home_frame, grid=False)
-
-        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
-        self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
-        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-
-        self._toggle_project_number_frame_grid(grid=False)
-        self._toggle_frame_grid(frame=self.start_frame, grid=True)
-        self.update()
-
-    def save_project_info_changes_action(self):
-        # Validate inputs
-        # if not self.home_frame_start_date.has_valid_input():
-        # if not self.home_frame_project_info_frame.has_valid_inputs():
-        if not self.home_frame_project_info_section.has_valid_inputs():
-            # Display notification of results
-            # message = f'Invalid date given for Start Date ({self.home_frame_start_date.get_variable_value()})\n\nDate format should be "yyyy-mm-dd"'
-            message = f'Invalid date given for Start Date ({self.home_frame_project_info_section.start_date.get_variable_value()})\n\nDate format should be "yyyy-mm-dd"'
-
-            notification_dialog = NotificationDialog(self, title='Error', text=message)
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
-            return
-            
-        # Create objects
-        current_project_info = self._get_project_info()
-
-        new_project_info_inputs = self.home_frame_project_info_section.get_project_info_inputs(self._get_project_number())
-
-        new_project_info = ExistingProjectProjectInfo(
-            project_number=self._get_project_number(),
-            project_name=new_project_info_inputs.project_name,
-            company_name=new_project_info_inputs.company_name,
-            company_location=new_project_info_inputs.company_location,
-            salesperson=new_project_info_inputs.salesperson,
-            email=new_project_info_inputs.email,
-            start_date=new_project_info_inputs.start_date,
-            # notes=self.home_frame_notes.get_variable_value(),
-            # notes=self.home_frame_notes.get(0.0, 'end-1c'),
-            notes=new_project_info_inputs.notes,
-            data_uploaded=current_project_info.data_uploaded,
-            upload_date=current_project_info.upload_date,
-            transform_options=current_project_info.transform_options,
-            uploaded_file_paths=current_project_info.uploaded_file_paths
-        )
-
-        print(f'--------------------- OLD ---------------------------')
-        pprint(current_project_info.model_dump())
-        print(f'--------------------- NEW ---------------------------')
-        pprint(new_project_info.model_dump())
-
-        if new_project_info == current_project_info:
-            print('INFO IS THE SAME. DONT DO ANYTHING')
-        
-        else:       
-            confirm_dialog = ConfirmDeleteDialog(self, title='Confirm Save', 
-                                                text=f'Are you sure you would like to save project info changes for {self._get_project_number()}?',
-                                                positive_action=self.save_project_info_changes,
-                                                negative_action=self.void)
-            
-            confirm_dialog.attributes('-topmost', True)
-            confirm_dialog.mainloop()
-
-        return
     
-    def void(self):
-        return
-
-    def save_project_info_changes(self):
-        # Show loading frame while executing
-        self._set_loading_frame_text('Saving changes...')
-        self._toggle_frame_grid(frame=self.home_frame, grid=False)
-        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
-        self.update()
-
-        # Create new project info object using inputs
-        current_project_info = self._get_project_info()
-
-        # new_project_info = ExistingProjectProjectInfo(
-        #     project_number=self._get_project_number(),
-        #     project_name=self.home_frame_project_name.get_variable_value(),
-        #     company_name=self.home_frame_company.get_variable_value(),
-        #     company_location=self.home_frame_company_location.get_variable_value(),
-        #     salesperson=self.home_frame_salesperson.get_variable_value(),
-        #     email=self.home_frame_email.get_variable_value(),
-        #     start_date=self.home_frame_start_date.get_variable_value(),
-        #     # notes=self.home_frame_notes.get_variable_value(),
-        #     # notes=self.home_frame_notes.get(0.0, 'end-1c'),
-        #     notes=self.home_frame_notes.get_text(),
-        #     data_uploaded=current_project_info.data_uploaded,
-        #     upload_date=current_project_info.upload_date,
-        #     transform_options=current_project_info.transform_options,
-        #     uploaded_file_paths=current_project_info.uploaded_file_paths
-        # )
-        new_project_info_inputs = self.home_frame_project_info_section.get_project_info_inputs(self._get_project_number())
-        new_project_info = ExistingProjectProjectInfo(
-            project_number=self._get_project_number(),
-            project_name=new_project_info_inputs.project_name,
-            company_name=new_project_info_inputs.company_name,
-            company_location=new_project_info_inputs.company_location,
-            salesperson=new_project_info_inputs.salesperson,
-            email=new_project_info_inputs.email,
-            start_date=new_project_info_inputs.start_date,
-            # notes=self.home_frame_notes.get_variable_value(),
-            # notes=self.home_frame_notes.get(0.0, 'end-1c'),
-            notes=new_project_info_inputs.notes,
-            data_uploaded=current_project_info.data_uploaded,
-            upload_date=current_project_info.upload_date,
-            transform_options=current_project_info.transform_options,
-            uploaded_file_paths=current_project_info.uploaded_file_paths
-        )
-        
-        # Submit changes to DB
-        # rows_updated = self.DataProfiler.update_project_info(new_project_info=new_project_info)
-        response = self.DataProfiler.update_project_info(new_project_info=new_project_info)
-
-        notification_dialog = None
-        # if rows_updated == 1:
-        if response.success:
-            # Update home page
-            self._refresh_project_info()
-            self._create_home_frame()
-
-            notification_dialog = NotificationDialog(self, title='Success!', text='Saved project info changes to database.')
-        else:
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Could not save project info changes to database:\n\n{response.error_message}')
-
-        # Show self again
-        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-        self._toggle_frame_grid(frame=self.home_frame, grid=True)
-        self.update()
-
-        # Display notification of results
-        notification_dialog.attributes('-topmost', True)
-        notification_dialog.mainloop()
-        return
-
-    def upload_frame_back_to_home_action(self):
-        # Show self again
-        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
-        self._toggle_frame_grid(frame=self.home_frame, grid=True)
-        self.update()
-
-
-    ''' UNUSED '''
-    def validate_data_directory(self):
-        data_dir = self.upload_frame_data_directory_browse.get_path()
-        
-        transform_options = TransformOptions(
-            date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
-            weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
-            process_inbound_data=self.upload_frame_process_inbound_data.get_value(),
-            process_inventory_data=self.upload_frame_process_inventory_data.get_value(),
-            process_outbound_data=self.upload_frame_process_outbound_data.get_value(),
-        )
-
-        data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
-        if not data_directory_validation.is_valid:
-            errors_str = '\n'.join(data_directory_validation.errors_list)
-            # Display error
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Data directory is not valid:\n{errors_str}')
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
-
-            print(f'DATA DIR NOT VALID')
-            return
-
-
     def upload_data_action(self):
         data_dir = self.upload_frame_data_directory_browse.get_path()
 
@@ -750,7 +509,7 @@ class DataProfilerGUI(ApexApp):
         message = ''
         self._toggle_frame_grid(frame=self.loading_frame, grid=False)
         if not results.success:
-            # Back to upload frame
+            # Navigate back to upload frame
             self._toggle_frame_grid(frame=self.upload_frame, grid=True)
 
             # Display notification of results
@@ -760,7 +519,7 @@ class DataProfilerGUI(ApexApp):
             self._create_upload_data_frame()
             self._toggle_frame_grid(frame=self.upload_frame, grid=False)
             
-            # Back to home
+            # Navigate to home
             self._refresh_project_info()
             self._create_home_frame()
             self._toggle_frame_grid(frame=self.home_frame, grid=True)
@@ -776,33 +535,69 @@ class DataProfilerGUI(ApexApp):
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
         return
+    
+    ## Read ##
 
+    def _refresh_project_info(self):
+        self.project_info = self.DataProfiler.get_project_info()
 
-    def show_upload_data_frame_action(self):
-        self._toggle_frame_grid(self.home_frame, grid=False)
-        self._toggle_frame_grid(self.upload_frame, grid=True)
-        return
+    ## Update ##
 
+    def save_project_info_changes(self):
+        # Show loading frame while executing
+        self._set_loading_frame_text('Saving changes...')
+        self._toggle_frame_grid(frame=self.home_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
+        self.update()
 
-    def delete_project_action(self):
+        # Create new project info object using inputs
+        current_project_info: ExistingProjectProjectInfo = self._get_project_info()
+        home_frame_project_info_inputs: BaseProjectInfo = self.home_frame_project_info_section.get_project_info_inputs(self._get_project_number())
+
+        # Create ExistingProjectProjectInfo using new inputs and current data info
+        new_project_info = ExistingProjectProjectInfo(
+            project_number=self._get_project_number(),
+            project_name=home_frame_project_info_inputs.project_name,
+            company_name=home_frame_project_info_inputs.company_name,
+            company_location=home_frame_project_info_inputs.company_location,
+            salesperson=home_frame_project_info_inputs.salesperson,
+            email=home_frame_project_info_inputs.email,
+            start_date=home_frame_project_info_inputs.start_date,
+            notes=home_frame_project_info_inputs.notes,
+            data_uploaded=current_project_info.data_uploaded,
+            upload_date=current_project_info.upload_date,
+            transform_options=current_project_info.transform_options,
+            uploaded_file_paths=current_project_info.uploaded_file_paths
+        )
         
-        notification_dialog = None
+        # Submit changes to DB
+        response = self.DataProfiler.update_project_info(new_project_info=new_project_info)
 
-        if self._get_project_info().data_uploaded:
-            message = f'Please delete project data before deleting project.'
-            notification_dialog = NotificationDialog(self, title='Data Profiler', text=message)
+        notification_dialog = None
+        if response.success:
+            # Update home page
+            self._refresh_project_info()
+            self._create_home_frame()
+
+            # Notify of success
+            notification_dialog = NotificationDialog(self, title='Success!', text='Saved project info changes to database.')
         else:
-            message = f'Are you sure you would like to delete project {self._get_project_number()}?'
-            notification_dialog = ConfirmDeleteDialog(self, 
-                                                      title='Confirm Deletion', 
-                                                        text=message,
-                                                        positive_action=self.delete_project,
-                                                        negative_action=self.void)
-            
+            # Notify of failure
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Could not save project info changes to database:\n\n{response.error_message}')
+
+        # Navigate back to home
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+        self._toggle_frame_grid(frame=self.home_frame, grid=True)
+        self.update()
+
+        # Display notification of results
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
         return
-    
+
+
+    ## Delete ##
+
     def delete_project(self):
         # Show loading frame while executing
         self._set_loading_frame_text('Deleting project...')
@@ -811,12 +606,10 @@ class DataProfilerGUI(ApexApp):
         self.update()
 
         # Delete project
-        # rows_deleted = self.DataProfiler.delete_project()
         response = self.DataProfiler.delete_project()
 
-        # if rows_deleted == 1:
         if response.success:
-            # Show self again
+            # Navigate to start
             self._toggle_frame_grid(frame=self.loading_frame, grid=False)
             self._toggle_frame_grid(frame=self.start_frame, grid=True)
             self.update()
@@ -825,7 +618,7 @@ class DataProfilerGUI(ApexApp):
             notification_dialog = NotificationDialog(self, title='Success!', text='Deleted project successfully.')        
         
         else:
-            # Show self again
+            # Navigate back to home
             self._toggle_frame_grid(frame=self.loading_frame, grid=False)
             self._toggle_frame_grid(frame=self.home_frame, grid=True)
             self.update()
@@ -835,18 +628,6 @@ class DataProfilerGUI(ApexApp):
         
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
-        return
-
-
-    def delete_project_data_action(self):
-        confirm_dialog = ConfirmDeleteDialog(self, 
-                                             title='Confirm Deletion', 
-                                             text=f'Are you sure you would like to delete project data for {self._get_project_number()}?',
-                                             positive_action=self.delete_project_data,
-                                             negative_action=self.void)
-        
-        confirm_dialog.attributes('-topmost', True)
-        confirm_dialog.mainloop()
         return
     
     def delete_project_data(self):
@@ -884,9 +665,142 @@ class DataProfilerGUI(ApexApp):
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
         return
+    
 
+    ''' Other button actions '''
 
-    ''' Critical functions '''
+    def _start_frame_submit_action(self):
+        if not self._get_project_number():
+            return
+        
+        # Show loading frame while executing
+        self._set_loading_frame_text('Loading...')
+        self._toggle_frame_grid(frame=self.start_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
+        self.update()
+
+        # Initialize a DataProfiler instance
+        self._init_data_profiler()
+
+        # Does the project number exist?
+        if self.DataProfiler.get_project_exists():
+            # Create home frame
+            self._create_home_frame()
+
+            # Navigate to home
+            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+            self._toggle_frame_grid(frame=self.home_frame, grid=True)
+            self._toggle_project_number_frame_grid(grid=True)
+
+            print(self._get_project_info())
+        else:
+            confirm_dialog = ConfirmDeleteDialog(self, title='Data Profiler', 
+                                             text=f'A data project for "{self._get_project_number()}" does not yet exist. Would you like to start one?',
+                                             positive_action=self.show_new_project_frame,
+                                             negative_action=self.logout_action)
+        
+            confirm_dialog.attributes('-topmost', True)
+            confirm_dialog.mainloop()
+
+        self.update()
+
+    def show_new_project_frame(self):
+        self._toggle_frame_grid(self.loading_frame, False)
+        self._toggle_frame_grid(self.start_frame, False)
+        self._toggle_frame_grid(self.new_project_frame, True)
+        self._toggle_project_number_frame_grid(grid=True)
+        self.update()
+
+    def logout_action(self):
+        # Destroy our data profiler instance
+        self._destroy_data_profiler()
+
+        # Grid only start frame
+        if hasattr(self, 'home_frame'):
+            self._toggle_frame_grid(frame=self.home_frame, grid=False)
+
+        # Navigate to start
+        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
+        self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+
+        self._toggle_project_number_frame_grid(grid=False)
+        self._toggle_frame_grid(frame=self.start_frame, grid=True)
+        self.update()
+
+    def save_project_info_changes_action(self):
+        # Validate inputs
+        if not self.home_frame_project_info_section.has_valid_inputs():
+            # Display notification of results
+            message = f'Invalid date given for Start Date ({self.home_frame_project_info_section.start_date.get_variable_value()})\n\nDate format should be "yyyy-mm-dd"'
+
+            notification_dialog = NotificationDialog(self, title='Error', text=message)
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+            return
+            
+        # Create objects
+        current_project_info = BaseProjectInfo(**self._get_project_info().model_dump())
+        home_frame_project_info_inputs = self.home_frame_project_info_section.get_project_info_inputs(self._get_project_number())
+
+        print(f'--------------------- OLD ---------------------------')
+        pprint(current_project_info.model_dump())
+        print(f'--------------------- NEW ---------------------------')
+        pprint(home_frame_project_info_inputs.model_dump())
+
+        if home_frame_project_info_inputs != current_project_info:     
+            confirm_dialog = ConfirmDeleteDialog(self, title='Confirm Save', 
+                                                text=f'Are you sure you would like to save project info changes for {self._get_project_number()}?',
+                                                positive_action=self.save_project_info_changes,
+                                                negative_action=self.void)
+            
+            confirm_dialog.attributes('-topmost', True)
+            confirm_dialog.mainloop()
+        else:
+             print('INFO IS THE SAME. DONT DO ANYTHING')
+
+        return
+
+    def upload_frame_back_to_home_action(self):
+        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
+        self._toggle_frame_grid(frame=self.home_frame, grid=True)
+        self.update()
+
+    def show_upload_data_frame_action(self):
+        self._toggle_frame_grid(self.home_frame, grid=False)
+        self._toggle_frame_grid(self.upload_frame, grid=True)
+        return
+
+    def delete_project_action(self):
+        notification_dialog = None
+        if self._get_project_info().data_uploaded:
+            message = f'Please delete project data before deleting project.'
+            notification_dialog = NotificationDialog(self, title='Data Profiler', text=message)
+        else:
+            message = f'Are you sure you would like to delete project {self._get_project_number()}?'
+            notification_dialog = ConfirmDeleteDialog(self, 
+                                                      title='Confirm Deletion', 
+                                                        text=message,
+                                                        positive_action=self.delete_project,
+                                                        negative_action=self.void)
+            
+        notification_dialog.attributes('-topmost', True)
+        notification_dialog.mainloop()
+        return
+
+    def delete_project_data_action(self):
+        confirm_dialog = ConfirmDeleteDialog(self, 
+                                             title='Confirm Deletion', 
+                                             text=f'Are you sure you would like to delete project data for {self._get_project_number()}?',
+                                             positive_action=self.delete_project_data,
+                                             negative_action=self.void)
+        
+        confirm_dialog.attributes('-topmost', True)
+        confirm_dialog.mainloop()
+        return
+    
+
+    ''' Other critical/logic functions '''
 
     def _init_data_profiler(self):
         self.DataProfiler = DataProfiler(project_number=self._get_project_number(), dev=self.dev)
@@ -896,8 +810,35 @@ class DataProfilerGUI(ApexApp):
         self.DataProfiler = None
         self.project_info = None
 
+    # UNUSED
+    def validate_data_directory(self):
+        data_dir = self.upload_frame_data_directory_browse.get_path()
+        
+        transform_options = TransformOptions(
+            date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
+            weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
+            process_inbound_data=self.upload_frame_process_inbound_data.get_value(),
+            process_inventory_data=self.upload_frame_process_inventory_data.get_value(),
+            process_outbound_data=self.upload_frame_process_outbound_data.get_value(),
+        )
+
+        data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
+        if not data_directory_validation.is_valid:
+            errors_str = '\n'.join(data_directory_validation.errors_list)
+            # Display error
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Data directory is not valid:\n{errors_str}')
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+
+            print(f'DATA DIR NOT VALID')
+            return
+
+
     ''' Helpers '''
 
+    def void(self):
+        return
+    
     def pretty_print_rows_inserted(self, rows: TransformRowsInserted):
         return_str = ''
 
@@ -911,20 +852,14 @@ class DataProfilerGUI(ApexApp):
 
         return return_str
 
+
     ''' Getters/Setters '''
 
     def _get_project_number(self):
-        # return self.project_number_var.get()
         return self.select_project_number_dropdown.get_variable_value()
     
-    # def _set_project_number(self, pn: str):
-    #     self.project_number_var.set(pn)  
-
     def _get_project_info(self) -> ExistingProjectProjectInfo:
         return self.project_info
-    
-    def _refresh_project_info(self):
-        self.project_info = self.DataProfiler.get_project_info()
 
     def _set_loading_frame_text(self, text: str):
         self.loading_frame_text_var.set(text)

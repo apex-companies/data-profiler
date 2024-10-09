@@ -1,156 +1,28 @@
 '''
 Jack Miller
 Apex Companies
-August 2024
+Oct 2024
+
+Custom ctk frames for DataProfiler
 '''
 
-from typing import Literal, Callable
-from customtkinter import CTkTextbox, CTkEntry, CTkLabel, CTkOptionMenu, CTkScrollableFrame, CTkImage, StringVar, DoubleVar, BooleanVar
-from PIL import Image
-
-from apex_gui.frames.notification_dialogs import NotificationDialog, ResultsDialog
-from apex_gui.frames.custom_widgets import EntryWithLabel, TextboxWithLabel
-from apex_gui.frames.styled_widgets import SectionWithScrollbar, Frame, Section, PositiveButton, NeutralButton, NegativeButton
-from apex_gui.helpers.constants import EntryType
-from apex_gui.styles.colors import *
-from apex_gui.styles.fonts import AppFont, SectionHeaderFont
-
+# Data Profiler
 from ..models.ProjectInfo import BaseProjectInfo
 
-
-
-# class StaticValueWithLabel(Frame):
-
-#     def __init__(self, master, value: str, label_text: str, alignment: str = 'horizontal') -> None:
-#         if alignment not in ['horizontal', 'vertical']:
-#             raise ValueError(f'Argument "alignment" received illegal value: {alignment}')
-        
-#         super().__init__(master=master)
-
-#         self.variable = StringVar(self, value)
-
-#         self.label = CTkLabel(self, text=f'{label_text}')  
-#         # self.entry = CTkLabel(self, text=value, wraplength=400)
-#         self.entry = CTkEntry(self, textvariable=self.variable, state='disabled')
-
-#         if alignment == 'horizontal':
-#             self.grid_rowconfigure(0, weight=1)
-#             self.grid_columnconfigure([0,1], weight=1)
-
-#             self.label.grid(row=0,column=0, sticky='w')
-#             self.entry.grid(row=0,column=1, sticky='e', padx=(5,0))
-#         else:
-#             self.grid_rowconfigure(1, weight=1)
-#             self.grid_columnconfigure(0, weight=1)
-
-#             self.label.grid(row=0,column=0, sticky='w')
-#             self.entry.grid(row=1, column=0, sticky='ew', pady=(5,0))
-
-#         # self.label.grid(row=0,column=0, sticky='w')
-#         # self.entry.grid(row=0,column=1, sticky='e', padx=(5,0))
-
-# class DropdownWithLabel(Frame):
-
-#     def __init__(self, master, label_text: str, default_val: str, dropdown_values: list, label_font: AppFont | None = None, dropdown_sticky: str = 'ew', **kwargs):
-#         super().__init__(master=master, **kwargs)
-
-#         self.dropdown_values = dropdown_values
-#         self.variable = StringVar(self, default_val)
-
-#         if label_font == None:
-#             label_font = AppFont(size=14)
-
-#         self.label = CTkLabel(self, text=label_text, font=label_font)
-#         self.dropdown = CTkOptionMenu(self, variable=self.variable, values=dropdown_values, height=35)
-
-#         # Grid
-#         self.grid_columnconfigure(0, weight=1)
-#         self.grid_rowconfigure([0,1], weight=1)
-
-#         self.label.grid(row=0, column=0, sticky='ew')
-#         self.dropdown.grid(row=1, column=0, sticky=dropdown_sticky)
-
-#     def get_variable_value(self) -> str:
-#         return self.variable.get()
-
-
-# class ConfirmDeleteDialog(NotificationDialog):
-
-#     def __init__(self, master, title: str, text: str, positive_action: Callable, negative_action: Callable):
-#         super().__init__(master, title=title, text=text)
-
-#         self.positive_action_func: Callable = positive_action
-#         self.negative_action_func: Callable = negative_action
-
-#         self.negative_action_btn = NegativeButton(self.get_action_buttons_frame(), text='No', command=self.negative_action)
-#         self.negative_action_btn.grid(row=0, column=0)
-
-#         self.positive_action_btn = PositiveButton(self.get_action_buttons_frame(), text='Yes', command=self.positive_action)
-#         self.positive_action_btn.grid(row=0, column=1, padx=(5,0))
-
-#     def positive_action(self):
-#         self.destroy()
-#         self.positive_action_func()
-    
-#     def negative_action(self):
-#         self.destroy()
-#         self.negative_action_func()
-
-
-# class ResultsDialogWithLogFile(ResultsDialog):
-#     def __init__(self, master, success: bool, text: str, log_file_path: str):
-#         title = 'Success!' if success else 'Error'
-#         super().__init__(master, title=title, body_text=text, button_text='Open Log', results_dir=log_file_path)
-
-
-# class TextboxWithLabel(Frame):
-
-#     def __init__(self, master, default_val: str, label_text: str, alignment: str = 'vertical', textbox_height: int = 28, textbox_width: int = 140) -> None:
-#         if alignment not in ['horizontal', 'vertical']:
-#             raise ValueError(f'Argument "alignment" received illegal value: {alignment}')
-        
-#         super().__init__(master=master)
-
-#         self.label = CTkLabel(self, text=label_text)  
-#         self.textbox = CTkTextbox(master=self, wrap='word', height=textbox_height, width=textbox_width)
-#         self.set_text(default_val)
-
-#         if alignment == 'horizontal':
-#             self.grid_rowconfigure(0, weight=1)
-#             self.grid_columnconfigure([0,1], weight=1)
-
-#             self.label.grid(row=0,column=0, sticky='w')
-#             self.textbox.grid(row=0,column=1, sticky='e', padx=(5,0))
-#         else:
-#             self.grid_rowconfigure(1, weight=1)
-#             self.grid_columnconfigure(0, weight=1)
-
-#             self.label.grid(row=0,column=0, sticky='w')
-#             self.textbox.grid(row=1, column=0, sticky='ew', pady=(5,0))
-
-#     def get_text(self):
-#         t = self.textbox.get(0.0, 'end-1c')
-#         # return sanitize_text(t)
-#         return t
-
-#     def set_text(self, val):
-#         self.textbox.insert(0.0, val, 'end-1c')
-
-#     def clear_input(self):
-#         self.set_text('')
-
-#     # def has_valid_input(self):
-#     #     return self.entry.has_valid_input()
-
-
-# class SectionWithScrollbar(CTkScrollableFrame):
-#     def __init__(self, master, width: int = 200, height: int = 200):
-#         super().__init__(master, fg_color=WHITE, border_color=APEX_IVORY_MEDIUM_SHADE, scrollbar_fg_color=APEX_IVORY_MEDIUM_SHADE, 
-#                          border_width=2, corner_radius=15, width=width, height=height)
+# Apex GUI
+from apex_gui.frames.custom_widgets import EntryWithLabel, TextboxWithLabel
+from apex_gui.frames.styled_widgets import SectionWithScrollbar
+from apex_gui.helpers.constants import EntryType
 
 
 class ProjectInfoFrame(SectionWithScrollbar):
+    '''
+    Displays basic project info and allows user to edit said info.
 
+    Get current inputs with `get_project_info_inputs()`  
+    Set project info with `set_project_info()`
+    '''
+    
     def __init__(self, master):
         super().__init__(master, width=500, height=600)    
 

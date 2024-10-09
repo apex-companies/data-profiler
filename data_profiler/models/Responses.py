@@ -1,4 +1,10 @@
+'''
+Jack Miller
+Apex Companies
+Oct 2024
 
+Some helpful pydantic models for relaying/returning information about database interactions
+'''
 
 from pydantic import BaseModel
 
@@ -11,6 +17,7 @@ class TransformRowsInserted(BaseModel):
     inventory_lines: int = 0
     outbound_lines: int = 0
     outbound_orders: int = 0
+
 
 class TransformResponse(BaseModel):
     project_number: str
