@@ -16,4 +16,7 @@ SET [Company] = ?
     ,[InventoryFilePath] = ?
     ,[OrderHeaderFilePath] = ?
     ,[OrderDetailsFilePath] = ?
+    ,[ProcessInboundData] = ?
+    ,[ProcessInventoryData] = ?
+    ,[ProcessOutboundData] = ?
 WHERE [ProjectNumber] = ?

@@ -10,7 +10,7 @@ import os
 import sys
 from importlib.metadata import version
 
-from apex_gui.frames.notification_dialogs import StartUpErrorDialog
+from apex_gui.frames.notification_dialogs import CriticalErrorDialog
 
 from data_profiler.models.ProjectInfo import BaseProjectInfo
 from data_profiler.models.TransformOptions import TransformOptions, WeekendDateRules, DateForAnalysis
@@ -22,7 +22,7 @@ from data_profiler.data_profiler_gui import DataProfilerGUI
 if not os.path.exists("Y:\\DataProfiler\\version.txt"):
     print('INVALID HOST')
 
-    error_dialog = StartUpErrorDialog(text='INVALID HOST')
+    error_dialog = CriticalErrorDialog(title='Data Profiler', text='INVALID HOST')
     error_dialog.mainloop()
 
     sys.exit(-1)
@@ -40,7 +40,7 @@ if master_version != current_version:
     print('UPDATE TO LATEST VERSION')
 
     message = f'UPDATE TO LATEST VERSION\n\nThis version: {current_version}\nLatest version: {master_version} '
-    error_dialog = StartUpErrorDialog(text=message)
+    error_dialog = CriticalErrorDialog(title='Data Profiler', text=message)
     error_dialog.mainloop()
 
     sys.exit(-1)

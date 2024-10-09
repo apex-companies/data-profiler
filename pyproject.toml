@@ -12,7 +12,7 @@ pydantic = "^2.9.2"
 pyodbc = "^5.1.0"
 cryptography = "^43.0.1"
 pandas = "^2.2.3"
-apex-gui = {path = "C:/Users/jack.miller/Documents/Apex/Consulting/apex-gui/dist/apex_gui-1.0.0-py3-none-any.whl"}
+apex-gui = {path = "C:/Users/jack.miller/Documents/Apex/Consulting/apex-gui/dist/apex_gui-1.1.0-py3-none-any.whl"}
 
 
 [build-system]

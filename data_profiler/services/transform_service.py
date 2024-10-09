@@ -352,7 +352,7 @@ class TransformService:
 
         return item_master_return
 
-    def create_inbound_header(self, project_num: str, inbound_header_df: pd.DataFrame, inbound_details_df: pd.DataFrame, transform_options: TransformOptions) -> pd.DataFrame:
+    def create_inbound_header(self, project_num: str, inbound_header_df: pd.DataFrame, inbound_details_df: pd.DataFrame) -> pd.DataFrame:
         if len(inbound_header_df) == 0:
             print(f'No inbound data. Skipping inbound header')
             return inbound_header_df
