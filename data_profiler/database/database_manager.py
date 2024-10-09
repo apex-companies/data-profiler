@@ -8,10 +8,14 @@ import pyodbc
 from pyodbc import Connection
 from cryptography.fernet import Fernet
 
-from apex_gui.frames.notification_dialogs import StartUpErrorDialog
+from apex_gui.frames.notification_dialogs import CriticalErrorDialog
+
 
 class DatabaseConnection():
-
+    '''
+    Manages connection with aasdevfree Azure SQL database. Use in "with" block to receive a pyodbc Connection object
+    '''
+    
     def __init__(self, dev: bool = False) -> Connection:
         self.dev = dev
 
@@ -21,7 +25,7 @@ class DatabaseConnection():
         try:
             self.connection = self._create_server_connection()
         except pyodbc.InterfaceError as e:
-            error_dialog = StartUpErrorDialog(text=f'CRITICAL:\n\nCould not connect to database. Please quit the application and try again.')
+            error_dialog = CriticalErrorDialog(title='Data Profiler', text=f'CRITICAL:\n\nCould not connect to database. Please quit the application and try again.')
             error_dialog.mainloop()
             raise e
         else:
@@ -32,8 +36,6 @@ class DatabaseConnection():
             self.connection.close()
         else:
             print(f'{exception_type = }\n{exception_value = }\n{exception_traceback = }\n')
-            # error_dialog = StartUpErrorDialog(text=f'{exception_value}')
-            # error_dialog.mainloop()
             self.connection.close()
             raise exception_value
         

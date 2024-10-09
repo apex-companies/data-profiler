@@ -12,7 +12,6 @@ from io import TextIOWrapper
 import pyodbc
 # from pyodbc import DatabaseError, Row
 
-from apex_gui.frames.notification_dialogs import StartUpErrorDialog
 
 from ..models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
 from ..models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
@@ -35,10 +34,6 @@ class OutputTablesService:
     def __exit__(self, exception_type, exception_value, exception_traceback):
         if exception_type is not None:
             print(f'------ OUTPUT TABLES EXCEPTION ------\n{exception_type = }\n{exception_value = }\n{exception_traceback = }\n')
-            # error_dialog = StartUpErrorDialog(text=f'OUTPUT TABLES SERVICE SAYS: \n{exception_value}')
-            # error_dialog.mainloop()
-
-            # print(f'out of mainloop')
             raise exception_value
 
     def get_output_tables_project_numbers(self) -> list[str]:
