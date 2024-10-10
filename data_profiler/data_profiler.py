@@ -45,9 +45,14 @@ class DataProfiler:
         self.project_number = project_number
         self.dev = dev
 
-        self.outputs_dir = 'logs' if self.dev else Path.home() / 'Downloads'
-        if not os.path.isdir(self.outputs_dir):
-            self.outputs_dir = '.'
+        self.outputs_dir = os.getcwd()
+
+        if self.dev and os.path.isdir('logs'):
+            self.outputs_dir = f'{os.getcwd()}/logs'
+        else:
+            downloads_path = f'{Path.home()}/Downloads'
+            if os.path.isdir(downloads_path):
+                self.outputs_dir = downloads_path
 
         self.project_exists = False
         self.project_info = None
@@ -164,8 +169,8 @@ class DataProfiler:
     
         # Create log file
         log_file_path = f'{self.get_outputs_dir()}/{project_info.project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_transform.txt'
-        if self.dev:
-            log_file_path = f'{os.getcwd()}/{log_file_path}'        # prepend full absolute path if in dev
+        # if self.dev:
+        #     log_file_path = f'{os.getcwd()}/{log_file_path}'        # prepend full absolute path if in dev
 
         log_file = open(log_file_path, 'w+')
         log_file.write(f'PROJECT NUMBER: {project_info.project_number}\n\n')
@@ -376,8 +381,8 @@ class DataProfiler:
         log_file_path = ''
         if not log_file_given:
             log_file_path = f'{self.get_outputs_dir()}/{project_info.project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_delete_from_output_tables.txt'
-            if self.dev:
-                log_file_path = f'{os.getcwd()}/{log_file_path}'
+            # if self.dev:
+            #     log_file_path = f'{os.getcwd()}/{log_file_path}'
 
             log_file = open(log_file_path, 'w+')
             log_file.write(f'PROJECT NUMBER: {project_info.project_number}\n\n')
