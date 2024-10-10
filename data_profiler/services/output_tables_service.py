@@ -14,6 +14,7 @@ import pyodbc
 from ..helpers.models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
 from ..helpers.models.TransformOptions import TransformOptions
 from ..helpers.models.Responses import DeleteResponse
+from ..helpers.constants.app_constants import SQL_DIR, SQL_DIR_DEV
 
 from ..database.database_manager import DatabaseConnection
 from ..database.helpers.constants import DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT, OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT,\
@@ -26,6 +27,7 @@ class OutputTablesService:
 
     def __init__(self, dev: bool = False):
         self.dev = dev
+        self.sql_dir = SQL_DIR_DEV if self.dev else SQL_DIR
 
     def __enter__(self):
         return self
@@ -64,7 +66,7 @@ class OutputTablesService:
         # Get query from sql file
         sql_file = DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT if self.dev else OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT
 
-        f = open(sql_file)
+        f = open(f'{self.sql_dir}/{sql_file}')
         select_query = f.read()
         f.close()
 
@@ -130,7 +132,7 @@ class OutputTablesService:
         # Get query from sql file
         sql_file = DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT if self.dev else OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT
 
-        f = open(sql_file)
+        f = open(f'{self.sql_dir}/{sql_file}')
         insert_query = f.read()
         f.close()
 
@@ -167,7 +169,7 @@ class OutputTablesService:
         # Get query from sql file
         sql_file = DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT if self.dev else OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT
 
-        f = open(sql_file)
+        f = open(f'{self.sql_dir}/{sql_file}')
         update_query = f.read()
         f.close()
 
@@ -237,7 +239,7 @@ class OutputTablesService:
                     break
                 
                 # Get delete query
-                fd = open(file)
+                fd = open(f'{self.sql_dir}/{file}')
                 delete_query = fd.read()
                 fd.close()
                 print(f'{delete_query} \n')
@@ -292,7 +294,7 @@ class OutputTablesService:
         # Get query from sql file
         sql_file = DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT if self.dev else OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT
 
-        f = open(sql_file)
+        f = open(f'{self.sql_dir}/{sql_file}')
         delete_query = f.read()
         f.close()
 

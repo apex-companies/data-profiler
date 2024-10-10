@@ -4,7 +4,9 @@ Apex Companies
 Oct 2024
 
 Database constants. File paths/mappers for queries and column names for tables 
+IMPORTANT - all sql file paths are relative to the sql/ directory, wherever that may be
 '''
+
 
 ###########
 ### ALL ###
@@ -24,10 +26,6 @@ SCHEMAS = {
 }
 
 
-#####################
-### OUTPUT_TABLES ###
-#####################
-
 OUTPUT_TABLES_ITEM_MASTER_COLS = ['ProjectNumber_SKU','ProjectNumber','SKU','SKUDescription','SKUClass','UnitOfMeasure','Velocity','EachLength','EachWidth','EachHeight','EachWeight',
                                   'InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight',
                                   'CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Subwarehouse']
@@ -45,7 +43,6 @@ OUTPUT_TABLES_PROJECT_NUMBER_ORDER_NUMBER_COLS = ['ProjectNumber_OrderNumber','P
 OUTPUT_TABLES_VELOCITY_LADDER_COLS = ['%Lines','SKUs_RunningSum','Lines_RunningSum','Units_RunningSum','ProjectNumber_Velocity','%SKUs','Lines','Units','SKUs','%Units']
 
 OUTPUT_TABLES_COLS_MAPPER = {
-    # 'Project': OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT,
     'ItemMaster': OUTPUT_TABLES_ITEM_MASTER_COLS,
     'InboundHeader': OUTPUT_TABLES_INBOUND_HEADER_COLS,
     'ProjectNumber_Velocity': OUTPUT_TABLES_PROJECT_NUMBER_VELOCITY_COLS,
@@ -62,22 +59,25 @@ OUTPUT_TABLES_COLS_MAPPER = {
 }
 
 
-## Insert queries
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT = 'data_profiler/database/sql/PROD/insert/insert_into_project.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_ITEM_MASTER = 'data_profiler/database/sql/PROD/insert/insert_into_item_master.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INBOUND_HEADER = 'data_profiler/database/sql/PROD/insert/insert_into_inbound_header.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT_NUMBER_VELOCITY = 'data_profiler/database/sql/PROD/insert/insert_into_project_number_velocity.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT_NUMBER_ORDER_NUMBER = 'data_profiler/database/sql/PROD/insert/insert_into_project_number_order_number.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INBOUND_DETAILS = 'data_profiler/database/sql/PROD/insert/insert_into_inbound_details.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INVENTORY_DATA = 'data_profiler/database/sql/PROD/insert/insert_into_inventory_data.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_OUTBOUND_DATA = 'data_profiler/database/sql/PROD/insert/insert_into_outbound_data.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_OUTBOUND_DATA_BY_ORDER = 'data_profiler/database/sql/PROD/insert/insert_into_outbound_data_by_order.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_ORDER_VELOCITY_COMBINATIONS = 'data_profiler/database/sql/PROD/insert/insert_into_order_velocity_combinations.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_SUMMARY = 'data_profiler/database/sql/PROD/insert/insert_into_velocity_summary.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_LADDER = 'data_profiler/database/sql/PROD/insert/insert_into_velocity_ladder.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_BY_MONTH = 'data_profiler/database/sql/PROD/insert/insert_into_velocity_by_month.sql'
-OUTPUT_TABLES_SQL_FILE_INSERT_INTO_DAILY_ORDER_PROFILE_BY_VELOCITY = 'data_profiler/database/sql/PROD/insert/insert_into_daily_order_profile_by_velocity.sql'
+######################
+### PROD SQL FILES ###
+######################
 
+## Insert queries
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT = 'PROD/insert/insert_into_project.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_ITEM_MASTER = 'PROD/insert/insert_into_item_master.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INBOUND_HEADER = 'PROD/insert/insert_into_inbound_header.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT_NUMBER_VELOCITY = 'PROD/insert/insert_into_project_number_velocity.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT_NUMBER_ORDER_NUMBER = 'PROD/insert/insert_into_project_number_order_number.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INBOUND_DETAILS = 'PROD/insert/insert_into_inbound_details.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INVENTORY_DATA = 'PROD/insert/insert_into_inventory_data.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_OUTBOUND_DATA = 'PROD/insert/insert_into_outbound_data.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_OUTBOUND_DATA_BY_ORDER = 'PROD/insert/insert_into_outbound_data_by_order.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_ORDER_VELOCITY_COMBINATIONS = 'PROD/insert/insert_into_order_velocity_combinations.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_SUMMARY = 'PROD/insert/insert_into_velocity_summary.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_LADDER = 'PROD/insert/insert_into_velocity_ladder.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_BY_MONTH = 'PROD/insert/insert_into_velocity_by_month.sql'
+OUTPUT_TABLES_SQL_FILE_INSERT_INTO_DAILY_ORDER_PROFILE_BY_VELOCITY = 'PROD/insert/insert_into_daily_order_profile_by_velocity.sql'
 
 # IMPORTANT: these need to stay in INSERTION order. that is, PK tables first, then FK tables.
 OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
@@ -98,27 +98,27 @@ OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
 }
 
 ## Select queries
-OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'data_profiler/database/sql/PROD/select/select_all_from_project.sql'
+OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'PROD/select/select_all_from_project.sql'
 
 ## Update queries
-OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'data_profiler/database/sql/PROD/update/update_project.sql'
+OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'PROD/update/update_project.sql'
 
 ## Delete queries
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_TABLES_BY_PROJECT_NUMBER = 'data_profiler/database/sql/PROD/delete/delete_from_tables_by_project_number.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT = 'data_profiler/database/sql/PROD/delete/delete_from_project.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_ITEM_MASTER = 'data_profiler/database/sql/PROD/delete/delete_from_item_master.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INBOUND_HEADER = 'data_profiler/database/sql/PROD/delete/delete_from_inbound_header.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT_NUMBER_VELOCITY = 'data_profiler/database/sql/PROD/delete/delete_from_project_number_velocity.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT_NUMBER_ORDER_NUMBER = 'data_profiler/database/sql/PROD/delete/delete_from_project_number_order_number.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INBOUND_DETAILS = 'data_profiler/database/sql/PROD/delete/delete_from_inbound_details.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INVENTORY_DATA = 'data_profiler/database/sql/PROD/delete/delete_from_inventory_data.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_OUTBOUND_DATA = 'data_profiler/database/sql/PROD/delete/delete_from_outbound_data.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_OUTBOUND_DATA_BY_ORDER = 'data_profiler/database/sql/PROD/delete/delete_from_outbound_data_by_order.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_ORDER_VELOCITY_COMBINATIONS = 'data_profiler/database/sql/PROD/delete/delete_from_order_velocity_combinations.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_SUMMARY = 'data_profiler/database/sql/PROD/delete/delete_from_velocity_summary.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_LADDER = 'data_profiler/database/sql/PROD/delete/delete_from_velocity_ladder.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_BY_MONTH = 'data_profiler/database/sql/PROD/delete/delete_from_velocity_by_month.sql'
-OUTPUT_TABLES_SQL_FILE_DELETE_FROM_DAILY_ORDER_PROFILE_BY_VELOCITY = 'data_profiler/database/sql/PROD/delete/delete_from_daily_order_profile_by_velocity.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_TABLES_BY_PROJECT_NUMBER = 'PROD/delete/delete_from_tables_by_project_number.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT = 'PROD/delete/delete_from_project.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_ITEM_MASTER = 'PROD/delete/delete_from_item_master.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INBOUND_HEADER = 'PROD/delete/delete_from_inbound_header.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT_NUMBER_VELOCITY = 'PROD/delete/delete_from_project_number_velocity.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT_NUMBER_ORDER_NUMBER = 'PROD/delete/delete_from_project_number_order_number.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INBOUND_DETAILS = 'PROD/delete/delete_from_inbound_details.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INVENTORY_DATA = 'PROD/delete/delete_from_inventory_data.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_OUTBOUND_DATA = 'PROD/delete/delete_from_outbound_data.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_OUTBOUND_DATA_BY_ORDER = 'PROD/delete/delete_from_outbound_data_by_order.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_ORDER_VELOCITY_COMBINATIONS = 'PROD/delete/delete_from_order_velocity_combinations.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_SUMMARY = 'PROD/delete/delete_from_velocity_summary.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_LADDER = 'PROD/delete/delete_from_velocity_ladder.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_BY_MONTH = 'PROD/delete/delete_from_velocity_by_month.sql'
+OUTPUT_TABLES_SQL_FILE_DELETE_FROM_DAILY_ORDER_PROFILE_BY_VELOCITY = 'PROD/delete/delete_from_daily_order_profile_by_velocity.sql'
 
 # IMPORTANT: these need to stay in DELETION order. that is, delete from non-PK tables first, then PK tables
 OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER = {
@@ -145,20 +145,20 @@ OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER = {
 #####################
 
 ## Insert quries
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT = 'data_profiler/database/sql/DEV/insert/insert_into_project.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_ITEM_MASTER = 'data_profiler/database/sql/DEV/insert/insert_into_item_master.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INBOUND_HEADER = 'data_profiler/database/sql/DEV/insert/insert_into_inbound_header.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT_NUMBER_VELOCITY = 'data_profiler/database/sql/DEV/insert/insert_into_project_number_velocity.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT_NUMBER_ORDER_NUMBER = 'data_profiler/database/sql/DEV/insert/insert_into_project_number_order_number.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INBOUND_DETAILS = 'data_profiler/database/sql/DEV/insert/insert_into_inbound_details.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INVENTORY_DATA = 'data_profiler/database/sql/DEV/insert/insert_into_inventory_data.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_OUTBOUND_DATA = 'data_profiler/database/sql/DEV/insert/insert_into_outbound_data.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_OUTBOUND_DATA_BY_ORDER = 'data_profiler/database/sql/DEV/insert/insert_into_outbound_data_by_order.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_ORDER_VELOCITY_COMBINATIONS = 'data_profiler/database/sql/DEV/insert/insert_into_order_velocity_combinations.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_SUMMARY = 'data_profiler/database/sql/DEV/insert/insert_into_velocity_summary.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_LADDER = 'data_profiler/database/sql/DEV/insert/insert_into_velocity_ladder.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_BY_MONTH = 'data_profiler/database/sql/DEV/insert/insert_into_velocity_by_month.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_DAILY_ORDER_PROFILE_BY_VELOCITY = 'data_profiler/database/sql/DEV/insert/insert_into_daily_order_profile_by_velocity.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT = 'DEV/insert/insert_into_project.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_ITEM_MASTER = 'DEV/insert/insert_into_item_master.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INBOUND_HEADER = 'DEV/insert/insert_into_inbound_header.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT_NUMBER_VELOCITY = 'DEV/insert/insert_into_project_number_velocity.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT_NUMBER_ORDER_NUMBER = 'DEV/insert/insert_into_project_number_order_number.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INBOUND_DETAILS = 'DEV/insert/insert_into_inbound_details.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_INVENTORY_DATA = 'DEV/insert/insert_into_inventory_data.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_OUTBOUND_DATA = 'DEV/insert/insert_into_outbound_data.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_OUTBOUND_DATA_BY_ORDER = 'DEV/insert/insert_into_outbound_data_by_order.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_ORDER_VELOCITY_COMBINATIONS = 'DEV/insert/insert_into_order_velocity_combinations.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_SUMMARY = 'DEV/insert/insert_into_velocity_summary.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_LADDER = 'DEV/insert/insert_into_velocity_ladder.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_VELOCITY_BY_MONTH = 'DEV/insert/insert_into_velocity_by_month.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_DAILY_ORDER_PROFILE_BY_VELOCITY = 'DEV/insert/insert_into_daily_order_profile_by_velocity.sql'
 
 DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
     'Project': DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT,
@@ -179,28 +179,28 @@ DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
 
 
 ## Select queries
-DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'data_profiler/database/sql/DEV/select/select_all_from_project.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'DEV/select/select_all_from_project.sql'
 
 ## Update queries
-DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'data_profiler/database/sql/DEV/update/update_project.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'DEV/update/update_project.sql'
 
 ## Delete queries
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_TABLES_BY_PROJECT_NUMBER = 'data_profiler/database/sql/DEV/delete/delete_from_tables_by_project_number.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_TABLES_BY_PROJECT_NUMBER = 'DEV/delete/delete_from_tables_by_project_number.sql'
 
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT = 'data_profiler/database/sql/DEV/delete/delete_from_project.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_ITEM_MASTER = 'data_profiler/database/sql/DEV/delete/delete_from_item_master.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INBOUND_HEADER = 'data_profiler/database/sql/DEV/delete/delete_from_inbound_header.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT_NUMBER_VELOCITY = 'data_profiler/database/sql/DEV/delete/delete_from_project_number_velocity.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT_NUMBER_ORDER_NUMBER = 'data_profiler/database/sql/DEV/delete/delete_from_project_number_order_number.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INBOUND_DETAILS = 'data_profiler/database/sql/DEV/delete/delete_from_inbound_details.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INVENTORY_DATA = 'data_profiler/database/sql/DEV/delete/delete_from_inventory_data.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_OUTBOUND_DATA = 'data_profiler/database/sql/DEV/delete/delete_from_outbound_data.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_OUTBOUND_DATA_BY_ORDER = 'data_profiler/database/sql/DEV/delete/delete_from_outbound_data_by_order.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_ORDER_VELOCITY_COMBINATIONS = 'data_profiler/database/sql/DEV/delete/delete_from_order_velocity_combinations.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_SUMMARY = 'data_profiler/database/sql/DEV/delete/delete_from_velocity_summary.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_LADDER = 'data_profiler/database/sql/DEV/delete/delete_from_velocity_ladder.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_BY_MONTH = 'data_profiler/database/sql/DEV/delete/delete_from_velocity_by_month.sql'
-DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_DAILY_ORDER_PROFILE_BY_VELOCITY = 'data_profiler/database/sql/DEV/delete/delete_from_daily_order_profile_by_velocity.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT = 'DEV/delete/delete_from_project.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_ITEM_MASTER = 'DEV/delete/delete_from_item_master.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INBOUND_HEADER = 'DEV/delete/delete_from_inbound_header.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT_NUMBER_VELOCITY = 'DEV/delete/delete_from_project_number_velocity.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT_NUMBER_ORDER_NUMBER = 'DEV/delete/delete_from_project_number_order_number.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INBOUND_DETAILS = 'DEV/delete/delete_from_inbound_details.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_INVENTORY_DATA = 'DEV/delete/delete_from_inventory_data.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_OUTBOUND_DATA = 'DEV/delete/delete_from_outbound_data.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_OUTBOUND_DATA_BY_ORDER = 'DEV/delete/delete_from_outbound_data_by_order.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_ORDER_VELOCITY_COMBINATIONS = 'DEV/delete/delete_from_order_velocity_combinations.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_SUMMARY = 'DEV/delete/delete_from_velocity_summary.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_LADDER = 'DEV/delete/delete_from_velocity_ladder.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_VELOCITY_BY_MONTH = 'DEV/delete/delete_from_velocity_by_month.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_DAILY_ORDER_PROFILE_BY_VELOCITY = 'DEV/delete/delete_from_daily_order_profile_by_velocity.sql'
 
 # IMPORTANT: these need to stay in DELETION order. that is, delete from non-PK tables first, then PK tables
 DEV_OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER = {

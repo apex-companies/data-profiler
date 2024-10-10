@@ -22,7 +22,7 @@ from ..database.database_manager import DatabaseConnection
 
 from ..helpers.models.TransformOptions import TransformOptions, DateForAnalysis, WeekendDateRules
 from ..helpers.models.Responses import TransformRowsInserted, TransformResponse
-
+from ..helpers.constants.app_constants import SQL_DIR, SQL_DIR_DEV
 
 
 class TransformService:
@@ -36,6 +36,7 @@ class TransformService:
         self.project_number = project_number
         self.transform_options = transform_options
         self.dev = dev
+        self.sql_dir = SQL_DIR_DEV if self.dev else SQL_DIR
 
     def __enter__(self):
         return self
@@ -286,7 +287,7 @@ class TransformService:
         cursor.fast_executemany = True
 
         # Get sql query
-        fd = open(sql_file_path)
+        fd = open(f'{self.sql_dir}/{sql_file_path}')
         insert_query = fd.read()
         fd.close()
         
