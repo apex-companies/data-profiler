@@ -45,18 +45,19 @@ class DataProfilerGUI(ApexApp):
         theme_path = f'{self.resources_dir}/apex-theme.json'
         customtkinter.set_default_color_theme(theme_path)
 
+        # Set variables for constructor
         icon_path = f'{self.resources_dir}/apex-a.ico'
         logo_url = f'{self.resources_dir}/apex-a.png'
         logo = Image.open(logo_url)
+        title = '(DEV) Data Profiler' if dev else 'Data Profiler'
 
-        super().__init__(title='Data Profiler', icon_path=icon_path, logo=logo, dev=dev)
-
+        # Create window
+        super().__init__(title=title, icon_path=icon_path, logo=logo, dev=dev)
         self.geometry('1100x700')
-
-        self.dev = dev
 
         ''' Variables '''
 
+        self.dev = dev
         self.project_number = None
         self.DataProfiler: DataProfiler = None
         self.project_info: ExistingProjectProjectInfo = None
@@ -77,22 +78,11 @@ class DataProfilerGUI(ApexApp):
         self._create_loading_frame()
         self._create_upload_data_frame()
 
-        ''' Toggle grids '''
-        # Ungrid everything but start
-        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
-        self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
-        self._toggle_project_number_frame_grid(grid=False)
+        ''' Startup '''
 
-        self._toggle_frame_grid(frame=self.start_frame, grid=True)
-
-        # if dev:
-        #     self._dev_startup()
-
-        # Force window to show and then query DB for project #s
-        self.update()
-        self._refresh_project_numbers()
-
+        # Use logout, because it ungrids every other frame, fetches project #s, and navigates to start
+        self.logout_action()
+        
 
     ''' Create frames '''
 
@@ -759,27 +749,37 @@ class DataProfilerGUI(ApexApp):
         self.update()
 
     def logout_action(self):
+        '''
+        This is basically an app reset. It ungrids every page, updates the set of project numbers, and navigates back to the start frame.
+        '''
+        
         # Destroy our data profiler instance
         self._destroy_data_profiler()
 
         # Clear project number
         self._set_project_number('')
-        self.select_project_number_dropdown.set_variable_value('')
+        self.select_project_number_dropdown.set_variable_value('')       
 
-        # Grid only start frame
+        # Ungrid everything
         if hasattr(self, 'home_frame'):
             self._toggle_frame_grid(frame=self.home_frame, grid=False)
-
-        # Navigate to start
         self._toggle_frame_grid(frame=self.upload_frame, grid=False)
         self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
         self._toggle_frame_grid(frame=self.loading_frame, grid=False)
         self._toggle_project_number_frame_grid(grid=False)
-        self._toggle_frame_grid(frame=self.start_frame, grid=True)
+        self._toggle_frame_grid(frame=self.start_frame, grid=False)
 
-        # Update window before querying DB to refresh project numbers
+        # Show loading screen while fetching project numbers
+        self._set_loading_frame_text('Fetching projects...')
+        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
         self.update()
+
         self._refresh_project_numbers()
+
+        # Once projects are loaded, nav to start
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+        self._toggle_frame_grid(frame=self.start_frame, grid=True)
+        self.update()
 
     def save_project_info_changes_action(self):
         # Validate inputs
