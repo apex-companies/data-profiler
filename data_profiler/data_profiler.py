@@ -19,16 +19,18 @@ import pandas as pd
 import pyodbc
 
 # Data Profiler
-from .models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo, UploadedFilePaths
-from .models.TransformOptions import TransformOptions
-from .models.Responses import DBWriteResponse, TransformResponse, DeleteResponse
-from .models.DataFiles import DataDirectoryValidation, FileValidation, DIRECTORY_ERROR_DOES_NOT_EXIST, FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS,\
-    FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS, FILE_ERROR_INVENTORY_MISSING_COLUMNS, FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS, FILE_ERROR_MISSING_ITEM_MASTER,\
-    FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS, FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS, FILE_ERROR_MISSING_INVENTORY,\
-    FILE_ERROR_MISSING_INBOUND_HEADER, FILE_ERROR_MISSING_INBOUND_DETAILS, FILE_ERROR_MISSING_OUTBOUND_HEADER, FILE_ERROR_MISSING_OUTBOUND_DETAILS
-
-from .helpers.constants import UploadFileTypes, UPLOADS_REQUIRED_COLUMNS_MAPPER, UPLOADS_REQUIRED_DTYPES_MAPPER, DTYPES_DEFAULT_VALUES
-from .helpers.functions import data_frame_opens, data_frame_is_empty, validate_csv_column_names
+from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
+from .helpers.models.TransformOptions import TransformOptions
+from .helpers.models.Responses import DBWriteResponse, TransformResponse, DeleteResponse
+from .helpers.models.DataFiles import DataDirectoryValidation, FileValidation, UploadFileTypes, UploadedFilePaths
+from .helpers.constants.data_file_constants import UPLOADS_REQUIRED_COLUMNS_MAPPER, UPLOADS_REQUIRED_DTYPES_MAPPER,\
+    DTYPES_DEFAULT_VALUES, DIRECTORY_ERROR_DOES_NOT_EXIST, FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS,\
+    FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS, FILE_ERROR_INVENTORY_MISSING_COLUMNS, FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS,\
+    FILE_ERROR_MISSING_ITEM_MASTER, FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS, FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS,\
+    FILE_ERROR_MISSING_INVENTORY, FILE_ERROR_MISSING_INBOUND_HEADER, FILE_ERROR_MISSING_INBOUND_DETAILS,\
+    FILE_ERROR_MISSING_OUTBOUND_HEADER, FILE_ERROR_MISSING_OUTBOUND_DETAILS
+from .helpers.functions.functions import file_path_is_valid_data_frame, data_frame_is_empty, validate_csv_column_names,\
+    validate_primary_keys, check_mismatching_primary_key_values
 
 from .services.output_tables_service import OutputTablesService
 from .services.transform_service import TransformService
@@ -263,16 +265,16 @@ class DataProfiler:
         ## 3. Validate files once they're read ##
 
         # SKU Checks
-        bad_im_skus = self._validate_primary_keys(IM_SKUS)
+        bad_im_skus = validate_primary_keys(IM_SKUS)
 
         if len(bad_im_skus) > 0:
             valid_data = False
             log_file.write(f'ERROR - Found {len(bad_im_skus)} erroneous Item Master SKUs\n')
             log_file.write(f'{bad_im_skus[:10]}...\n')
 
-        bad_ib_skus = self._check_mismatching_primary_key_values(IM_SKUS, IB_SKUS)
-        bad_inv_skus = self._check_mismatching_primary_key_values(IM_SKUS, INV_SKUS)
-        bad_ob_skus = self._check_mismatching_primary_key_values(IM_SKUS, OB_SKUS)
+        bad_ib_skus = check_mismatching_primary_key_values(IM_SKUS, IB_SKUS)
+        bad_inv_skus = check_mismatching_primary_key_values(IM_SKUS, INV_SKUS)
+        bad_ob_skus = check_mismatching_primary_key_values(IM_SKUS, OB_SKUS)
 
         if len(bad_ib_skus) > 0:
             valid_data = False
@@ -290,8 +292,8 @@ class DataProfiler:
             log_file.write(f'{bad_ob_skus[:10]}...\n')
 
         # Receipt/Order Number Checks
-        bad_receipt_numbers = self._validate_primary_keys(IBH_RECEIPTS)
-        bad_order_numbers = self._validate_primary_keys(OBH_ORDERS)
+        bad_receipt_numbers = validate_primary_keys(IBH_RECEIPTS)
+        bad_order_numbers = validate_primary_keys(OBH_ORDERS)
 
         if len(bad_receipt_numbers) > 0:
             valid_data = False
@@ -303,8 +305,8 @@ class DataProfiler:
             log_file.write(f'ERROR - Found {len(bad_order_numbers)} erroneous Order Header order numbers\n')
             log_file.write(f'{bad_order_numbers[:10]}...\n')
 
-        bad_ibd_receipts = self._check_mismatching_primary_key_values(IBH_RECEIPTS, IBD_RECEIPTS)
-        bad_obd_receipts = self._check_mismatching_primary_key_values(OBH_ORDERS, OBD_ORDERS)
+        bad_ibd_receipts = check_mismatching_primary_key_values(IBH_RECEIPTS, IBD_RECEIPTS)
+        bad_obd_receipts = check_mismatching_primary_key_values(OBH_ORDERS, OBD_ORDERS)
         
         if len(bad_ibd_receipts) > 0:
             valid_data = False
@@ -533,7 +535,7 @@ class DataProfiler:
             validation_obj.is_present = True
 
         # Is it valid?
-        if not data_frame_opens(validation_obj.file_path):
+        if not file_path_is_valid_data_frame(validation_obj.file_path):
             validation_obj.is_valid = False
             return validation_obj
         
@@ -610,30 +612,6 @@ class DataProfiler:
         df = df.reindex(columns=dtypes.keys())
 
         return df, errors_list
-    
-
-    ''' Helpers '''
-
-    def _validate_primary_keys(self, pk_list: list) -> list[str]:
-        erroneous_pks = []
-
-        for key in pk_list:
-            if not key:
-                erroneous_pks.append(key)
-        
-        return erroneous_pks
-
-    def _check_mismatching_primary_key_values(self, pk_list: list, fk_list: list) -> list[str]:
-        erroneous_fks = []
-        
-        pk_set = set(pk_list)
-        fk_set = set(fk_list)
-
-        for key in fk_set:
-            if key not in pk_set:
-                erroneous_fks.append(key)
-
-        return erroneous_fks
 
 
     ''' Getters/Setters '''

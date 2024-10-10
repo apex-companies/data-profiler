@@ -9,14 +9,14 @@ GUI for data profiler app. Creates an instance of DataProfiler as backend logic 
 # Python
 from pprint import pprint
 import customtkinter
-from customtkinter import CTkLabel, StringVar, CTkFrame,CTkImage
+from customtkinter import CTkLabel, StringVar, CTkFrame, CTkImage
 from PIL import Image
 
 # DataProfiler
-from .models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
-from .models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
-from .models.Responses import TransformRowsInserted
-from .helpers.constants import RESOURCES_DIR, RESOURCES_DIR_DEV
+from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
+from .helpers.models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
+from .helpers.models.Responses import TransformRowsInserted
+from .helpers.constants.app_constants import RESOURCES_DIR, RESOURCES_DIR_DEV
 from .frames.custom_widgets import ProjectInfoFrame
 from .data_profiler import DataProfiler
 

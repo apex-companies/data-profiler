@@ -8,8 +8,8 @@ Pydantic models to represent the Project table and related information
 
 from pydantic import BaseModel
 
-from .TransformOptions import TransformOptions, DateForAnalysis, WeekendDateRules
-from ..helpers.constants import UploadFileTypes
+from .TransformOptions import TransformOptions
+from .DataFiles import UploadedFilePaths
 
 
 class BaseProjectInfo(BaseModel):
@@ -38,25 +38,6 @@ class BaseProjectInfo(BaseModel):
             ]
         }
     }
-
-
-class UploadedFile(BaseModel):
-    file_type: UploadFileTypes
-    file_path: str
-
-class UploadedFilePaths(BaseModel):
-    item_master: str = ''
-    inbound_header: str = ''
-    inbound_details: str = ''
-    inventory: str = ''
-    order_header: str = ''
-    order_details: str = ''
-    # item_master: UploadedFile               # Item Master is always required
-    # inbound_header: UploadedFile = UploadedFile(file_type=UploadFileTypes.INBOUND_HEADER, file_path='')
-    # inbound_details: UploadedFile = UploadedFile(file_type=UploadFileTypes.INBOUND_DETAILS, file_path='')
-    # inventory: UploadedFile = UploadedFile(file_type=UploadFileTypes.INVENTORY, file_path='')
-    # order_header: UploadedFile = UploadedFile(file_type=UploadFileTypes.ORDER_HEADER, file_path='')
-    # order_details: UploadedFile = UploadedFile(file_type=UploadFileTypes.ORDER_DETAILS, file_path='')
 
 
 class ExistingProjectProjectInfo(BaseProjectInfo):

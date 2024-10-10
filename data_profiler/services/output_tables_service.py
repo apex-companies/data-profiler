@@ -11,14 +11,14 @@ from io import TextIOWrapper
 import pyodbc
 
 # Data Profiler
-from ..models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
-from ..models.TransformOptions import TransformOptions
-from ..models.Responses import DeleteResponse
+from ..helpers.models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
+from ..helpers.models.TransformOptions import TransformOptions
+from ..helpers.models.Responses import DeleteResponse
 
 from ..database.database_manager import DatabaseConnection
 from ..database.helpers.constants import DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT, OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT,\
     DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT,\
-    OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT, SCHEMAS, DEV_OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER, OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER,\
+    OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT, DEV_OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER, OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER,\
     OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT
 
 

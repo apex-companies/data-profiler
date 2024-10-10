@@ -20,8 +20,8 @@ from pyodbc import Connection, InterfaceError, DatabaseError
 from ..database.helpers.constants import OUTPUT_TABLES_COLS_MAPPER, OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER, DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER
 from ..database.database_manager import DatabaseConnection
 
-from ..models.TransformOptions import TransformOptions, DateForAnalysis, WeekendDateRules
-from ..models.Responses import TransformRowsInserted, TransformResponse
+from ..helpers.models.TransformOptions import TransformOptions, DateForAnalysis, WeekendDateRules
+from ..helpers.models.Responses import TransformRowsInserted, TransformResponse
 
 
 
@@ -476,7 +476,6 @@ class TransformService:
 
         return outbound_data
 
-
     def create_order_velocity_combinations(self, project_num: str, outbound_df: pd.DataFrame) -> pd.DataFrame:
         if len(outbound_df) == 0:
             print(f'No order data. Skipping order velocity combinations')
@@ -494,7 +493,6 @@ class TransformService:
         order_velocity_combos.replace(to_replace=pd.NA, value='', inplace=True)
         
         return order_velocity_combos[['ProjectNumber_OrderNumber', 'OrderNumber', 'VelocityCombination']]
-
 
     def create_inventory_data(self, project_num: str, inventory_df: pd.DataFrame, velocity_analysis: pd.DataFrame, inbound_skus: set, item_master_df: pd.DataFrame) -> pd.DataFrame:
         if len(inventory_df) == 0:
@@ -530,7 +528,6 @@ class TransformService:
 
         return inventory_data
 
-
     def create_velocity_summary(self, project_num: str, velocity_analysis_df: pd.DataFrame, inventory_df: pd.DataFrame) -> pd.DataFrame:
         if len(velocity_analysis_df) == 0:
             print(f'No order data. Skipping velocity summary')
@@ -553,7 +550,6 @@ class TransformService:
         velocity_summary.replace(to_replace=pd.NA, value='', inplace=True)
 
         return velocity_summary
-
 
     def create_outbound_data_by_order(self, project_num: str, outbound_df: pd.DataFrame) -> pd.DataFrame:
         if len(outbound_df) == 0:
@@ -586,7 +582,6 @@ class TransformService:
         outbound_by_order.replace(to_replace=pd.NA, value='', inplace=True)
 
         return outbound_by_order
-
 
     def create_daily_order_profile_by_velocity(self, project_num: str, outbound_df: pd.DataFrame, velocity_summary: pd.DataFrame) -> pd.DataFrame:
         if len(outbound_df) == 0:
@@ -624,7 +619,6 @@ class TransformService:
         daily_order_profile.replace(to_replace=pd.NA, value='', inplace=True)
 
         return daily_order_profile.round(decimals=2)
-
 
     def create_velocity_by_month(self, project_num: str, outbound_df: pd.DataFrame, velocity_analysis: pd.DataFrame) -> pd.DataFrame:
         if len(outbound_df) == 0:
@@ -682,7 +676,6 @@ class TransformService:
 
         return velocity_by_month
 
-
     def create_project_number_velocity(self, project_num: str) -> pd.DataFrame:       
         print(f'creating project number velocity...')
 
@@ -695,7 +688,6 @@ class TransformService:
         projectnum_velocity.replace(to_replace=pd.NA, value='', inplace=True)
 
         return projectnum_velocity
-
 
     def create_project_number_order_number(self, project_num: str, order_numbers: list) -> pd.DataFrame:
         if len(order_numbers) == 0:
@@ -713,7 +705,6 @@ class TransformService:
         projectnum_ordernum.replace(to_replace=pd.NA, value='', inplace=True)
 
         return projectnum_ordernum
-
 
     def create_velocity_ladder(self, project_num: str, velocity_analysis: pd.DataFrame) -> pd.DataFrame:
         if len(velocity_analysis) == 0:
@@ -749,7 +740,6 @@ class TransformService:
         return velocity_ladder
 
 
-
     ''' Helpers '''
 
     # Given a number n, find the range it belongs to
@@ -770,7 +760,6 @@ class TransformService:
                     return range_str
         return ''
 
-
     # Return velocity of SKU by dividing its running sum of lines by total lines
     def find_velocity(self, rsum_lines, total_lines) -> str:
         percent_lines = rsum_lines / total_lines
@@ -785,7 +774,6 @@ class TransformService:
         else: 
             return 'E'
         
-
     # Run velocity analysis on outbound data set
     # @Params: 
     #       outbound_df: pd.DataFrame    required columns: SKU, Quantity

@@ -12,11 +12,12 @@ from importlib.metadata import version
 
 from apex_gui.frames.notification_dialogs import CriticalErrorDialog
 
-from data_profiler.models.ProjectInfo import BaseProjectInfo
-from data_profiler.models.TransformOptions import TransformOptions, WeekendDateRules, DateForAnalysis
+from data_profiler.helpers.models.ProjectInfo import BaseProjectInfo
+from data_profiler.helpers.models.TransformOptions import TransformOptions, WeekendDateRules, DateForAnalysis
 
 from data_profiler.data_profiler import DataProfiler
 from data_profiler.data_profiler_gui import DataProfilerGUI
+
 
 # Make sure host computer can see Y drive, if not it's an invalid host
 if not os.path.exists("Y:\\DataProfiler\\version.txt"):

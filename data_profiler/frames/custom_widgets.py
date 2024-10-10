@@ -7,7 +7,7 @@ Custom ctk frames for DataProfiler
 '''
 
 # Data Profiler
-from ..models.ProjectInfo import BaseProjectInfo
+from ..helpers.models.ProjectInfo import BaseProjectInfo
 
 # Apex GUI
 from apex_gui.frames.custom_widgets import EntryWithLabel, TextboxWithLabel
