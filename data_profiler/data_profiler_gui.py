@@ -18,6 +18,8 @@ from .helpers.models.TransformOptions import DateForAnalysis, WeekendDateRules, 
 from .helpers.models.Responses import TransformRowsInserted
 from .helpers.constants.app_constants import RESOURCES_DIR, RESOURCES_DIR_DEV
 from .frames.custom_widgets import ProjectInfoFrame
+
+from .services.output_tables_service import OutputTablesService
 from .data_profiler import DataProfiler
 
 # Apex GUI
@@ -31,7 +33,7 @@ from apex_gui.styles.colors import *
 
 class DataProfilerGUI(ApexApp):
 
-    PROJECT_NUMBERS = ['TESTNATIVE', 'AAS24-010101', 'AAS23-016549']
+    PROJECT_NUMBERS = []
 
     def __init__(self, dev: bool = False):
         """
@@ -55,7 +57,7 @@ class DataProfilerGUI(ApexApp):
 
         ''' Variables '''
 
-        # self.project_number_var = StringVar(self)
+        self.project_number = None
         self.DataProfiler: DataProfiler = None
         self.project_info: ExistingProjectProjectInfo = None
 
@@ -65,11 +67,11 @@ class DataProfilerGUI(ApexApp):
         self.save_icon = CTkImage(light_image=Image.open(f'{self.resources_dir}/save-icon-win-10.png'), size=(26, 26))
         self.check_icon = CTkImage(light_image=Image.open(f'{self.resources_dir}/check-icon-win-10.png'), size=(26, 26))
         self.upload_icon = CTkImage(light_image=Image.open(f'{self.resources_dir}/upload-icon-win-10.png'), size=(26, 26))
+        self.add_new_icon = CTkImage(light_image=Image.open(f'{self.resources_dir}/add-new-icon-win-10.png'), size=(26, 26))
 
         ''' Create self '''
 
         # https://stackoverflow.com/questions/34276663/tkinter-gui-layout-using-frames-and-grid
-        # self._create_self()
         self._create_start_frame()
         self._create_new_project_frame()
         self._create_loading_frame()
@@ -86,6 +88,10 @@ class DataProfilerGUI(ApexApp):
 
         # if dev:
         #     self._dev_startup()
+
+        # Force window to show and then query DB for project #s
+        self.update()
+        self._refresh_project_numbers()
 
 
     ''' Create frames '''
@@ -106,7 +112,12 @@ class DataProfilerGUI(ApexApp):
                                                                 label_font=SectionSubheaderFont(),
                                                                 dropdown_values=self.PROJECT_NUMBERS,
                                                                 default_val='')
-        self.start_frame_submit = PositiveIconButton(self.start_frame_content_frame, image=self.check_icon, command=self._start_frame_submit_action)
+        self.start_frame_submit = NeutralIconButton(self.start_frame_content_frame, image=self.check_icon, command=self._start_frame_submit_action)
+
+        self.or_label = CTkLabel(self.start_frame_content_frame, text='OR', font=SectionHeaderFont())
+        
+        self.create_label = CTkLabel(self.start_frame_content_frame, text='Create new', font=SectionSubheaderFont())
+        self.start_frame_new_project_btn = PositiveIconButton(self.start_frame_content_frame, image=self.add_new_icon, command=self.show_new_project_frame)
 
         # Grid
         self._grid_start_frame()
@@ -124,7 +135,7 @@ class DataProfilerGUI(ApexApp):
 
         # LEVEL 1 - new_project_frame_content_frame
         self.new_project_frame_content_title = CTkLabel(self.new_project_frame_content_frame, text='Enter Project Info', font=SectionHeaderFont())
-        self.new_project_frame_project_info_section = ProjectInfoFrame(self.new_project_frame_content_frame)
+        self.new_project_frame_project_info_section = ProjectInfoFrame(self.new_project_frame_content_frame, show_project_number=True)
         self.new_project_frame_submit_btn = PositiveIconButton(self.new_project_frame_content_frame, image=self.check_icon, command=self.create_project_action)
 
         # Grid
@@ -250,8 +261,13 @@ class DataProfilerGUI(ApexApp):
         # LEVEL 2 - start_frame_content_frame
         self.start_frame_content_frame.grid_columnconfigure(0, weight=1)
 
-        self.select_project_number_dropdown.grid(row=0, column=0, padx=50, sticky='ew', pady=(20, 25))
-        self.start_frame_submit.grid(row=1, column=0, sticky='ew', padx=50, pady=(25, 20))
+        self.select_project_number_dropdown.grid(row=0, column=0, padx=50, sticky='ew', pady=(20, 5))
+        self.start_frame_submit.grid(row=1, column=0, sticky='ew', padx=50, pady=(5, 10))
+
+        self.or_label.grid(row=2, column=0, sticky='ew', padx=50, pady=10)
+        
+        self.create_label.grid(row=3, column=0, sticky='ew', padx=50, pady=(10, 0))
+        self.start_frame_new_project_btn.grid(row=4, column=0, sticky='ew', padx=50, pady=(0, 20))
 
     def _grid_new_project_frame(self):
         # Parent = self
@@ -421,27 +437,46 @@ class DataProfilerGUI(ApexApp):
     def create_project_action(self):
 
         # Validate inputs
-        if not self.new_project_frame_project_info_section.has_valid_inputs():
-            # NOTE - currently the date is the only possible error
-            message = f'Invalid date format for Start Date:\n{self.new_project_frame_project_info_section.start_date.get_variable_value()}\n\nDate format should be "yyyy-mm-dd"'
+        new_project_info_errors = self.new_project_frame_project_info_section.validate_inputs()
+        if len(new_project_info_errors) > 0:
+            message = '\n\n'.join(new_project_info_errors)
 
             notification_dialog = NotificationDialog(self, title='Error', text=message)
             notification_dialog.attributes('-topmost', True)
             notification_dialog.mainloop()
             return
         
+        # Get inputs
+        new_project_info = self.new_project_frame_project_info_section.get_project_info_inputs()
+
+        # Validate project number doesn't exist
+        if new_project_info.project_number in self.PROJECT_NUMBERS:
+            message = 'Project already exists!'
+
+            notification_dialog = NotificationDialog(self, title='Error', text=message)
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+            return
+
         # Show loading frame while executing
         self._set_loading_frame_text('Creating new project...')
         self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
         self._toggle_frame_grid(frame=self.loading_frame, grid=True)
         self.update()
 
-        new_project_info = self.new_project_frame_project_info_section.get_project_info_inputs(self._get_project_number())
+        # Get inputs
+        self._set_project_number(new_project_info.project_number)
+
+        # Initialize a DataProfiler instance
+        self._init_data_profiler()
+
+        # Create project
         response = self.DataProfiler.create_new_project(project_info=new_project_info)
 
         notification_dialog = None
         if response.success:
             # Create home page with project info
+            self._refresh_project_numbers()
             self._refresh_project_info()
             self._create_home_frame()
 
@@ -541,6 +576,17 @@ class DataProfilerGUI(ApexApp):
     def _refresh_project_info(self):
         self.project_info = self.DataProfiler.get_project_info()
 
+    def _refresh_project_numbers(self) -> list[str]:
+        project_numbers = []
+
+        with OutputTablesService(dev=self.dev) as service:
+            project_numbers = service.get_output_tables_project_numbers()
+
+        self.PROJECT_NUMBERS = project_numbers
+
+        if hasattr(self, 'select_project_number_dropdown'):
+            self.select_project_number_dropdown.set_dropdown_values(values=self.PROJECT_NUMBERS)
+
     ## Update ##
 
     def save_project_info_changes(self):
@@ -552,11 +598,11 @@ class DataProfilerGUI(ApexApp):
 
         # Create new project info object using inputs
         current_project_info: ExistingProjectProjectInfo = self._get_project_info()
-        home_frame_project_info_inputs: BaseProjectInfo = self.home_frame_project_info_section.get_project_info_inputs(self._get_project_number())
+        home_frame_project_info_inputs: BaseProjectInfo = self.home_frame_project_info_section.get_project_info_inputs()
 
         # Create ExistingProjectProjectInfo using new inputs and current data info
         new_project_info = ExistingProjectProjectInfo(
-            project_number=self._get_project_number(),
+            project_number=home_frame_project_info_inputs.project_number,
             project_name=home_frame_project_info_inputs.project_name,
             company_name=home_frame_project_info_inputs.company_name,
             company_location=home_frame_project_info_inputs.company_location,
@@ -609,10 +655,8 @@ class DataProfilerGUI(ApexApp):
         response = self.DataProfiler.delete_project()
 
         if response.success:
-            # Navigate to start
-            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-            self._toggle_frame_grid(frame=self.start_frame, grid=True)
-            self.update()
+            # Navigate back to start
+            self.logout_action()
     
             # Display notification of results
             notification_dialog = NotificationDialog(self, title='Success!', text='Deleted project successfully.')        
@@ -670,8 +714,10 @@ class DataProfilerGUI(ApexApp):
     ''' Other button actions '''
 
     def _start_frame_submit_action(self):
-        if not self._get_project_number():
+        if not self.select_project_number_dropdown.get_variable_value():
             return
+        else:
+            self._set_project_number(self.select_project_number_dropdown.get_variable_value())
         
         # Show loading frame while executing
         self._set_loading_frame_text('Loading...')
@@ -683,6 +729,7 @@ class DataProfilerGUI(ApexApp):
         self._init_data_profiler()
 
         # Does the project number exist?
+        # NOTE - as of 10-10-24, it should always exist, as it pulls project #s for dropdown from DB
         if self.DataProfiler.get_project_exists():
             # Create home frame
             self._create_home_frame()
@@ -707,13 +754,17 @@ class DataProfilerGUI(ApexApp):
     def show_new_project_frame(self):
         self._toggle_frame_grid(self.loading_frame, False)
         self._toggle_frame_grid(self.start_frame, False)
+        self._toggle_project_number_frame_grid(grid=False)
         self._toggle_frame_grid(self.new_project_frame, True)
-        self._toggle_project_number_frame_grid(grid=True)
         self.update()
 
     def logout_action(self):
         # Destroy our data profiler instance
         self._destroy_data_profiler()
+
+        # Clear project number
+        self._set_project_number('')
+        self.select_project_number_dropdown.set_variable_value('')
 
         # Grid only start frame
         if hasattr(self, 'home_frame'):
@@ -723,16 +774,18 @@ class DataProfilerGUI(ApexApp):
         self._toggle_frame_grid(frame=self.upload_frame, grid=False)
         self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
         self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-
         self._toggle_project_number_frame_grid(grid=False)
         self._toggle_frame_grid(frame=self.start_frame, grid=True)
+
+        # Update window before querying DB to refresh project numbers
         self.update()
+        self._refresh_project_numbers()
 
     def save_project_info_changes_action(self):
         # Validate inputs
-        if not self.home_frame_project_info_section.has_valid_inputs():
-            # Display notification of results
-            message = f'Invalid date given for Start Date ({self.home_frame_project_info_section.start_date.get_variable_value()})\n\nDate format should be "yyyy-mm-dd"'
+        project_info_errors = self.home_frame_project_info_section.validate_inputs()
+        if len(project_info_errors) > 0:
+            message = '\n\n'.join(project_info_errors)
 
             notification_dialog = NotificationDialog(self, title='Error', text=message)
             notification_dialog.attributes('-topmost', True)
@@ -741,7 +794,7 @@ class DataProfilerGUI(ApexApp):
             
         # Create objects
         current_project_info = BaseProjectInfo(**self._get_project_info().model_dump())
-        home_frame_project_info_inputs = self.home_frame_project_info_section.get_project_info_inputs(self._get_project_number())
+        home_frame_project_info_inputs = self.home_frame_project_info_section.get_project_info_inputs()
 
         print(f'--------------------- OLD ---------------------------')
         pprint(current_project_info.model_dump())
@@ -750,7 +803,7 @@ class DataProfilerGUI(ApexApp):
 
         if home_frame_project_info_inputs != current_project_info:     
             confirm_dialog = ConfirmDeleteDialog(self, title='Confirm Save', 
-                                                text=f'Are you sure you would like to save project info changes for {self._get_project_number()}?',
+                                                text=f'Are you sure you would like to save project info changes for "{self._get_project_number()}"?',
                                                 positive_action=self.save_project_info_changes,
                                                 negative_action=self.void)
             
@@ -777,7 +830,7 @@ class DataProfilerGUI(ApexApp):
             message = f'Please delete project data before deleting project.'
             notification_dialog = NotificationDialog(self, title='Data Profiler', text=message)
         else:
-            message = f'Are you sure you would like to delete project {self._get_project_number()}?'
+            message = f'Are you sure you would like to delete project "{self._get_project_number()}"?'
             notification_dialog = ConfirmDeleteDialog(self, 
                                                       title='Confirm Deletion', 
                                                         text=message,
@@ -791,7 +844,7 @@ class DataProfilerGUI(ApexApp):
     def delete_project_data_action(self):
         confirm_dialog = ConfirmDeleteDialog(self, 
                                              title='Confirm Deletion', 
-                                             text=f'Are you sure you would like to delete project data for {self._get_project_number()}?',
+                                             text=f'Are you sure you would like to delete project data for "{self._get_project_number()}"?',
                                              positive_action=self.delete_project_data,
                                              negative_action=self.void)
         
@@ -856,8 +909,11 @@ class DataProfilerGUI(ApexApp):
     ''' Getters/Setters '''
 
     def _get_project_number(self):
-        return self.select_project_number_dropdown.get_variable_value()
-    
+        return self.project_number
+
+    def _set_project_number(self, val: str):
+        self.project_number = val
+
     def _get_project_info(self) -> ExistingProjectProjectInfo:
         return self.project_info
 

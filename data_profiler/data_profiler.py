@@ -75,8 +75,8 @@ class DataProfiler:
         Return
         ------
         DBWriteResponse
-        
         '''
+        
         if self.get_project_exists():
             return 'Project already exists. Try updating it instead'
         

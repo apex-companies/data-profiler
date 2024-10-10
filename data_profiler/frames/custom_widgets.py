@@ -23,11 +23,12 @@ class ProjectInfoFrame(SectionWithScrollbar):
     Set project info with `set_project_info()`
     '''
     
-    def __init__(self, master):
+    def __init__(self, master, show_project_number: str = False):
         super().__init__(master, width=500, height=600)    
 
         ''' Create '''
 
+        self.project_number = EntryWithLabel(self, label_text='Project Number', default_val='', entry_type=EntryType.String, entry_width=240)
         self.project_name = EntryWithLabel(self, label_text='Project Name', default_val='', entry_type=EntryType.String, entry_width=240)
         self.company = EntryWithLabel(self, label_text='Company', default_val='', entry_type=EntryType.String, entry_width=240)
         self.company_location = EntryWithLabel(self, label_text='Location', default_val='', entry_type=EntryType.String, entry_width=240)
@@ -40,7 +41,12 @@ class ProjectInfoFrame(SectionWithScrollbar):
         
         self.grid_columnconfigure(0, weight=1)
        
-        self.project_name.grid(row=1, column=0, sticky='ew', padx=20, pady=(5, 0))
+        if show_project_number:
+            self.project_number.grid(row=0, column=0, sticky='ew', padx=20, pady=(5, 0))
+            self.project_name.grid(row=1, column=0, sticky='ew', padx=20, pady=(20, 0))
+        else:
+            self.project_name.grid(row=1, column=0, sticky='ew', padx=20, pady=(5, 0))
+
         self.company.grid(row=2, column=0, sticky='ew', padx=20, pady=(20, 0))
         self.company_location.grid(row=3, column=0, sticky='ew', padx=20, pady=(20, 0))
         self.salesperson.grid(row=4, column=0, sticky='ew', padx=20, pady=(20, 0))
@@ -48,12 +54,23 @@ class ProjectInfoFrame(SectionWithScrollbar):
         self.start_date.grid(row=6, column=0, sticky='ew', padx=20, pady=(20, 0))
         self.notes.grid(row=7, column=0, sticky='ew', padx=20, pady=(20,5))
 
-    def has_valid_inputs(self):
-        return self.start_date.has_valid_input()
+    def validate_inputs(self) -> list[str]:
+        errors_lst = []
 
-    def get_project_info_inputs(self, project_number) -> BaseProjectInfo:
+        # Validate project number
+        if (not self.project_number.has_valid_input()) or (self.project_number.get_variable_value() == ''):
+            errors_lst.append('Please enter a valid project number.')
+        
+        # Only other error is with start date
+        if not self.start_date.has_valid_input():
+            errors_lst.append(f'Invalid date format for Start Date ({self.start_date.get_variable_value()}). Date format should be "yyyy-mm-dd"')
+
+        return errors_lst
+
+    def get_project_info_inputs(self) -> BaseProjectInfo:
+        # pn = self.project_number.get_variable_value() if self.project_number_input else project_number
         project_info = BaseProjectInfo(
-            project_number=project_number,
+            project_number=self.project_number.get_variable_value(),
             project_name=self.project_name.get_variable_value(),
             company_name=self.company.get_variable_value(),
             company_location=self.company_location.get_variable_value(),
@@ -66,6 +83,7 @@ class ProjectInfoFrame(SectionWithScrollbar):
         return project_info
 
     def set_project_info(self, project_info: BaseProjectInfo):
+        self.project_number.set_variable_value(project_info.project_number)
         self.project_name.set_variable_value(project_info.project_name)
         self.company.set_variable_value(project_info.company_name)
         self.company_location.set_variable_value(project_info.company_location)
@@ -75,6 +93,7 @@ class ProjectInfoFrame(SectionWithScrollbar):
         self.notes.set_text(project_info.notes)
 
     def clear_frame(self):
+        self.project_number.clear_input()
         self.project_name.clear_input()
         self.company.clear_input()
         self.company_location.clear_input()
