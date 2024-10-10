@@ -3,5 +3,7 @@ poetry.lock
 __pycache__/
 .venv/
 logs/
+dist/
+build/
 
 # Files
