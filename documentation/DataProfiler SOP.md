@@ -39,7 +39,7 @@ There are a few options for starting up the *DataProfiler* application
 ## Using the application
 
 1. The application may take a minute to start up, especially if this is the first usage in a few hours or more. This is because the database connection takes a moment to "warm up"    
-    - If the startup fails because the database connection fails, or if it fails at any point due to this error, simply close the app and re-start it. Once the connection is established, it should run smoothly and quickly.  
+    - If the startup fails because the database connection fails, or if it fails at any point due to this error, simply close the app and re-start it. Once the connection is established, it should run smoothly and quickly  
 
 2. You will be greeted by the following window. As it prompts, either select an existing project number from the dropdown or click the orange button with the "+" icon to create a new one  
     - This application is *NOT* connected to Business Central, and these "projects" are specifically "data projects." So, for this app, a project doesn't exist until you create one using this tool, even if it exists in BC    
@@ -107,3 +107,23 @@ There are a few options for starting up the *DataProfiler* application
 
 
 ## Updating to a new version
+
+Periodically, updates to *DataProfiler* may be released. At such times, you should be notified by IT or an analyst of the new version and will be asked to update your app.  
+
+The following pop-up window will also appear on start-up when the application is out-of-date    
+![Out of date version](./screenshots/update%20to%20latest%20version.png)   
+> Promptly updating will be important, as the application will stop working once it becomes an out-of-date version 
+
+To update your version, you will need to 1) uninstall your current app and 2) install the new
+
+1. Search for the application in the windows search bar, but click "Uninstall" rather than starting up the app  
+![Click uninstall](./screenshots/uninstall.png)  
+
+2. This will navigate you to the "Installed Apps" section of Settings. Scroll down to find your installed version of *DataProfiler*. Click the ellipsis on the far right of its rectangle, and click "Uninstall." Confirm by clicking "Uninstall" again, and then "Yes"  
+![Uninstall DP](./screenshots/uninstall%20page.png)  
+
+3. If successful, click "OK" to confirm, and your app is deleted  
+
+4. Acquire the EXE installer for the new version of *DataProfiler*, either from IT or an analyst. 
+
+5. Follow the remaining steps from <a href="#installation">Installation</a>  
