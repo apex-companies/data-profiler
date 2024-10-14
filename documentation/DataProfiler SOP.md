@@ -4,6 +4,30 @@
 
 *DataProfiler* is sort of the "home base" of data analysis for Apex Consulting. Its main functionality is the ability to upload client data files to the database, at which point the data can be loaded into the Data Profile Report.
 
+## Terms
+
+### Data directory 
+
+a folder with client data files. The folder should contain ALL files the user wishes to upload. See below for naming conventions:  
+
+```   
+ItemMaster.csv  
+InboundHeader.csv  
+InboundDetails.csv  
+Inventory.csv  
+OrderHeader.csv  
+OrderDetails.csv 
+```
+
+> File names need to *EXACTLY* match what is listed above  
+
+Item Master is the only required file. Otherwise, the files given should match the "Process __ Data" options chosen on the "Upload Data" screen. For eample, if "Process Inbound Data" is set to true, both Inbound Header and Inbound Details must be present. Otherwise, neither are required and neither will be uploaded  
+
+![Data dir no ib](./screenshots/data%20dir%20inv%20and%20ob.png)  
+*Data directory with no inbound data. "Process Inbound Data" should be set to false*  
+
+![Data dir all](./screenshots/data%20dir%20all%20files.png)  
+*Data directory with all files present. All "Process __ Data" flags can be set to true, or only the ones you prefer. Notice also that other files can be present in the data directory - they will be ignored.*  
 
 ## Installation
 
