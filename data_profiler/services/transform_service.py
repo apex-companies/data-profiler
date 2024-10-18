@@ -6,8 +6,9 @@ December 2023
 Functions that create the different output tables
 '''
 
+# Python
 import re
-from datetime import timedelta, datetime
+from datetime import timedelta
 from time import time
 from io import TextIOWrapper
 
@@ -15,49 +16,63 @@ import pandas as pd
 import numpy as np
 from pyodbc import Connection, InterfaceError, DatabaseError
 
+# Data Profiler
 from ..database.helpers.constants import OUTPUT_TABLES_COLS_MAPPER, OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER, DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER
 from ..database.database_manager import DatabaseConnection
 
-from ..models.TransformOptions import TransformOptions, DateForAnalysis, WeekendDateRules
-from ..models.Responses import TransformRowsInserted, TransformResponse
+from ..helpers.models.TransformOptions import TransformOptions, DateForAnalysis, WeekendDateRules
+from ..helpers.models.Responses import TransformRowsInserted, TransformResponse
+from ..helpers.constants.app_constants import SQL_DIR, SQL_DIR_DEV
+
 
 class TransformService:
+    '''
+    Service that provides data transformation functionality. It is meant for one-time use - meaning, a single call to `transform_and_persist_dataframes` per instance.  
+    
+    The main function takes a set of dataframes and creates data in the form of the OutputTables schema, and then inserts the data into the database.
+    '''
 
     def __init__(self, project_number: str, transform_options: TransformOptions, dev: bool = False):
         self.project_number = project_number
         self.transform_options = transform_options
         self.dev = dev
+        self.sql_dir = SQL_DIR_DEV if self.dev else SQL_DIR
 
     def __enter__(self):
         return self
 
     def __exit__(self, exception_type, exception_value, exception_traceback):
+        # If there was an error in the with block, raise it
         if exception_type is not None:
             print(f'------ TRANSFORM EXCEPTION ------\n{exception_type = }\n{exception_value = }\n{exception_traceback = }\n')
             raise exception_value
 
-    ''' Main Function '''
 
-    # Transforms the raw data dataframes and insert into the OutputTables_Dev schema
-    # Returns total rows inserted
-    # def transform_and_persist_dataframes(self, project_number: str, transform_options: TransformOptions,
-    def transform_and_persist_dataframes(self, item_master_df: pd.DataFrame, inbound_header_df: pd.DataFrame, inbound_details_df: pd.DataFrame,
-                                        inventory_df: pd.DataFrame, order_header_df: pd.DataFrame, order_details_df: pd.DataFrame,
-                                        log_file: TextIOWrapper) -> TransformResponse:
+    ''' Main Functions '''
+    
+    def transform_and_persist_dataframes(self, 
+                                         item_master_df: pd.DataFrame, 
+                                         inbound_header_df: pd.DataFrame, 
+                                         inbound_details_df: pd.DataFrame,
+                                         inventory_df: pd.DataFrame, 
+                                         order_header_df: pd.DataFrame, 
+                                         order_details_df: pd.DataFrame,
+                                         log_file: TextIOWrapper) -> TransformResponse:
+        '''
+        Transforms the raw data dataframes and inserts into the OutputTables_Dev schema
+
+        Return
+        ------
+        TransformResponse
+        '''
 
         rows_inserted_obj = TransformRowsInserted()
         transform_response = TransformResponse(project_number=self.project_number)
         total_rows_inserted = 0
 
-        # # Create log file, if dev
-        # log_file = None
-        # if self.dev:
-        #     log_file = open(f'logs/{project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_transform.txt', 'w+')
-        #     log_file.write(f'PROJECT NUMBER: {project_number}\n')
-
         '''STEP 1: Create output tables '''
 
-        # Dataframes
+        # Instantiate dataframe variables - one for each output table
         item_master_data = pd.DataFrame()
         inbound_header = pd.DataFrame()
         inbound_details = pd.DataFrame()
@@ -73,6 +88,7 @@ class TransformService:
         velocity_ladder = pd.DataFrame()
 
         velocity_analysis = pd.DataFrame(columns=['SKU', 'Velocity'])
+        order_nums = []
 
         st = time()
         log_file.write(f'2. CREATE OUTPUT TABLES\n')
@@ -82,12 +98,9 @@ class TransformService:
         log_file.write(f'Item Master rows: {len(item_master_data)}\n')
 
         # Create outbound so we can determine velocities
-        outbound_skus = []
         if self.transform_options.process_outbound_data:
             outbound_data = self.create_outbound_data(project_num=self.project_number, order_header_df=order_header_df, order_details_df=order_details_df, item_master_df=item_master_data)
-                                                # transform_options=self.transform_options)
-            log_file.write(f'Outbound Data rows: {len(outbound_data)}\n')
-            outbound_skus = set(outbound_data['SKU'].unique().tolist())
+            order_nums = outbound_data['OrderNumber'].unique().tolist()
 
             # Run velocity analysis, and add velocity to Item Master, Outbound Data
             velocity_analysis = self.run_velocity_analysis(outbound_df=outbound_data)
@@ -97,41 +110,47 @@ class TransformService:
 
             item_master_data = item_master_data.merge(velocity_analysis[['SKU', 'Velocity']], on='SKU', how='left')
             item_master_data['Velocity'] = item_master_data['Velocity'].fillna('X')
+
+            log_file.write(f'Outbound Data rows: {len(outbound_data)}\n')
         else:
             # Fill velocity in with X
             item_master_data['Velocity'] = 'X'
         
-        # The rest
+        # Inbound
         inbound_skus = []
         if self.transform_options.process_inbound_data:
-            inbound_header = self.create_inbound_header(project_num=self.project_number, inbound_header_df=inbound_header_df, inbound_details_df=inbound_details_df)#, transform_options=transform_options)
+            inbound_header = self.create_inbound_header(project_num=self.project_number, inbound_header_df=inbound_header_df, inbound_details_df=inbound_details_df)
+            inbound_details = self.create_inbound_details(project_num=self.project_number, inbound_details_df=inbound_details_df, item_master_df=item_master_data)
+
             log_file.write(f'Inbound Header rows: {len(inbound_header)}\n')
-            inbound_details = self.create_inbound_details(project_num=self.project_number, inbound_details_df=inbound_details_df, item_master_df=item_master_data)#, transform_options=self.transform_options)
             log_file.write(f'Inbound Details rows: {len(inbound_details)}\n')
 
             inbound_skus = set(inbound_details['SKU'].unique().tolist())
 
+        # Inventory
         if self.transform_options.process_inventory_data:
             inventory_data = self.create_inventory_data(project_num=self.project_number, inventory_df=inventory_df, velocity_analysis=velocity_analysis, inbound_skus=inbound_skus, item_master_df=item_master_data)
+            
             log_file.write(f'Inventory Data rows: {len(inventory_data)}\n')
 
+        # The rest - mostly outbound related
         if self.transform_options.process_outbound_data:
             order_velocity_combinations = self.create_order_velocity_combinations(project_num=self.project_number, outbound_df=outbound_data[['OrderNumber', 'Velocity']])
-            log_file.write(f'Order Velocity Combinations rows: {len(order_velocity_combinations)}\n')
             velocity_summary = self.create_velocity_summary(project_num=self.project_number, velocity_analysis_df=velocity_analysis, inventory_df=inventory_data)
-            log_file.write(f'Velocity Summary rows: {len(velocity_summary)}\n')
             outbound_data_by_order = self.create_outbound_data_by_order(project_num=self.project_number, outbound_df=outbound_data)
-            log_file.write(f'Outbound Data by Order rows: {len(outbound_data_by_order)}\n')
             daily_order_profile_by_velocity = self.create_daily_order_profile_by_velocity(project_num=self.project_number, outbound_df=outbound_data, velocity_summary=velocity_summary)    
-            log_file.write(f'Daily Order Profile rows: {len(daily_order_profile_by_velocity)}\n')
             velocity_by_month = self.create_velocity_by_month(project_num=self.project_number, outbound_df=outbound_data, velocity_analysis=velocity_analysis)
-            log_file.write(f'Velocity by Month rows: {len(velocity_by_month)}\n')
             project_number_velocity = self.create_project_number_velocity(project_num=self.project_number)
-            log_file.write(f'Project Number - Velocity rows: {len(project_number_velocity)}\n')
-            order_nums = outbound_data['OrderNumber'].unique().tolist()
             project_number_order_number = self.create_project_number_order_number(project_num=self.project_number, order_numbers=order_nums)
-            log_file.write(f'Project Number - Order Number rows: {len(project_number_order_number)}\n')
             velocity_ladder = self.create_velocity_ladder(project_num=self.project_number, velocity_analysis=velocity_analysis)
+
+            log_file.write(f'Order Velocity Combinations rows: {len(order_velocity_combinations)}\n')
+            log_file.write(f'Velocity Summary rows: {len(velocity_summary)}\n')
+            log_file.write(f'Outbound Data by Order rows: {len(outbound_data_by_order)}\n')
+            log_file.write(f'Daily Order Profile rows: {len(daily_order_profile_by_velocity)}\n')
+            log_file.write(f'Velocity by Month rows: {len(velocity_by_month)}\n')
+            log_file.write(f'Project Number - Velocity rows: {len(project_number_velocity)}\n')
+            log_file.write(f'Project Number - Order Number rows: {len(project_number_order_number)}\n')
             log_file.write(f'Velocity Ladder rows: {len(velocity_ladder)}\n')
 
         # Reorder columns to match sql queries
@@ -150,72 +169,56 @@ class TransformService:
         velocity_ladder = velocity_ladder.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['VelocityLadder'])
 
         et = time()
-        print(f'{len(outbound_data) = }')
         print(f'Output table creation time: {timedelta(seconds=et-st)}')
-        # if log_file: 
-        log_file.write(f'{len(outbound_data) = }\n')
         log_file.write(f'Output table creation time: {timedelta(seconds=et-st)}\n\n')
         
+
         ''' STEP 2: Insert into database '''
-        # Note: in future, process should be (for each table): 
-        #   1. Create ORM objects from table
-        #   2. Throw any necessary errors, skip insertion if needed
-        #   3. Insert to DB
+
         log_file.write(f'3. INSERT TO DATABASE\n')
         insert_st = time()
 
-        item_master_data.head(10).to_csv('item.csv', index=False)
-
+        # Get SQL file mapper
         SQL_FILE_MAPPER = DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER if self.dev else OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER
 
-        # FIRST - insert new row into company table
-        # Note: in future, this will likely be done elsewhere (perhaps by PowerApps/PowerAutomate form)
-        # total_rows_inserted += insert_new_project_to_project_table(project_number=self.project_number, sql_file=SQL_FILE_MAPPER['Project'], project_name=project_info.project_name,
-                                                                #    company_name=project_info.company_name, location=project_info.company_location, salesman=project_info.salesperson, 
-                                                                #    start_date=project_info.start_date,email=project_info.email, weekend_date_rule=variables_and_transform_options.weekend_date_rule.value, 
-                                                                #    date_for_analysis=variables_and_transform_options.date_for_analysis.value, notes=project_info.notes)
-        
-        # NEXT - other Primary Key tables 
-        
         # IDEA - keep track, in data_profiler, of tables that have been inserted. so, if there's an error halfway thru, it could
             # pick up where it left off. For now, just delete
         try:
             with DatabaseConnection(dev=self.dev) as db_conn:
-            # with db_conn:
                 # FIRST - primary key tables
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ItemMaster', data_frame=item_master_data, sql_file_name=SQL_FILE_MAPPER['ItemMaster'])
+                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ItemMaster', data_frame=item_master_data, sql_file_path=SQL_FILE_MAPPER['ItemMaster'])
                 total_rows_inserted += rows
                 rows_inserted_obj.skus = rows
                                         
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InboundHeader', data_frame=inbound_header, sql_file_name=SQL_FILE_MAPPER['InboundHeader'])
+                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InboundHeader', data_frame=inbound_header, sql_file_path=SQL_FILE_MAPPER['InboundHeader'])
                 total_rows_inserted += rows
-                rows_inserted_obj.inbound_receipts = rows
+                rows_inserted_obj.inbound_pos = rows
 
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ProjectNumber_Velocity', data_frame=project_number_velocity, sql_file_name=SQL_FILE_MAPPER['ProjectNumber_Velocity'])
+                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ProjectNumber_Velocity', data_frame=project_number_velocity, sql_file_path=SQL_FILE_MAPPER['ProjectNumber_Velocity'])
 
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ProjectNumber_OrderNumber', data_frame=project_number_order_number, sql_file_name=SQL_FILE_MAPPER['ProjectNumber_OrderNumber'])
+                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ProjectNumber_OrderNumber', data_frame=project_number_order_number, sql_file_path=SQL_FILE_MAPPER['ProjectNumber_OrderNumber'])
                 total_rows_inserted += rows
                 rows_inserted_obj.outbound_orders = rows
                 
                 # THEN - the rest
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InboundDetails', data_frame=inbound_details, sql_file_name=SQL_FILE_MAPPER['InboundDetails'])
+                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InboundDetails', data_frame=inbound_details, sql_file_path=SQL_FILE_MAPPER['InboundDetails'])
                 total_rows_inserted += rows
                 rows_inserted_obj.inbound_lines = rows
 
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InventoryData', data_frame=inventory_data, sql_file_name=SQL_FILE_MAPPER['InventoryData'])
+                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InventoryData', data_frame=inventory_data, sql_file_path=SQL_FILE_MAPPER['InventoryData'])
                 total_rows_inserted += rows
                 rows_inserted_obj.inventory_lines = rows
 
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OutboundData', data_frame=outbound_data, sql_file_name=SQL_FILE_MAPPER['OutboundData'])
+                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OutboundData', data_frame=outbound_data, sql_file_path=SQL_FILE_MAPPER['OutboundData'])
                 total_rows_inserted += rows
                 rows_inserted_obj.outbound_lines = rows
 
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OutboundDataByOrder', data_frame=outbound_data_by_order, sql_file_name=SQL_FILE_MAPPER['OutboundDataByOrder'])
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OrderVelocityCombinations', data_frame=order_velocity_combinations, sql_file_name=SQL_FILE_MAPPER['OrderVelocityCombinations'])
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocitySummary', data_frame=velocity_summary, sql_file_name=SQL_FILE_MAPPER['VelocitySummary'])
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocityLadder', data_frame=velocity_ladder, sql_file_name=SQL_FILE_MAPPER['VelocityLadder'])
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocityByMonth', data_frame=velocity_by_month, sql_file_name=SQL_FILE_MAPPER['VelocityByMonth'])
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='DailyOrderProfileByVelocity', data_frame=daily_order_profile_by_velocity, sql_file_name=SQL_FILE_MAPPER['DailyOrderProfileByVelocity'])
+                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OutboundDataByOrder', data_frame=outbound_data_by_order, sql_file_path=SQL_FILE_MAPPER['OutboundDataByOrder'])
+                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OrderVelocityCombinations', data_frame=order_velocity_combinations, sql_file_path=SQL_FILE_MAPPER['OrderVelocityCombinations'])
+                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocitySummary', data_frame=velocity_summary, sql_file_path=SQL_FILE_MAPPER['VelocitySummary'])
+                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocityLadder', data_frame=velocity_ladder, sql_file_path=SQL_FILE_MAPPER['VelocityLadder'])
+                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocityByMonth', data_frame=velocity_by_month, sql_file_path=SQL_FILE_MAPPER['VelocityByMonth'])
+                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='DailyOrderProfileByVelocity', data_frame=daily_order_profile_by_velocity, sql_file_path=SQL_FILE_MAPPER['DailyOrderProfileByVelocity'])
 
         # https://peps.python.org/pep-0249/#exceptions
         except InterfaceError as e:
@@ -240,48 +243,68 @@ class TransformService:
             insert_et = time()
             log_file.write(f'Success! Inserted {total_rows_inserted} rows in {timedelta(seconds=insert_et-insert_st)}\n\n')
 
-        # if log_file:
-        #     log_file.close()
-
         return transform_response
 
-    # Use executemany to insert data all in one transaction
-    # Returns number of rows inserted or -1 if error
-    def insert_table_to_db(self, connection: Connection, table_name: str, data_frame: pd.DataFrame, sql_file_name: str, log_file: TextIOWrapper) -> int:
+    # NOTE - this maybe should exist somewhere else in future
+    def insert_table_to_db(self, connection: Connection, table_name: str, data_frame: pd.DataFrame, sql_file_path: str, log_file: TextIOWrapper) -> int:
+        '''
+        Inserts a dataframe into the database. Uses fast_executemany to insert data all in one transaction, thus speeding up process greatly
+
+        Note
+        ------
+        data_frame MUST BE 
+            1) in base python types
+            2) in type expected by table schema. make sure dates are stored as datetimes, etc.
+
+        Args
+        ------
+        connection : Connection
+            a valid pyodbc Connection object (should be connected to aasdevserverfree)
+        table_name : str
+            the name of a table in the OutputTables schema. Only used for logging purposes
+        data_frame : pd.DataFrame
+            the data to insert
+        sql_file_path : str
+            the path to the insert sql file for the table
+        log_file : TextIOWrapper
+            a file-like object used for logging            
+
+        Return
+        ------
+        Number of rows inserted or -1 if error
+        '''
+
+        # If dataframe is empty, don't try inserting
         log_file.write(f'{table_name}\n')
         if len(data_frame) == 0:
             log_file.write('Table is empty\n\n')
             return 0
         
-        rows_inserted: int = 0
-        
+        # Configure cursor
         # https://stackoverflow.com/questions/29638136/how-to-speed-up-bulk-insert-to-ms-sql-server-using-pyodbc/47057189#47057189
         cursor = connection.cursor()
         connection.autocommit = False                   # autocommit = True could force a DB transaction for each query, which would defeat the point
         cursor.fast_executemany = True
 
         # Get sql query
-        fd = open(sql_file_name)
+        fd = open(f'{self.sql_dir}/{sql_file_path}')
         insert_query = fd.read()
         fd.close()
         
-        st = time()
-        # Get data to insert
-        # NOTE: DATA MUST BE 1) IN BASE PYTHON TYPES AND 2) IN TYPE EXPECTED BY TABLE SCHEMA. MAKE SURE DATES ARE STORED AS DATETIMEs
+        # Get data to insert in form of 2d list
         data_lst = data_frame.to_dict('split')['data']
-        et = time()
-        print(f'time to convert data to 2d lst: {timedelta(seconds=et-st)}')
-        print(f'FIRST ROW ----------------------')
         print(data_lst[0])
         log_file.write(f'{data_lst[0]}\n')
 
-        insert_st = time()
-
-        ''' batch insert '''
+        ## Batch insert ##
+        rows_inserted: int = 0
         batch_size = 100000
         batch_num = 1
-        error_encountered = 0
-        for i in range(0,len(data_lst),batch_size):
+        error_encountered = False
+        insert_st = time()
+
+        for i in range(0, len(data_lst), batch_size):
+            # Only proceed if no errors have been found
             if not error_encountered:
                 start_idx = i
                 end_idx = i + batch_size
@@ -291,21 +314,14 @@ class TransformService:
            
                 # Insert using excutemany
                 st = time()
-                # try:    
                 print(f'Batch {batch_num}: attempting insert into {table_name}...')
-                # if log_file: 
                 log_file.write(f'Batch {batch_num}: attempting insert into {table_name}...\n')
+
                 cursor.executemany(insert_query, batch_data)
-                # except pyodbc.DatabaseError as e:
-                    # print(f'Could not insert batch {batch_num}: {e}. Quitting...')
-                    # if log_file: log_file.write(f'Could not insert batch {batch_num}: {e}. Quitting...\n')
-                    # connection.rollback()                               # rollback in case any errors happen in middle of process
-                    # error_encountered = 1
-                # else:
                 connection.commit()
+
                 et = time()
                 print(f'Inserted {len(batch_data)} rows into {table_name} in {timedelta(seconds=et-st)} seconds.')
-                # if log_file: 
                 log_file.write(f'Inserted {len(batch_data)} rows into {table_name} in {timedelta(seconds=et-st)} seconds\n')
                 rows_inserted += len(batch_data)
 
@@ -313,12 +329,9 @@ class TransformService:
 
         insert_et = time()
         print(f'Inserted {batch_num-1} batches into {table_name} in {timedelta(seconds=insert_et-insert_st)} seconds')
-        # if log_file: 
         log_file.write(f'Inserted {batch_num-1} batches into {table_name} in {timedelta(seconds=insert_et-insert_st)} seconds\n\n')
 
-        # TODO: If error_encountered: delete * from table where project_number = 
-
-        # Close connections
+        # Close cursor
         connection.autocommit = True
         cursor.close()
 
@@ -352,31 +365,31 @@ class TransformService:
 
         return item_master_return
 
-    def create_inbound_header(self, project_num: str, inbound_header_df: pd.DataFrame, inbound_details_df: pd.DataFrame, transform_options: TransformOptions) -> pd.DataFrame:
+    def create_inbound_header(self, project_num: str, inbound_header_df: pd.DataFrame, inbound_details_df: pd.DataFrame) -> pd.DataFrame:
         if len(inbound_header_df) == 0:
             print(f'No inbound data. Skipping inbound header')
             return inbound_header_df
         
         print(f'creating inbound header...')
-        '''ProjectNumber ReceiptNumber ArrivalDate ArrivalTime ExpectedDate ExpectedTime Carrier  Mode'''
+        '''ProjectNumber PO_Number ArrivalDate ArrivalTime ExpectedDate ExpectedTime Carrier  Mode'''
         
         inbound_header = inbound_header_df.copy(deep=True)
         
         # Aggregate InboundDetails
-        inbound_by_receipt = inbound_details_df.groupby('ReceiptNumber').aggregate(
-            Lines=('ReceiptNumber', 'size'), 
+        inbound_by_receipt = inbound_details_df.groupby('PO_Number').aggregate(
+            Lines=('PO_Number', 'size'), 
             Units=('Quantity', 'sum'),
             SKUs=('SKU', 'nunique')
         ).reset_index()
 
-        inbound_header = inbound_header.merge(inbound_by_receipt, on='ReceiptNumber', how='left')
+        inbound_header = inbound_header.merge(inbound_by_receipt, on='PO_Number', how='left')
 
         # Adjust weekend dates
         inbound_header = self.adjust_weekend_dates(inbound_header, 'ArrivalDate')
 
-        # Add ProjectNumber_SKU, ProjectNumber_ReceiptNumber
+        # Add ProjectNumber_SKU, ProjectNumber_PO_Number
         inbound_header['ProjectNumber'] = project_num
-        inbound_header['ProjectNumber_ReceiptNumber'] = project_num + '-' + inbound_header['ReceiptNumber'].astype(str)
+        inbound_header['ProjectNumber_PO_Number'] = project_num + '-' + inbound_header['PO_Number'].astype(str)
 
         return inbound_header
 
@@ -386,7 +399,7 @@ class TransformService:
             return inbound_details_df
         
         print(f'creating inbound details...')
-        '''ProjectNumber ReceiptNumber   SKU UnitOfMeasure  Quantity VendorID SourcePoint'''
+        '''ProjectNumber PO_Number   SKU UnitOfMeasure  Quantity VendorID SourcePoint'''
         
         inbound_details = inbound_details_df.copy(deep=True)
 
@@ -399,9 +412,9 @@ class TransformService:
         inbound_details['LineCube'] = inbound_details.apply(lambda x: self.calc_line_cube(row=x), axis=1)
         inbound_details['LineWeight'] = inbound_details.apply(lambda x: self.calc_line_weight(row=x), axis=1)
 
-        # Add ProjectNumber_SKU, ProjectNumber_ReceiptNumber
+        # Add ProjectNumber_SKU, ProjectNumber_PO_Number
         inbound_details['ProjectNumber_SKU'] = project_num + '-' + inbound_details['SKU'].astype(str)
-        inbound_details['ProjectNumber_ReceiptNumber'] = project_num + '-' + inbound_details['ReceiptNumber'].astype(str)
+        inbound_details['ProjectNumber_PO_Number'] = project_num + '-' + inbound_details['PO_Number'].astype(str)
 
         return inbound_details
 
@@ -464,7 +477,6 @@ class TransformService:
 
         return outbound_data
 
-
     def create_order_velocity_combinations(self, project_num: str, outbound_df: pd.DataFrame) -> pd.DataFrame:
         if len(outbound_df) == 0:
             print(f'No order data. Skipping order velocity combinations')
@@ -482,7 +494,6 @@ class TransformService:
         order_velocity_combos.replace(to_replace=pd.NA, value='', inplace=True)
         
         return order_velocity_combos[['ProjectNumber_OrderNumber', 'OrderNumber', 'VelocityCombination']]
-
 
     def create_inventory_data(self, project_num: str, inventory_df: pd.DataFrame, velocity_analysis: pd.DataFrame, inbound_skus: set, item_master_df: pd.DataFrame) -> pd.DataFrame:
         if len(inventory_df) == 0:
@@ -518,7 +529,6 @@ class TransformService:
 
         return inventory_data
 
-
     def create_velocity_summary(self, project_num: str, velocity_analysis_df: pd.DataFrame, inventory_df: pd.DataFrame) -> pd.DataFrame:
         if len(velocity_analysis_df) == 0:
             print(f'No order data. Skipping velocity summary')
@@ -541,7 +551,6 @@ class TransformService:
         velocity_summary.replace(to_replace=pd.NA, value='', inplace=True)
 
         return velocity_summary
-
 
     def create_outbound_data_by_order(self, project_num: str, outbound_df: pd.DataFrame) -> pd.DataFrame:
         if len(outbound_df) == 0:
@@ -574,7 +583,6 @@ class TransformService:
         outbound_by_order.replace(to_replace=pd.NA, value='', inplace=True)
 
         return outbound_by_order
-
 
     def create_daily_order_profile_by_velocity(self, project_num: str, outbound_df: pd.DataFrame, velocity_summary: pd.DataFrame) -> pd.DataFrame:
         if len(outbound_df) == 0:
@@ -612,7 +620,6 @@ class TransformService:
         daily_order_profile.replace(to_replace=pd.NA, value='', inplace=True)
 
         return daily_order_profile.round(decimals=2)
-
 
     def create_velocity_by_month(self, project_num: str, outbound_df: pd.DataFrame, velocity_analysis: pd.DataFrame) -> pd.DataFrame:
         if len(outbound_df) == 0:
@@ -670,7 +677,6 @@ class TransformService:
 
         return velocity_by_month
 
-
     def create_project_number_velocity(self, project_num: str) -> pd.DataFrame:       
         print(f'creating project number velocity...')
 
@@ -683,7 +689,6 @@ class TransformService:
         projectnum_velocity.replace(to_replace=pd.NA, value='', inplace=True)
 
         return projectnum_velocity
-
 
     def create_project_number_order_number(self, project_num: str, order_numbers: list) -> pd.DataFrame:
         if len(order_numbers) == 0:
@@ -701,7 +706,6 @@ class TransformService:
         projectnum_ordernum.replace(to_replace=pd.NA, value='', inplace=True)
 
         return projectnum_ordernum
-
 
     def create_velocity_ladder(self, project_num: str, velocity_analysis: pd.DataFrame) -> pd.DataFrame:
         if len(velocity_analysis) == 0:
@@ -737,7 +741,6 @@ class TransformService:
         return velocity_ladder
 
 
-
     ''' Helpers '''
 
     # Given a number n, find the range it belongs to
@@ -758,7 +761,6 @@ class TransformService:
                     return range_str
         return ''
 
-
     # Return velocity of SKU by dividing its running sum of lines by total lines
     def find_velocity(self, rsum_lines, total_lines) -> str:
         percent_lines = rsum_lines / total_lines
@@ -773,7 +775,6 @@ class TransformService:
         else: 
             return 'E'
         
-
     # Run velocity analysis on outbound data set
     # @Params: 
     #       outbound_df: pd.DataFrame    required columns: SKU, Quantity
