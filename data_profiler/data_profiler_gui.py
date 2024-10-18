@@ -897,7 +897,7 @@ class DataProfilerGUI(ApexApp):
 
         return_str += f'Total rows inserted: {rows.total_rows_inserted}\n'
         return_str += f'SKUs: {rows.skus}\n'
-        return_str += f'Inbound Receipts: {rows.inbound_receipts}\n'
+        return_str += f'Inbound Receipts: {rows.inbound_pos}\n'
         return_str += f'Inbound Lines: {rows.inbound_lines}\n'
         return_str += f'Inventory Lines: {rows.inventory_lines}\n'
         return_str += f'Outbound Orders: {rows.outbound_orders}\n'

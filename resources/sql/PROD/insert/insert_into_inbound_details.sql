@@ -1,5 +1,5 @@
 INSERT INTO [OutputTables_Prod].[InboundDetails]
-        ([ProjectNumber_ReceiptNumber]
+        ([ProjectNumber_PO_Number]
         ,[ProjectNumber_SKU]
         ,[UnitOfMeasure]
         ,[Quantity]

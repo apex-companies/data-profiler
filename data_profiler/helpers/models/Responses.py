@@ -12,7 +12,7 @@ from pydantic import BaseModel
 class TransformRowsInserted(BaseModel):
     total_rows_inserted: int = 0
     skus: int = 0
-    inbound_receipts: int = 0
+    inbound_pos: int = 0
     inbound_lines: int = 0
     inventory_lines: int = 0
     outbound_lines: int = 0

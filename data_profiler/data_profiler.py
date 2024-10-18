@@ -226,8 +226,8 @@ class DataProfiler:
                 master_errors_dict[UploadFileTypes.INBOUND_DETAILS.value] = inbound_details_errors_list
 
             IB_SKUS = inbound_details['SKU'].unique().tolist()
-            IBH_RECEIPTS = inbound_header['ReceiptNumber'].unique().tolist()
-            IBD_RECEIPTS = inbound_details['ReceiptNumber'].unique().tolist()
+            IBH_RECEIPTS = inbound_header['PO_Number'].unique().tolist()
+            IBD_RECEIPTS = inbound_details['PO_Number'].unique().tolist()
 
         if transform_options.process_inventory_data:
             inventory, inventory_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.INVENTORY, file_path=uploaded_files.inventory, log_file=log_file)

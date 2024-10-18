@@ -192,7 +192,7 @@ class TransformService:
                                         
                 rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InboundHeader', data_frame=inbound_header, sql_file_path=SQL_FILE_MAPPER['InboundHeader'])
                 total_rows_inserted += rows
-                rows_inserted_obj.inbound_receipts = rows
+                rows_inserted_obj.inbound_pos = rows
 
                 total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ProjectNumber_Velocity', data_frame=project_number_velocity, sql_file_path=SQL_FILE_MAPPER['ProjectNumber_Velocity'])
 
@@ -371,25 +371,25 @@ class TransformService:
             return inbound_header_df
         
         print(f'creating inbound header...')
-        '''ProjectNumber ReceiptNumber ArrivalDate ArrivalTime ExpectedDate ExpectedTime Carrier  Mode'''
+        '''ProjectNumber PO_Number ArrivalDate ArrivalTime ExpectedDate ExpectedTime Carrier  Mode'''
         
         inbound_header = inbound_header_df.copy(deep=True)
         
         # Aggregate InboundDetails
-        inbound_by_receipt = inbound_details_df.groupby('ReceiptNumber').aggregate(
-            Lines=('ReceiptNumber', 'size'), 
+        inbound_by_receipt = inbound_details_df.groupby('PO_Number').aggregate(
+            Lines=('PO_Number', 'size'), 
             Units=('Quantity', 'sum'),
             SKUs=('SKU', 'nunique')
         ).reset_index()
 
-        inbound_header = inbound_header.merge(inbound_by_receipt, on='ReceiptNumber', how='left')
+        inbound_header = inbound_header.merge(inbound_by_receipt, on='PO_Number', how='left')
 
         # Adjust weekend dates
         inbound_header = self.adjust_weekend_dates(inbound_header, 'ArrivalDate')
 
-        # Add ProjectNumber_SKU, ProjectNumber_ReceiptNumber
+        # Add ProjectNumber_SKU, ProjectNumber_PO_Number
         inbound_header['ProjectNumber'] = project_num
-        inbound_header['ProjectNumber_ReceiptNumber'] = project_num + '-' + inbound_header['ReceiptNumber'].astype(str)
+        inbound_header['ProjectNumber_PO_Number'] = project_num + '-' + inbound_header['PO_Number'].astype(str)
 
         return inbound_header
 
@@ -399,7 +399,7 @@ class TransformService:
             return inbound_details_df
         
         print(f'creating inbound details...')
-        '''ProjectNumber ReceiptNumber   SKU UnitOfMeasure  Quantity VendorID SourcePoint'''
+        '''ProjectNumber PO_Number   SKU UnitOfMeasure  Quantity VendorID SourcePoint'''
         
         inbound_details = inbound_details_df.copy(deep=True)
 
@@ -412,9 +412,9 @@ class TransformService:
         inbound_details['LineCube'] = inbound_details.apply(lambda x: self.calc_line_cube(row=x), axis=1)
         inbound_details['LineWeight'] = inbound_details.apply(lambda x: self.calc_line_weight(row=x), axis=1)
 
-        # Add ProjectNumber_SKU, ProjectNumber_ReceiptNumber
+        # Add ProjectNumber_SKU, ProjectNumber_PO_Number
         inbound_details['ProjectNumber_SKU'] = project_num + '-' + inbound_details['SKU'].astype(str)
-        inbound_details['ProjectNumber_ReceiptNumber'] = project_num + '-' + inbound_details['ReceiptNumber'].astype(str)
+        inbound_details['ProjectNumber_PO_Number'] = project_num + '-' + inbound_details['PO_Number'].astype(str)
 
         return inbound_details
 

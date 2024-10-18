@@ -1,7 +1,7 @@
 INSERT INTO [OutputTables_Dev].[InboundHeader]
-        ([ProjectNumber_ReceiptNumber]
+        ([ProjectNumber_PO_Number]
         ,[ProjectNumber]
-        ,[ReceiptNumber]
+        ,[PO_Number]
         ,[ArrivalDate]
         ,[ArrivalTime]
         ,[ExpectedDate]
@@ -10,6 +10,8 @@ INSERT INTO [OutputTables_Dev].[InboundHeader]
         ,[Mode]
         ,[Lines]
         ,[Units]
-        ,[SKUs])
+        ,[SKUs]
+        ,[ShipmentNumber]
+        ,[UnloadType])
     VALUES 
-        (?,?,?,?,?,?,?,?,?,?,?,?)
+        (?,?,?,?,?,?,?,?,?,?,?,?,?,?)

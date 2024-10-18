@@ -10,11 +10,11 @@ Python constants relating to input/upload files for DataProfiler
 ''' Required Columns '''
 
 ITEM_MASTER_UPLOAD_REQUIRED_COLS = ['SKU','SKUDescription','SKUClass','UnitOfMeasure','EachLength','EachWidth','EachHeight','EachWeight','InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight','CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Conveyable','Subwarehouse','AllowToPickPallet','AllowToPickCarton','AllowToPickInnerPacks','AllowToPickUnits']
-INBOUND_HEADER_UPLOAD_REQUIRED_COLS = ['ReceiptNumber', 'ArrivalDate', 'ArrivalTime', 'ExpectedDate', 'ExpectedTime', 'Carrier', 'Mode']
-INBOUND_DETAILS_UPLOAD_REQUIRED_COLS = ['ReceiptNumber', 'SKU', 'UnitOfMeasure', 'Quantity', 'VendorID', 'SourcePoint']
+INBOUND_HEADER_UPLOAD_REQUIRED_COLS = ['PO_Number', 'ArrivalDate', 'ArrivalTime', 'ExpectedDate', 'ExpectedTime', 'Carrier', 'Mode', 'ShipmentNumber', 'UnloadType']
+INBOUND_DETAILS_UPLOAD_REQUIRED_COLS = ['PO_Number', 'SKU', 'UnitOfMeasure', 'Quantity', 'VendorID', 'SourcePoint']
 INVENTORY_UPLOAD_REQUIRED_COLS = ['Period','SKU','Quantity','UnitOfMeasure','Location','Lot','Subwarehouse']
 ORDER_HEADER_UPLOAD_REQUIRED_COLS = ['OrderNumber','ReceivedDate','PickDate','ShipDate','Channel']
-ORDER_DETAILS_UPLOAD_REQUIRED_COLS = ['OrderNumber','SKU','Quantity','UnitOfMeasure', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier']
+ORDER_DETAILS_UPLOAD_REQUIRED_COLS = ['OrderNumber','SKU', 'UnitOfMeasure', 'PickType', 'Quantity', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier']
 
 UPLOADS_REQUIRED_COLUMNS_MAPPER = {
     'ItemMaster': ITEM_MASTER_UPLOAD_REQUIRED_COLS,
@@ -59,17 +59,19 @@ ITEM_MASTER_UPLOAD_REQUIRED_DTYPES = {
 }
 
 INBOUND_HEADER_UPLOAD_REQUIRED_DTYPES = {
-    'ReceiptNumber': 'object',
+    'PO_Number': 'object',
     'ArrivalDate': 'date', 
     'ArrivalTime': 'time' , 
     'ExpectedDate': 'date', 
     'ExpectedTime': 'time', 
     'Carrier': 'object', 
-    'Mode': 'object'
+    'Mode': 'object',
+    'ShipmentNumber': 'object',
+    'UnloadType': 'object'
 }
 
 INBOUND_DETAILS_UPLOAD_REQUIRED_DTYPES = {
-    'ReceiptNumber': 'object', 
+    'PO_Number': 'object', 
     'SKU': 'object', 
     'UnitOfMeasure': 'object', 
     'Quantity': 'float64', 
@@ -96,10 +98,11 @@ ORDER_HEADER_UPLOAD_REQUIRED_DTYPES = {
 }
 
 ORDER_DETAILS_UPLOAD_REQUIRED_DTYPES = {
-    'OrderNumber':'object',
-    'SKU':'object',
-    'Quantity':'int64',
-    'UnitOfMeasure':'object',
+    'OrderNumber': 'object',
+    'SKU': 'object',
+    'UnitOfMeasure': 'object',
+    'PickType': 'object',
+    'Quantity': 'int64',
     'BusinessUnit': 'object', 
     'ShipContainerType': 'object',
     'SpecialHandlingCodes': 'object', 

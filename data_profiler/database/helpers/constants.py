@@ -29,10 +29,10 @@ SCHEMAS = {
 OUTPUT_TABLES_ITEM_MASTER_COLS = ['ProjectNumber_SKU','ProjectNumber','SKU','SKUDescription','SKUClass','UnitOfMeasure','Velocity','EachLength','EachWidth','EachHeight','EachWeight',
                                   'InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight',
                                   'CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Subwarehouse']
-OUTPUT_TABLES_OUTBOUND_DATA_COLS = ['ProjectNumber_SKU','Quantity','ReceivedDate','PickDate','ShipDate','Channel','Velocity','UnitsPerLineRange','Weekday','Week','Weekday_Idx','ProjectNumber_OrderNumber','Date','Week_Number', 'LineCube', 'LineWeight', 'UnitOfMeasure', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier']
+OUTPUT_TABLES_OUTBOUND_DATA_COLS = ['ProjectNumber_SKU','Quantity','ReceivedDate','PickDate','ShipDate','Channel','Velocity','UnitsPerLineRange','Weekday','Week','Weekday_Idx','ProjectNumber_OrderNumber','Date','Week_Number', 'LineCube', 'LineWeight', 'UnitOfMeasure', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier', 'PickType']
 OUTPUT_TABLES_ORDER_VELOCITY_COMBINATIONS_COLS = ['ProjectNumber_OrderNumber','VelocityCombination']
-OUTPUT_TABLES_INBOUND_HEADER_COLS = ['ProjectNumber_ReceiptNumber','ProjectNumber','ReceiptNumber','ArrivalDate','ArrivalTime','ExpectedDate','ExpectedTime','Carrier','Mode','Lines','Units','SKUs']
-OUTPUT_TABLES_INBOUND_DETAILS_COLS = ['ProjectNumber_ReceiptNumber','ProjectNumber_SKU','UnitOfMeasure','Quantity','VendorID','SourcePoint','LineCube','LineWeight']
+OUTPUT_TABLES_INBOUND_HEADER_COLS = ['ProjectNumber_PO_Number','ProjectNumber','PO_Number','ArrivalDate','ArrivalTime','ExpectedDate','ExpectedTime','Carrier','Mode','Lines','Units','SKUs','ShipmentNumber','UnloadType']
+OUTPUT_TABLES_INBOUND_DETAILS_COLS = ['ProjectNumber_PO_Number','ProjectNumber_SKU','UnitOfMeasure','Quantity','VendorID','SourcePoint','LineCube','LineWeight']
 OUTPUT_TABLES_INVENTORY_DATA_COLS = ['Period','ProjectNumber_SKU','UnitOfMeasure','Quantity','Subwarehouse','Velocity','ExistsInInbound','Location','Lot','LineCube','LineWeight']
 OUTPUT_TABLES_VELOCITY_SUMMARY_COLS = ['ProjectNumber_Velocity','ActiveSKUs','Lines','Units','OnHandSKUs','QtyOnHand']
 OUTPUT_TABLES_OUTBOUND_DATA_BY_ORDER_COLS = ['Date','Lines','Units','SKUs','LinesPerOrderRange','UnitsPerOrderRange','Weekday','Weekday_Idx','ProjectNumber_OrderNumber']
