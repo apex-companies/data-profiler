@@ -11,6 +11,7 @@ import re
 from datetime import timedelta
 from time import time
 from io import TextIOWrapper
+import math
 
 import pandas as pd
 import numpy as np
@@ -360,6 +361,12 @@ class TransformService:
         item_master_return['CartonCube'] = round((item_master_return['CartonLength'].astype(float) * item_master_return['CartonWidth'].astype(float) * item_master_return['CartonHeight'].astype(float))/(12*12*12),2)
         item_master_return['PalletCube'] = round((item_master_return['PalletLength'].astype(float) * item_master_return['PalletWidth'].astype(float) * item_master_return['PalletHeight'].astype(float))/(12*12*12),2)
         
+        # Add dimension ranges
+        item_master_return['PalletWidthRange'] = item_master_return['PalletWidth'].apply(lambda x: self.value_range(x, 5))
+        item_master_return['PalletLengthRange'] = item_master_return['PalletLength'].apply(lambda x: self.value_range(x, 5))
+        item_master_return['PalletHeightRange'] = item_master_return['PalletHeight'].apply(lambda x: self.value_range(x, 5))
+        item_master_return['PalletWeightRange'] = item_master_return['PalletWeight'].apply(lambda x: self.value_range(x, 200))
+
         # Fill in any nulls cells with empty string
         item_master_return.replace(to_replace=pd.NA, value='', inplace=True)
 
@@ -821,3 +828,11 @@ class TransformService:
             pass
 
         return df
+    
+    def value_range(self, dim, bin_width):
+        if dim == 0 or math.isnan(dim):
+            return '0'
+        
+        multiple = int(math.ceil(dim / bin_width) * bin_width)
+        return f"{multiple - (bin_width - 1)}-{multiple}"
+    
