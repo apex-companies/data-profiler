@@ -368,7 +368,7 @@ class TransformService:
         item_master_return['PalletWeightRange'] = item_master_return['PalletWeight'].apply(lambda x: self.value_range(x, 200))
 
         # Fill in any nulls cells with empty string
-        item_master_return.replace(to_replace=pd.NA, value='', inplace=True)
+        # item_master_return = item_master_return.replace(to_replace=pd.NA, value='')
 
         return item_master_return
 

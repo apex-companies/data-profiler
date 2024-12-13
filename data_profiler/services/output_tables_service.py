@@ -2,6 +2,8 @@
 Jack Miller
 Apex Companies
 January 2024
+
+Functions that interface with the OutputTables schema in the database
 '''
 
 # Python
@@ -9,6 +11,8 @@ from datetime import datetime, timedelta
 from time import time
 from io import TextIOWrapper
 import pyodbc
+
+import pandas as pd
 
 # Data Profiler
 from ..helpers.models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
@@ -20,7 +24,8 @@ from ..database.database_manager import DatabaseConnection
 from ..database.helpers.constants import DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT, OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT,\
     DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT,\
     OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT, DEV_OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER, OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER,\
-    OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT
+    OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT,\
+    DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER, OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER
 
 
 class OutputTablesService:
@@ -198,6 +203,63 @@ class OutputTablesService:
         return row_count
 
     
+    def update_subwarehouse_in_item_master(self, project_number: str, data_frame: pd.DataFrame) -> int:
+        '''
+        Updates Subwarehouse value in Item Master for given SKUs
+
+        Params
+
+        project_number : str  
+        data_frame : pd.DataFrame  
+            columns = ['SKU', 'Subwarehouse']
+        
+        Return
+        ------
+        The number of SKUs affected by update
+        '''
+
+        # Get query from sql file
+        sql_file = DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER if self.dev else OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER
+
+        f = open(f'{self.sql_dir}/{sql_file}')
+        update_query = f.read()
+        f.close()
+
+        print(update_query)
+
+        # Add ProjectNumber to data_frame and reorder columns to match update_subwhse_item_master query
+        data_frame['ProjectNumber'] = project_number
+        data_frame = data_frame.reindex(columns=['Subwarehouse', 'ProjectNumber', 'SKU'])
+
+        # Get 2d list
+        data_lst = data_frame.to_dict('split')['data']
+        print(data_lst[0])
+
+        row_count = 0
+        # Connect and run query    
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            cursor = db_conn.cursor()
+
+            # Use fast execute many
+            db_conn.autocommit = False                   # autocommit = True could force a DB transaction for each query, which would defeat the point
+            cursor.fast_executemany = True
+
+            # Execute query, all data at once
+            cursor.executemany(update_query, data_lst)
+            db_conn.commit()
+
+            # executemany can't return rowcount, so assuming the code has executed to this point, everything was successful, and the rowcount is the number of items given!
+            row_count = len(data_lst)   
+
+            # Turn off fast execute many
+            db_conn.autocommit = True
+            cursor.fast_executemany = False
+
+            cursor.close()
+
+        return row_count
+
+
     def delete_project_data(self, project_number: str, log_file: TextIOWrapper) -> DeleteResponse:
         '''
         Delete from OutputTables schema. Removes records from all relevant DB tables belonging to the given project number

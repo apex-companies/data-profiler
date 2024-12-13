@@ -9,8 +9,13 @@ Pydantic models relating to input/upload files for DataProfiler
 from pydantic import BaseModel
 from enum import Enum
 
+from typing import Union
 
+class FileType(Enum):
+# class FileType(BaseModel):
+    BASE_FILE = 'BaseFile'
 
+# class UploadFileTypes(FileType, Enum):
 class UploadFileTypes(str, Enum):
     ITEM_MASTER = 'ItemMaster'
     INBOUND_HEADER = 'InboundHeader'
@@ -18,7 +23,10 @@ class UploadFileTypes(str, Enum):
     INVENTORY = 'Inventory'
     ORDER_HEADER = 'OrderHeader'
     ORDER_DETAILS = 'OrderDetails'
+    SUBWHSE_UPDATE = 'SubwhseUpdate'
 
+class OtherFileTypes(str, Enum):
+    SUBWHSE_UPDATE = 'SubwhseUpdate'
 
 class UploadedFile(BaseModel):
     file_type: UploadFileTypes
