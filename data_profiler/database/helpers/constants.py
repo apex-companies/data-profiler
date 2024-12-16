@@ -101,6 +101,10 @@ OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
 ## Select queries
 OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'PROD/select/select_all_from_project.sql'
 
+DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER = 'PROD/select/download_storage_analyzer_inputs/select_from_item_master.sql'
+DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY = 'PROD/select/download_storage_analyzer_inputs/select_from_inventory.sql'
+DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_OUTBOUND = 'PROD/select/download_storage_analyzer_inputs/select_from_outbound.sql'
+
 ## Update queries
 OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'PROD/update/update_project.sql'
 OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER = 'PROD/update/update_subwhse_item_master.sql'
@@ -182,6 +186,10 @@ DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
 
 ## Select queries
 DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'DEV/select/select_all_from_project.sql'
+
+DEV_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER = 'DEV/select/download_storage_analyzer_inputs/select_from_item_master.sql'
+DEV_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY = 'DEV/select/download_storage_analyzer_inputs/select_from_inventory.sql'
+DEV_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_OUTBOUND = 'DEV/select/download_storage_analyzer_inputs/select_from_outbound.sql'
 
 ## Update queries
 DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'DEV/update/update_project.sql'

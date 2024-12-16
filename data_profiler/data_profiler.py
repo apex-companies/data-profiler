@@ -21,8 +21,9 @@ import pyodbc
 # Data Profiler
 from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .helpers.models.TransformOptions import TransformOptions
-from .helpers.models.Responses import DBWriteResponse, TransformResponse, DeleteResponse
+from .helpers.models.Responses import DBWriteResponse, TransformResponse, DeleteResponse, DBDownloadResponse
 from .helpers.models.DataFiles import DataDirectoryValidation, FileValidation, FileType, UploadFileTypes, OtherFileTypes, UploadedFilePaths
+from .helpers.models.GeneralModels import DownloadDataOptions
 from .helpers.constants.data_file_constants import UPLOADS_REQUIRED_COLUMNS_MAPPER, UPLOADS_REQUIRED_DTYPES_MAPPER,\
     DTYPES_DEFAULT_VALUES, DIRECTORY_ERROR_DOES_NOT_EXIST, FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS,\
     FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS, FILE_ERROR_INVENTORY_MISSING_COLUMNS, FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS,\
@@ -114,6 +115,54 @@ class DataProfiler:
         
         with OutputTablesService(dev=self.dev) as service:
             self.project_info = service.get_project_info(self.get_project_number())
+
+    def download_data(self, download_option: DownloadDataOptions, target_directory: str) -> DBDownloadResponse:
+        if not self.get_project_exists():
+            raise ValueError('Project does not yet exist')
+        
+        project_info = self.get_project_info()
+        project_number = project_info.project_number
+
+        if not project_info.data_uploaded:
+            raise ValueError('Project does not have any associated data. Upload some data first!')
+
+        if not os.path.isdir(target_directory):
+            raise FileNotFoundError(f'Invalid directory: "{target_directory}"')
+        
+        # Create subfolder
+        today = datetime.today().strftime('%m-%d-%Y')
+        subfolder_name = f'{project_number} - StorageAnalyzer Inputs - {today}'
+        download_directory = f'{target_directory}/{subfolder_name}'
+        if not os.path.exists(download_directory):
+            os.mkdir(download_directory)
+        else:
+            i = 1
+            subdir_created = False
+            while not subdir_created and i < 20:
+                i += 1
+                download_directory = f'{target_directory}/{subfolder_name} ({i})'
+                
+                if not os.path.exists(download_directory):
+                    os.mkdir(download_directory)
+                    subdir_created = True
+
+            if not subdir_created:
+                raise Exception('Cannot find folder to download to.')
+        
+        response = None
+        if download_option == DownloadDataOptions.STORAGE_ANALYZER_INPUTS:
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_storage_analyzer_inputs(project_number=project_number, download_folder=download_directory)
+                
+        elif download_option == DownloadDataOptions.INVENTORY_STRATIFICATION_REPORT:
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_inventory_stratification_report(project_number=project_number, download_folder=download_directory)
+
+        else:
+            response = DBDownloadResponse()
+        
+
+        return response
 
 
     ## Update ##
@@ -584,35 +633,6 @@ class DataProfiler:
         required_columns = UPLOADS_REQUIRED_COLUMNS_MAPPER[file_type.value]
 
         return self._validate_file(file_type=file_type, file_path=file_path, required_columns=required_columns)
-        # validation_obj = FileValidation(file_type=file_type, file_path=f'{data_directory}/{file_type.value}.csv')
-
-        # # Is it present?
-        # if not os.path.exists(validation_obj.file_path) or os.stat(validation_obj.file_path).st_size == 0:
-        #     validation_obj.is_present = False
-        #     validation_obj.is_valid = False
-        #     validation_obj.file_path = ''
-        #     return validation_obj
-        # else:
-        #     validation_obj.is_present = True
-
-        # # Is it valid?
-        # if not file_path_is_valid_data_frame(validation_obj.file_path):
-        #     validation_obj.is_valid = False
-        #     return validation_obj
-        
-        # missing_cols = validate_csv_column_names(file_path=validation_obj.file_path, columns=UPLOADS_REQUIRED_COLUMNS_MAPPER[file_type.value])
-        # if missing_cols:
-        #     validation_obj.is_valid = False
-        #     validation_obj.missing_columns = missing_cols
-        #     return validation_obj
-
-        # # Is dataframe empty?
-        # if data_frame_is_empty(file_path=validation_obj.file_path):     # Empty = headers present but no row data
-        #     validation_obj.is_present = False
-        #     return validation_obj
-        
-        # # Otherwise, it's valid
-        # return validation_obj
 
     def _validate_file(self, file_type: UploadFileTypes, file_path: str, required_columns: list) -> FileValidation:
         validation_obj = FileValidation(file_type=file_type, file_path=file_path)

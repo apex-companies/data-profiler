@@ -16,6 +16,7 @@ from PIL import Image
 from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .helpers.models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
 from .helpers.models.Responses import TransformRowsInserted
+from .helpers.models.GeneralModels import DownloadDataOptions
 from .helpers.constants.app_constants import RESOURCES_DIR, RESOURCES_DIR_DEV
 from .frames.custom_widgets import ProjectInfoFrame
 
@@ -24,7 +25,7 @@ from .data_profiler import DataProfiler
 
 # Apex GUI
 from apex_gui.apex_app import ApexApp
-from apex_gui.frames.notification_dialogs import NotificationDialog, ResultsDialogWithLogFile, ConfirmDeleteDialog
+from apex_gui.frames.notification_dialogs import NotificationDialog, ResultsDialog, ResultsDialogWithLogFile, ConfirmDeleteDialog
 from apex_gui.frames.styled_widgets import Page, Section, SectionWithScrollbar, Frame, NeutralButton, TransparentIconButton, PositiveIconButton, NeutralIconButton, DangerIconButton
 from apex_gui.frames.custom_widgets import StaticValueWithLabel, DropdownWithLabel, CheckbuttonWithLabel, FileBrowser
 from apex_gui.styles.fonts import AppSubtitleFont, SectionHeaderFont, SectionSubheaderFont
@@ -227,8 +228,8 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_task_bar_frame = Frame(self.more_actions_frame_header_frame)
 
         # LEVEL 1 - Parent = more_actions_frame_content_container
-        self.more_actions_frame_update_subwhse_frame = Section(self.more_actions_frame_content_container)
-        self.more_actions_subframe_2 = Frame(self.more_actions_frame_content_container)
+        self.more_actions_frame_update_subwhse_section = Section(self.more_actions_frame_content_container)
+        self.more_actions_frame_download_data_section = Section(self.more_actions_frame_content_container)
         self.more_actions_subframe_3 = Frame(self.more_actions_frame_content_container)
         self.more_actions_subframe_4 = Frame(self.more_actions_frame_content_container)
 
@@ -237,9 +238,19 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_delete_project_frame = TransparentIconButton(self.more_actions_frame_task_bar_frame, image=self.trash_icon, command=self.delete_project_action)
 
         # LEVEL 2 - Parent = more_actions_frame_update_subwhse_frame
-        self.more_actions_frame_update_subwhse_title = CTkLabel(self.more_actions_frame_update_subwhse_frame, text='Update Subwarehouse', font=SectionHeaderFont())
-        self.more_actions_frame_update_subwhse_browse = FileBrowser(self.more_actions_frame_update_subwhse_frame, label_text='Select a file', path_type='CSV')
-        self.more_actions_frame_update_subwhse_submit_btn = PositiveIconButton(self.more_actions_frame_update_subwhse_frame, image=self.check_icon, command=self.update_subwarehouse_in_item_master)
+        self.more_actions_frame_update_subwhse_title = CTkLabel(self.more_actions_frame_update_subwhse_section, text='Update Subwarehouse', font=SectionHeaderFont())
+        self.more_actions_frame_update_subwhse_browse = FileBrowser(self.more_actions_frame_update_subwhse_section, label_text='Select a file', path_type='CSV')
+        self.more_actions_frame_update_subwhse_submit_btn = PositiveIconButton(self.more_actions_frame_update_subwhse_section, image=self.check_icon, command=self.update_subwarehouse_in_item_master)
+
+        # LEVEL 2 - Parent = more_actions_frame_download_data_section
+        self.more_actions_frame_download_data_title = CTkLabel(self.more_actions_frame_download_data_section, text='Download Data', font=SectionHeaderFont())
+        self.more_actions_frame_download_data_options_dropdown = DropdownWithLabel(self.more_actions_frame_download_data_section, 
+                                                                label_text='Select a download option', 
+                                                                label_font=SectionSubheaderFont(),
+                                                                dropdown_values=[option.value for option in DownloadDataOptions],
+                                                                default_val='')
+        self.more_actions_frame_download_data_folder_browse = FileBrowser(self.more_actions_frame_download_data_section, label_text='Select a download folder', path_type='folder')
+        self.more_actions_frame_download_data_submit_btn = PositiveIconButton(self.more_actions_frame_download_data_section, image=self.check_icon, command=self.download_data_submit_action)
 
         # Grid
         self._grid_more_actions_frame()
@@ -440,9 +451,9 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_content_container.grid_rowconfigure([0,1], weight=1)
         self.more_actions_frame_content_container.grid_columnconfigure([0,1], weight=1)
 
-        self.more_actions_frame_update_subwhse_frame.grid(row=0, column=0, sticky='nsew', padx=20, pady=20)      # LEVEL 2 and 3 within ProjectInfoFrame class
-        self.more_actions_subframe_2.grid(row=1, column=0, sticky='nsew')
-        self.more_actions_subframe_3.grid(row=0, column=1, sticky='nsew')
+        self.more_actions_frame_update_subwhse_section.grid(row=0, column=0, sticky='nsew', padx=20, pady=20)      # LEVEL 2 and 3 within ProjectInfoFrame class
+        self.more_actions_frame_download_data_section.grid(row=0, column=1, sticky='nsew', padx=20, pady=20)
+        self.more_actions_subframe_3.grid(row=1, column=0, sticky='nsew')
         self.more_actions_subframe_4.grid(row=1, column=1, sticky='nsew')
 
         # LEVEL 2 - more_actions_frame_task_bar_frame
@@ -452,12 +463,21 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_delete_project_frame.grid(row=0, column=1, sticky='ew', padx=(5,0))
 
         # LEVEL 2 - more_actions_frame_update_subwhse_frame
-        self.more_actions_frame_update_subwhse_frame.grid_rowconfigure(1, weight=1)
-        self.more_actions_frame_update_subwhse_frame.grid_columnconfigure(0, weight=1)
+        self.more_actions_frame_update_subwhse_section.grid_rowconfigure(1, weight=1)
+        self.more_actions_frame_update_subwhse_section.grid_columnconfigure(0, weight=1)
 
         self.more_actions_frame_update_subwhse_title.grid(row=0, column=0, sticky='ew', padx=10, pady=(10, 0))
         self.more_actions_frame_update_subwhse_browse.grid(row=1, column=0, sticky='ew', padx=10, pady=20)
         self.more_actions_frame_update_subwhse_submit_btn.grid(row=2, column=0, padx=10, pady=(0, 20))
+
+         # LEVEL 2 - more_actions_frame_download_data_section
+        self.more_actions_frame_download_data_section.grid_rowconfigure([1,2], weight=1)
+        self.more_actions_frame_download_data_section.grid_columnconfigure(0, weight=1)
+
+        self.more_actions_frame_download_data_title.grid(row=0, column=0, sticky='ew', padx=10, pady=(10, 0))
+        self.more_actions_frame_download_data_options_dropdown.grid(row=1, column=0, padx=10, pady=(20, 0))
+        self.more_actions_frame_download_data_folder_browse.grid(row=2, column=0, sticky='ew', padx=10, pady=(0,20))
+        self.more_actions_frame_download_data_submit_btn.grid(row=3, column=0, padx=10, pady=(0, 20))
 
 
     def _grid_loading_frame(self):
@@ -688,6 +708,16 @@ class DataProfilerGUI(ApexApp):
         return
 
     def update_subwarehouse_in_item_master(self):
+        # Make sure project has data exists
+        notification_dialog = None
+        if not self._get_project_info().data_uploaded:
+            message = f'Project has no data! Please upload data before updating subwarehouse'
+
+            notification_dialog = NotificationDialog(self, title='Data Profiler', text=message)
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+            return
+        
         # Get selected file path
         file_path = self.more_actions_frame_update_subwhse_browse.get_path()
 
@@ -740,9 +770,7 @@ class DataProfilerGUI(ApexApp):
         
         else:
             # Navigate back to home
-            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-            self._toggle_frame_grid(frame=self.home_frame, grid=True)
-            self.update()
+            self.navigate_to_home_action()
 
             # Display notification of results
             notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble deleting project:\n\n{response.error_message}')        
@@ -879,6 +907,49 @@ class DataProfilerGUI(ApexApp):
         confirm_dialog.mainloop()
         return
     
+    def download_data_submit_action(self):
+        download_path = self.more_actions_frame_download_data_folder_browse.get_path()
+        download_option_input = self.more_actions_frame_download_data_options_dropdown.get_variable_value()
+
+        # Make sure project has data exists
+        message = None
+
+        if not self._get_project_info().data_uploaded:
+            message = f'Project has no data! Please upload data before attempting to downloading data or reports.'
+        elif not download_option_input:
+            message = f'Please select a download option from the dropdown.'
+        elif not download_path:
+            message = f'Please select a download folder.'
+        
+        # If it's not a valid request, notify and quit
+        if message:
+            notification_dialog = NotificationDialog(self, title='Data Profiler', text=message)
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+            return
+
+        # Show loading frame while executing
+        self.show_loading_frame_action(f'Downloading "{download_option_input}"...')
+
+        # Make the request to DataProfiler
+        download_option = DownloadDataOptions(download_option_input)
+        download_response = self.DataProfiler.download_data(download_option=download_option, target_directory=download_path)
+
+        # Notify of results
+        notification_dialog = None
+        if download_response.success:
+            # Display notification of results
+            notification_dialog = ResultsDialog(self, title='Success!', text=f'Downloaded "{download_option.value}" for {self._get_project_number()}.', results_dir=download_response.download_path)        
+        else:
+            # Display notification of results
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble downloading "{download_option.value}" :\n\n{download_response.message}') 
+
+        # Navigate back to more actions
+        self.navigate_to_more_actions_action()
+
+        # Display dialog
+        notification_dialog.attributes('-topmost', True)
+        notification_dialog.mainloop()
 
     ## Navigations ##
 

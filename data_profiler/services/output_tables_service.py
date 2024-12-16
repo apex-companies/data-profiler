@@ -11,13 +11,14 @@ from datetime import datetime, timedelta
 from time import time
 from io import TextIOWrapper
 import pyodbc
+from pyodbc import DatabaseError
 
 import pandas as pd
 
 # Data Profiler
 from ..helpers.models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
 from ..helpers.models.TransformOptions import TransformOptions
-from ..helpers.models.Responses import DeleteResponse
+from ..helpers.models.Responses import DeleteResponse, DBDownloadResponse
 from ..helpers.constants.app_constants import SQL_DIR, SQL_DIR_DEV
 
 from ..database.database_manager import DatabaseConnection
@@ -25,8 +26,10 @@ from ..database.helpers.constants import DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_F
     DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT,\
     OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT, DEV_OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER, OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER,\
     OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT,\
-    DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER, OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER
-
+    DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER, OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER,\
+    DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER, DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY, DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_OUTBOUND,\
+    DEV_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER, DEV_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY, DEV_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_OUTBOUND
+from ..database.helpers.functions import download_table_from_query
 
 class OutputTablesService:
 
@@ -117,6 +120,109 @@ class OutputTablesService:
         )
 
         return project_info
+
+
+    def download_storage_analyzer_inputs(self, project_number: str, download_folder: str) -> DBDownloadResponse:
+
+        # Init empty dataframes
+        item_master_df: pd.DataFrame
+        inventory_df: pd.DataFrame
+        outbound_data_df: pd.DataFrame
+
+        # Get sql files    
+        im_sql_file = DEV_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER if self.dev else DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER
+        inv_sql_file = DEV_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY if self.dev else DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY
+        ob_sql_file = DEV_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_OUTBOUND if self.dev else DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_OUTBOUND
+        
+        # Read sql files
+        f = open(f'{self.sql_dir}/{im_sql_file}')
+        im_query = f.read()
+        im_query = im_query.replace('?', f"'{project_number}'")
+        f.close()
+
+        f = open(f'{self.sql_dir}/{inv_sql_file}')
+        inv_query = f.read()
+        inv_query = inv_query.replace('?', f"'{project_number}'")
+        f.close()
+
+        f = open(f'{self.sql_dir}/{ob_sql_file}')
+        ob_query = f.read()
+        ob_query = ob_query.replace('?', f"'{project_number}'")
+        f.close()
+        
+        # Download datas
+        download_response = DBDownloadResponse(download_path=download_folder)
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            try: 
+                print(f'Downloading Item Master...')
+                item_master_df = download_table_from_query(connection=db_conn, query=im_query)
+
+                print(f'Downloading Inventory...')
+                inventory_df = download_table_from_query(connection=db_conn, query=inv_query)
+
+                print(f'Downloading Outbound...')
+                outbound_data_df = download_table_from_query(connection=db_conn, query=ob_query)
+            except DatabaseError as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something went wrong when reading from the database. {e}'
+            except Exception as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something unknown went wrong. {e}'
+            else:
+                download_response.success = True
+                download_response.message = 'Success!'
+                download_response.rows_downloaded = len(item_master_df) + len(inventory_df) + len(outbound_data_df)
+
+        # Export
+        if download_response.success:
+            item_master_df.to_csv(f'{download_folder}/ItemMaster.csv', index=False)
+            inventory_df.to_csv(f'{download_folder}/Inventory.csv', index=False)
+            outbound_data_df.to_csv(f'{download_folder}/OutboundData.csv', index=False)
+
+        return download_response
+    
+    def download_inventory_stratification_report(self, project_number: str, download_folder: str):
+        
+        # Init empty dataframe
+        df: pd.DataFrame
+
+        # Get sql file
+        sql_file = 'DEV/select/reports/inventory_stratification.sql'
+        
+        # Read sql files
+        f = open(f'{self.sql_dir}/{sql_file}')
+        query = f.read()
+        query = query.replace('?', f"'{project_number}'")
+        f.close()
+
+        print(query)
+
+        download_response = DBDownloadResponse(download_path=download_folder)
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            try: 
+                print(f'Downloading Inventory Stratification Report...')
+                df = download_table_from_query(connection=db_conn, query=query)
+            except DatabaseError as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something went wrong when reading from the database. {e}'
+            except Exception as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something unknown went wrong. {e}'
+            else:
+                download_response.success = True
+                download_response.message = 'Success!'
+                download_response.rows_downloaded = len(df)
+
+        # Export
+        if download_response.success:
+            df.to_csv(f'{download_folder}/InventoryStratification.csv', index=False)
+            
+
+        return download_response
 
     def insert_new_project_to_project_table(self, project_info: BaseProjectInfo) -> int:
         '''
