@@ -103,6 +103,7 @@ OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'PROD/select/select_all_from_pr
 
 ## Update queries
 OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'PROD/update/update_project.sql'
+OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER = 'PROD/update/update_subwhse_item_master.sql'
 
 ## Delete queries
 OUTPUT_TABLES_SQL_FILE_DELETE_FROM_TABLES_BY_PROJECT_NUMBER = 'PROD/delete/delete_from_tables_by_project_number.sql'
@@ -184,6 +185,7 @@ DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'DEV/select/select_all_from
 
 ## Update queries
 DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'DEV/update/update_project.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER = 'DEV/update/update_subwhse_item_master.sql'
 
 ## Delete queries
 DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_TABLES_BY_PROJECT_NUMBER = 'DEV/delete/delete_from_tables_by_project_number.sql'
