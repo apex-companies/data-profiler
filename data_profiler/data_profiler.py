@@ -19,11 +19,13 @@ import pandas as pd
 import pyodbc
 
 # Data Profiler
+from .helpers.functions.functions import find_new_file_path
+
 from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .helpers.models.TransformOptions import TransformOptions
 from .helpers.models.Responses import DBWriteResponse, TransformResponse, DeleteResponse, DBDownloadResponse
-from .helpers.models.DataFiles import DataDirectoryValidation, FileValidation, FileType, UploadFileTypes, OtherFileTypes, UploadedFilePaths
-from .helpers.models.GeneralModels import DownloadDataOptions
+from .helpers.models.DataFiles import DataDirectoryValidation, FileValidation, UploadFileTypes, UploadedFilePaths
+from .helpers.models.GeneralModels import DownloadDataOptions, UnitOfMeasure
 from .helpers.constants.data_file_constants import UPLOADS_REQUIRED_COLUMNS_MAPPER, UPLOADS_REQUIRED_DTYPES_MAPPER,\
     DTYPES_DEFAULT_VALUES, DIRECTORY_ERROR_DOES_NOT_EXIST, FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS,\
     FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS, FILE_ERROR_INVENTORY_MISSING_COLUMNS, FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS,\
@@ -131,32 +133,35 @@ class DataProfiler:
         
         # Create subfolder
         today = datetime.today().strftime('%m-%d-%Y')
-        subfolder_name = f'{project_number} - StorageAnalyzer Inputs - {today}'
+        subfolder_name = f'{project_number} - DataProfiler Data Download - {today}'
         download_directory = f'{target_directory}/{subfolder_name}'
         if not os.path.exists(download_directory):
             os.mkdir(download_directory)
-        else:
-            i = 1
-            subdir_created = False
-            while not subdir_created and i < 20:
-                i += 1
-                download_directory = f'{target_directory}/{subfolder_name} ({i})'
-                
-                if not os.path.exists(download_directory):
-                    os.mkdir(download_directory)
-                    subdir_created = True
-
-            if not subdir_created:
-                raise Exception('Cannot find folder to download to.')
         
         response = None
         if download_option == DownloadDataOptions.STORAGE_ANALYZER_INPUTS:
+            # Create another subfolder for CSV files
+            subfolder = find_new_file_path(f'{download_directory}/StorageAnalyzer Inputs')
+            os.mkdir(subfolder)
+
             with OutputTablesService(dev=self.dev) as service:
-                response = service.download_storage_analyzer_inputs(project_number=project_number, download_folder=download_directory)
+                response = service.download_storage_analyzer_inputs(project_number=project_number, download_folder=subfolder)
                 
         elif download_option == DownloadDataOptions.INVENTORY_STRATIFICATION_REPORT:
             with OutputTablesService(dev=self.dev) as service:
                 response = service.download_inventory_stratification_report(project_number=project_number, download_folder=download_directory)
+
+        elif download_option == DownloadDataOptions.SUBWAREHOUSE_MATERIAL_FLOW_REPORT_PALLETS:
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_subwarehouse_material_flow_report(uom=UnitOfMeasure.PALLET, project_number=project_number, download_folder=download_directory)
+
+        elif download_option == DownloadDataOptions.ITEMS_MATERIAL_FLOW_REPORT_CARTONS:
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_items_material_flow_report(uom=UnitOfMeasure.CARTON, project_number=project_number, download_folder=download_directory)
+
+        elif download_option == DownloadDataOptions.ITEMS_MATERIAL_FLOW_REPORT_PALLETS:
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_items_material_flow_report(uom=UnitOfMeasure.PALLET, project_number=project_number, download_folder=download_directory)
 
         else:
             response = DBDownloadResponse()

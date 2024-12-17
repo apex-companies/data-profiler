@@ -32,8 +32,8 @@ With tbl as (
         END as [Range Max]
     FROM
         (SELECT id.[Period], im.SKU, MAX(im.Velocity) as [Velocity], SUM(id.Quantity) as Quantity
-        FROM OutputTables_Dev.InventoryData id
-            INNER JOIN OutputTables_Dev.ItemMaster im
+        FROM OutputTables_Prod.InventoryData id
+            INNER JOIN OutputTables_Prod.ItemMaster im
             ON id.ProjectNumber_SKU = im.ProjectNumber_SKU
         WHERE im.ProjectNumber = @ProjectNumber AND id.UnitOfMeasure = @UOM
         GROUP BY id.[Period], im.SKU) q
