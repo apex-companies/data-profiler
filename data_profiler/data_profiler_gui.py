@@ -245,8 +245,7 @@ class DataProfilerGUI(ApexApp):
         # LEVEL 2 - Parent = more_actions_frame_download_data_section
         self.more_actions_frame_download_data_title = CTkLabel(self.more_actions_frame_download_data_section, text='Download Data', font=SectionHeaderFont())
         self.more_actions_frame_download_data_options_dropdown = DropdownWithLabel(self.more_actions_frame_download_data_section, 
-                                                                label_text='Select a download option', 
-                                                                label_font=SectionSubheaderFont(),
+                                                                label_text='Select a download option',
                                                                 dropdown_values=[option.value for option in DownloadDataOptions],
                                                                 default_val='')
         self.more_actions_frame_download_data_folder_browse = FileBrowser(self.more_actions_frame_download_data_section, label_text='Select a download folder', path_type='folder')

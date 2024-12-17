@@ -1,10 +1,18 @@
 --- Subwarehouse Material Flow - Pallets ----
 
 DECLARE @ProjectNumber NVARCHAR(50) = ?,
-        @UOM NVARCHAR(20) = 'Pallet',
+        @UOM NVARCHAR(20) = ?,
         @DOHToStore INT = 10;
 
 -- Set some variables --
+DECLARE @PeriodsOfInventory INT = (
+    SELECT TOP (1) APPROX_COUNT_DISTINCT(id.Period)
+    FROM OutputTables_Dev.InventoryData id
+        LEFT JOIN OutputTables_Dev.ItemMaster im
+        ON id.ProjectNumber_SKU = im.ProjectNumber_SKU
+    WHERE im.ProjectNumber = @ProjectNumber
+);
+
 DECLARE @DaysActive INT = (
     SELECT TOP (1) APPROX_COUNT_DISTINCT([Date]) as days_active
     FROM OutputTables_Dev.OutboundData od
@@ -23,7 +31,7 @@ DECLARE @DaysOfReceiving INT = (
 --- The Query ---
 SELECT TOP (10) @ProjectNumber as [Project Number], im.SubWarehouse, COUNT(*) as SKUs, @UOM as [Unit of Measure], 
     @DaysOfReceiving as [Days of Receiving], ROUND(SUM(ib_by_sku.[Daily Lines]), 0) as [Daily IB Lines], ROUND(SUM(ib_by_sku.[Daily Qty]), 0) as [Daily IB Qty],
-    SUM(inv_by_sku.[Avg Inventory]) as [Avg Total Inventory], 
+    ROUND(SUM(inv_by_sku.[Avg Inventory]), 0) as [Avg Total Inventory], 
     @DaysActive as [Days Active], ROUND(SUM(ob_by_sku.[Daily Lines]), 0) as [Daily OB Lines], ROUND(SUM(ob_by_sku.[Daily Qty]), 0) as [Daily OB Qty], 
     -- ROUND(SUM(ob_by_sku.[Daily Qty]), 0) * @DOHToStore as [DOH To Store],
     ROUND(AVG(im.PalletWidth), 2) as [Avg Pallet Width], ROUND(AVG(im.PalletLength), 2) as [Avg Pallet Length], ROUND(AVG(im.PalletHeight), 2) as [Avg Pallet Height], ROUND(AVG(im.PalletWeight), 2) as [Avg Pallet Weight],
@@ -39,7 +47,7 @@ FROM OutputTables_Dev.ItemMaster im
     ) ib_by_sku
     ON im.ProjectNumber_SKU = ib_by_sku.ProjectNumber_SKU
     LEFT JOIN (
-        SELECT inv.ProjectNumber_SKU, AVG(inv.Qty) as [Avg Inventory]
+        SELECT inv.ProjectNumber_SKU, ROUND(SUM(inv.Qty) / CAST(@PeriodsOfInventory as Float), 2) as [Avg Inventory]
         FROM (
             SELECT id.[Period], id.ProjectNumber_SKU, SUM(id.Quantity) as Qty
             FROM OutputTables_Dev.InventoryData id

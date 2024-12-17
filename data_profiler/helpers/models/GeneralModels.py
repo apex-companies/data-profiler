@@ -17,6 +17,7 @@ class UnitOfMeasure(str, Enum):
 class DownloadDataOptions(str, Enum):
     STORAGE_ANALYZER_INPUTS = 'StorageAnalyzer Inputs'
     INVENTORY_STRATIFICATION_REPORT = 'Inventory Stratification Report'
+    SUBWAREHOUSE_MATERIAL_FLOW_REPORT_CARTONS = 'Subwarehouse Material Flow Report - Cartons'
     SUBWAREHOUSE_MATERIAL_FLOW_REPORT_PALLETS = 'Subwarehouse Material Flow Report - Pallets'
     ITEMS_MATERIAL_FLOW_REPORT_CARTONS = 'Items Material Flow Report - Cartons'
     ITEMS_MATERIAL_FLOW_REPORT_PALLETS = 'Items Material Flow Report - Pallets'

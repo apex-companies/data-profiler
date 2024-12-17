@@ -6,8 +6,16 @@ DECLARE @ProjectNumber NVARCHAR(50) = ?,
 
 DECLARE @RangeCutoff INT = @RangeSize * 10;
 
+DECLARE @PeriodsOfInventory INT = (
+    SELECT TOP (1) APPROX_COUNT_DISTINCT(id.Period)
+    FROM OutputTables_Dev.InventoryData id
+        LEFT JOIN OutputTables_Dev.ItemMaster im
+        ON id.ProjectNumber_SKU = im.ProjectNumber_SKU
+    WHERE im.ProjectNumber = @ProjectNumber
+);
+
 With tbl as (
-    SELECT q.SKU, MAX(q.Velocity) as [Velocity], AVG(q.Quantity) as [Avg Quantity], 
+    SELECT q.SKU, MAX(q.Velocity) as [Velocity], ROUND(SUM(q.Quantity) / CAST(@PeriodsOfInventory as Float), 2) as [Avg Quantity], 
         CASE 
             WHEN AVG(q.Quantity) = 0 THEN '0'
             WHEN AVG(q.Quantity) = 1 THEN '1'
@@ -41,7 +49,7 @@ With tbl as (
 )
 
 
-SELECT @ProjectNumber as [Project Number], @UOM as [Unit of Measure], Velocity, MAX(tbl.[Range Max]) as [Range Max], tbl.[Range], COUNT(tbl.SKU) as SKUs, SUM(tbl.[Avg Quantity]) as [Avg Total Quantity]
+SELECT @ProjectNumber as [Project Number], @UOM as [Unit of Measure], Velocity, MAX(tbl.[Range Max]) as [Range Max], tbl.[Range], COUNT(tbl.SKU) as SKUs, ROUND(SUM(tbl.[Avg Quantity]), 0) as [Avg Total Quantity]
 FROM tbl
 GROUP BY tbl.Velocity, tbl.[Range]
 ORDER BY tbl.Velocity, [Range Max] ASC

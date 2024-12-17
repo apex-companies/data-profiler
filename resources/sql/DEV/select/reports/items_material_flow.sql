@@ -5,6 +5,14 @@ DECLARE @ProjectNumber NVARCHAR(50) = ?,
         @UOM NVARCHAR(20) = ?;
 
 -- Set some variables --
+DECLARE @PeriodsOfInventory INT = (
+    SELECT TOP (1) APPROX_COUNT_DISTINCT(id.Period)
+    FROM OutputTables_Dev.InventoryData id
+        LEFT JOIN OutputTables_Dev.ItemMaster im
+        ON id.ProjectNumber_SKU = im.ProjectNumber_SKU
+    WHERE im.ProjectNumber = @ProjectNumber
+);
+
 DECLARE @DaysActive INT = (
     SELECT TOP (1) APPROX_COUNT_DISTINCT([Date]) as days_active
     FROM OutputTables_Dev.OutboundData od
@@ -26,7 +34,7 @@ SELECT @ProjectNumber as [Project Number], im.SKU, im.SKUDescription, im.SKUClas
     @DaysActive as [Active Days], ROUND(ob_by_sku.Qty / @DaysActive, 2) as [OB Qty per Day], ob_by_sku.Qty as [Total OB Qty]
 FROM OutputTables_Dev.ItemMaster im
     LEFT JOIN (
-        SELECT inv.ProjectNumber_SKU, AVG(inv.Qty) as [Avg Inventory], MAX(inv.Qty) as [Max Inventory]
+        SELECT inv.ProjectNumber_SKU, ROUND(SUM(inv.Qty) / CAST(@PeriodsOfInventory as Float), 2) as [Avg Inventory], MAX(inv.Qty) as [Max Inventory]
         FROM (
             SELECT id.[Period], id.ProjectNumber_SKU, SUM(id.Quantity) as Qty
             FROM OutputTables_Dev.InventoryData id
