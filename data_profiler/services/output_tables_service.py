@@ -10,23 +10,23 @@ Functions that interface with the OutputTables schema in the database
 from datetime import datetime, timedelta
 from time import time
 from io import TextIOWrapper
-import pyodbc
 
+import pyodbc
+from pyodbc import DatabaseError
 import pandas as pd
 
 # Data Profiler
+from ..helpers.functions.functions import find_new_file_path
+
 from ..helpers.models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
 from ..helpers.models.TransformOptions import TransformOptions
-from ..helpers.models.Responses import DeleteResponse
+from ..helpers.models.Responses import DeleteResponse, DBDownloadResponse
+from ..helpers.models.GeneralModels import UnitOfMeasure
 from ..helpers.constants.app_constants import SQL_DIR, SQL_DIR_DEV
 
 from ..database.database_manager import DatabaseConnection
-from ..database.helpers.constants import DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT, OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT,\
-    DEV_OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, OUTPUT_TABLES_SQL_FILE_INSERT_INTO_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT,\
-    OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT, DEV_OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER, OUTPUT_TABLES_DELETE_SQL_FILES_MAPPER,\
-    OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT, DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_PROJECT,\
-    DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER, OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER
-
+from ..database.helpers.constants import *
+from ..database.helpers.functions import download_table_from_query
 
 class OutputTablesService:
 
@@ -117,6 +117,221 @@ class OutputTablesService:
         )
 
         return project_info
+
+
+    def download_storage_analyzer_inputs(self, project_number: str, download_folder: str) -> DBDownloadResponse:
+
+        # Init empty dataframes
+        item_master_df: pd.DataFrame
+        inventory_df: pd.DataFrame
+        outbound_data_df: pd.DataFrame
+
+        # Get sql files    
+        im_sql_file = DEV_SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER if self.dev else SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER
+        inv_sql_file = DEV_SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY if self.dev else SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY
+        ob_sql_file = DEV_SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_OUTBOUND if self.dev else SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_OUTBOUND
+        
+        # Read sql files
+        f = open(f'{self.sql_dir}/{im_sql_file}')
+        im_query = f.read()
+        im_query = im_query.replace('?', f"'{project_number}'")
+        f.close()
+
+        f = open(f'{self.sql_dir}/{inv_sql_file}')
+        inv_query = f.read()
+        inv_query = inv_query.replace('?', f"'{project_number}'")
+        f.close()
+
+        f = open(f'{self.sql_dir}/{ob_sql_file}')
+        ob_query = f.read()
+        ob_query = ob_query.replace('?', f"'{project_number}'")
+        f.close()
+        
+        # Download datas
+        download_response = DBDownloadResponse(download_path=download_folder)
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            try: 
+                print(f'Downloading Item Master...')
+                item_master_df = download_table_from_query(connection=db_conn, query=im_query)
+
+                print(f'Downloading Inventory...')
+                inventory_df = download_table_from_query(connection=db_conn, query=inv_query)
+
+                print(f'Downloading Outbound...')
+                outbound_data_df = download_table_from_query(connection=db_conn, query=ob_query)
+            except DatabaseError as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something went wrong when reading from the database. {e}'
+            except Exception as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something unknown went wrong. {e}'
+            else:
+                download_response.success = True
+                download_response.message = 'Success!'
+                download_response.rows_downloaded = len(item_master_df) + len(inventory_df) + len(outbound_data_df)
+
+        # Export
+        if download_response.success:
+            item_master_df.to_csv(f'{download_folder}/ItemMaster.csv', index=False)
+            inventory_df.to_csv(f'{download_folder}/Inventory.csv', index=False)
+            outbound_data_df.to_csv(f'{download_folder}/OutboundData.csv', index=False)
+
+        return download_response
+    
+    def download_inventory_stratification_report(self, project_number: str, download_folder: str):
+        
+        # Init empty dataframes
+        each_df: pd.DataFrame
+        inner_df: pd.DataFrame
+        carton_df: pd.DataFrame
+        pallet_df: pd.DataFrame
+
+        # Get sql file
+        sql_file = DEV_SQL_FILE_DOWNLOAD_INVENTORY_STRATIFICATION_REPORT if self.dev else SQL_FILE_DOWNLOAD_INVENTORY_STRATIFICATION_REPORT
+        
+        # Read sql files
+        f = open(f'{self.sql_dir}/{sql_file}')
+        query = f.read()
+        query = query.replace('?', f'\'{project_number}\'', 1)
+        f.close()
+
+        download_response = DBDownloadResponse(download_path=download_folder)
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            try: 
+                # NOTE - run once for each UOM?
+                print(f'Downloading Inventory Stratification Report...')
+
+                each_query = query.replace('?', '\'Each\'', 1)
+                print(each_query)
+                each_df = download_table_from_query(connection=db_conn, query=each_query)
+
+                inner_query = query.replace('?', '\'Inner\'', 1)
+                print(inner_query)
+                inner_df = download_table_from_query(connection=db_conn, query=inner_query)
+
+                carton_query = query.replace('?', '\'Carton\'', 1)
+                print(carton_query)
+                carton_df = download_table_from_query(connection=db_conn, query=carton_query)
+
+                pallet_query = query.replace('?', '\'Pallet\'', 1)
+                print(pallet_query)
+                pallet_df = download_table_from_query(connection=db_conn, query=pallet_query)
+            except DatabaseError as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something went wrong when reading from the database. {e}'
+            except Exception as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something unknown went wrong. {e}'
+            else:
+                download_response.success = True
+                download_response.message = 'Success!'
+                download_response.rows_downloaded = len(carton_df) + len(pallet_df)
+
+        # Export
+        if download_response.success:
+            file_path = find_new_file_path(f'{download_folder}/Inventory Stratification')
+            with pd.ExcelWriter(f'{file_path}.xlsx') as writer:
+                each_df.to_excel(writer, sheet_name='Eaches', index=False)
+                inner_df.to_excel(writer, sheet_name='Inners', index=False)
+                carton_df.to_excel(writer, sheet_name='Cartons', index=False)
+                pallet_df.to_excel(writer, sheet_name='Pallets', index=False)
+            
+
+        return download_response
+    
+    def download_subwarehouse_material_flow_report(self, uom: UnitOfMeasure, project_number: str, download_folder: str):
+        
+        # Init empty dataframes
+        df: pd.DataFrame
+
+        # Get sql file
+        sql_file = DEV_SQL_FILE_DOWNLOAD_SUBWAREHOUSE_MATERIAL_FLOW_PALLETS_REPORT if self.dev else SQL_FILE_DOWNLOAD_SUBWAREHOUSE_MATERIAL_FLOW_PALLETS_REPORT
+        
+        # Read sql files
+        f = open(f'{self.sql_dir}/{sql_file}')
+        query = f.read()
+        f.close()
+
+        # Plug in project # and uom
+        query = query.replace('?', f'\'{project_number}\'', 1)
+        query = query.replace('?', f'\'{uom.value}\'', 1)
+
+        download_response = DBDownloadResponse(download_path=download_folder)
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            try: 
+                # NOTE - run once for each UOM?
+                print(f'Downloading Subwarehouse Material Flow - {uom.value} Report...')
+                print(query)
+                df = download_table_from_query(connection=db_conn, query=query)
+            except DatabaseError as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something went wrong when reading from the database. {e}'
+            except Exception as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something unknown went wrong. {e}'
+            else:
+                download_response.success = True
+                download_response.message = 'Success!'
+                download_response.rows_downloaded = len(df)
+
+        # Export
+        if download_response.success:
+            file_path = find_new_file_path(f'{download_folder}/Subwarehouse Material Flow - {uom.value}')
+            with pd.ExcelWriter(f'{file_path}.xlsx') as writer:
+                df.to_excel(writer, sheet_name='Material Flow Summary', index=False)
+
+        return download_response
+    
+    def download_items_material_flow_report(self, uom: UnitOfMeasure, project_number: str, download_folder: str):
+        
+        # Init empty dataframes
+        df: pd.DataFrame
+
+        # Get sql file
+        sql_file = DEV_SQL_FILE_DOWNLOAD_ITEMS_MATERIAL_FLOW_REPORT if self.dev else SQL_FILE_DOWNLOAD_ITEMS_MATERIAL_FLOW_REPORT
+        
+        # Read sql files
+        f = open(f'{self.sql_dir}/{sql_file}')
+        query = f.read()
+        f.close()
+        
+        # Plug in project # and uom
+        query = query.replace('?', f'\'{project_number}\'', 1)
+        query = query.replace('?', f'\'{uom.value}\'', 1)
+        
+        download_response = DBDownloadResponse(download_path=download_folder)
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            try: 
+                # NOTE - run once for each UOM?
+                print(f'Downloading Items Material Flow - {uom.value} Report...')
+                print(query)
+                df = download_table_from_query(connection=db_conn, query=query)
+            except DatabaseError as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something went wrong when reading from the database. {e}'
+            except Exception as e:
+                print(e)
+                download_response.success = False
+                download_response.message = f'Something unknown went wrong. {e}'
+            else:
+                download_response.success = True
+                download_response.message = 'Success!'
+                download_response.rows_downloaded = len(df)
+
+        # Export
+        if download_response.success:
+            file_path = find_new_file_path(f'{download_folder}/Items Material Flow - {uom.value}')
+            with pd.ExcelWriter(f'{file_path}.xlsx') as writer:
+                df.to_excel(writer, sheet_name='Material Flow Summary', index=False)
+
+        return download_response
 
     def insert_new_project_to_project_table(self, project_info: BaseProjectInfo) -> int:
         '''
