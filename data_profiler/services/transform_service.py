@@ -94,6 +94,7 @@ class TransformService:
 
         st = time()
         log_file.write(f'2. CREATE OUTPUT TABLES\n')
+        log_file.flush()
 
         # Start with Item Master
         item_master_data = self.create_item_master(project_num=self.project_number, item_master=item_master_df)
@@ -154,7 +155,7 @@ class TransformService:
             log_file.write(f'Project Number - Velocity rows: {len(project_number_velocity)}\n')
             log_file.write(f'Project Number - Order Number rows: {len(project_number_order_number)}\n')
             log_file.write(f'Velocity Ladder rows: {len(velocity_ladder)}\n')
-
+                
         # Reorder columns to match sql queries
         item_master_data = item_master_data.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['ItemMaster'])
         inbound_header = inbound_header.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InboundHeader'])
@@ -173,11 +174,13 @@ class TransformService:
         et = time()
         print(f'Output table creation time: {timedelta(seconds=et-st)}')
         log_file.write(f'Output table creation time: {timedelta(seconds=et-st)}\n\n')
-        
+        log_file.flush()
 
         ''' STEP 2: Insert into database '''
 
         log_file.write(f'3. INSERT TO DATABASE\n')
+        log_file.flush()
+
         insert_st = time()
 
         # Get SQL file mapper
@@ -245,6 +248,8 @@ class TransformService:
             insert_et = time()
             log_file.write(f'Success! Inserted {total_rows_inserted} rows in {timedelta(seconds=insert_et-insert_st)}\n\n')
 
+        log_file.flush()
+        
         return transform_response
 
     # NOTE - this maybe should exist somewhere else in future

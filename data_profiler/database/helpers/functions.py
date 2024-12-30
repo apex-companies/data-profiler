@@ -119,6 +119,7 @@ def insert_table_to_db(connection: Connection, table_name: str, data_frame: pd.D
             st = time()
             print(f'Batch {batch_num}: attempting insert into {table_name}...')
             log_file.write(f'Batch {batch_num}: attempting insert into {table_name}...\n')
+            log_file.flush()
 
             cursor.executemany(insert_query, batch_data)
             connection.commit()
@@ -133,9 +134,10 @@ def insert_table_to_db(connection: Connection, table_name: str, data_frame: pd.D
     insert_et = time()
     print(f'Inserted {batch_num-1} batches into {table_name} in {timedelta(seconds=insert_et-insert_st)} seconds')
     log_file.write(f'Inserted {batch_num-1} batches into {table_name} in {timedelta(seconds=insert_et-insert_st)} seconds\n\n')
+    log_file.flush()
 
     # Close cursor
     connection.autocommit = True
-    cursor.close()
+    cursor.close()  
 
     return rows_inserted

@@ -284,11 +284,14 @@ class DataProfiler:
 
         log_file = open(log_file_path, 'w+')
         log_file.write(f'PROJECT NUMBER: {project_info.project_number}\n\n')
-
+        log_file.flush()
+        
         valid_data = True
         transform_response = TransformResponse(project_number=project_info.project_number, log_file_path=log_file_path)
 
         log_file.write(f'1. READ IN UPLOADED FILES\n')
+        log_file.flush()
+
         master_errors_dict = {}
 
         item_master = None
@@ -442,6 +445,8 @@ class DataProfiler:
 
             return transform_response
 
+        log_file.flush()
+
         ## 4. Transform and persist data ##
 
         transform_st = time()
@@ -496,6 +501,7 @@ class DataProfiler:
 
             log_file = open(log_file_path, 'w+')
             log_file.write(f'PROJECT NUMBER: {project_info.project_number}\n\n')
+            log_file.flush()
 
         # Try delete
         response = None
@@ -731,6 +737,8 @@ class DataProfiler:
         # Reindex for consistent column order
         df = df.reindex(columns=dtypes.keys())
 
+        log_file.flush()
+        
         return df, errors_list
 
 

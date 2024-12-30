@@ -522,19 +522,23 @@ class OutputTablesService:
                 print(f'{delete_query} \n')
 
                 try:
-                
+                    log_file.write(f'Deleting from {table} - ')
+                    log_file.flush()
+                    
                     cursor.execute(delete_query, project_number)
                     rows_deleted = cursor.rowcount
                     total_rows_deleted += rows_deleted
 
                     print(f'{table} - rows deleted: {rows_deleted}')
-                    log_file.write(f'{table} - rows deleted: {rows_deleted}\n')
-                        
+                    log_file.write(f'rows deleted: {rows_deleted}\n')
+                    log_file.flush()
+
                     db_conn.commit()
 
                 except pyodbc.Error as e:
                     print(f'Error deleting by project number: {e}')
                     log_file.write(f'Error deleting by project number: {e}\n')
+                    log_file.flush()
 
                     response.success = False
                     response.errors_encountered.append(e)
@@ -552,7 +556,8 @@ class OutputTablesService:
         
         log_file.write(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.\n\n')
         log_file.write(f'{total_rows_deleted} rows deleted.\n')
-                  
+        log_file.flush()
+
         response.rows_deleted = total_rows_deleted
 
         return response
