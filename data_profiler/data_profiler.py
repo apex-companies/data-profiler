@@ -19,10 +19,13 @@ import pandas as pd
 import pyodbc
 
 # Data Profiler
+from .helpers.functions.functions import find_new_file_path
+
 from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .helpers.models.TransformOptions import TransformOptions
-from .helpers.models.Responses import DBWriteResponse, TransformResponse, DeleteResponse
+from .helpers.models.Responses import DBWriteResponse, TransformResponse, DeleteResponse, DBDownloadResponse
 from .helpers.models.DataFiles import DataDirectoryValidation, FileValidation, UploadFileTypes, UploadedFilePaths
+from .helpers.models.GeneralModels import DownloadDataOptions, UnitOfMeasure
 from .helpers.constants.data_file_constants import UPLOADS_REQUIRED_COLUMNS_MAPPER, UPLOADS_REQUIRED_DTYPES_MAPPER,\
     DTYPES_DEFAULT_VALUES, DIRECTORY_ERROR_DOES_NOT_EXIST, FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS,\
     FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS, FILE_ERROR_INVENTORY_MISSING_COLUMNS, FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS,\
@@ -115,6 +118,61 @@ class DataProfiler:
         with OutputTablesService(dev=self.dev) as service:
             self.project_info = service.get_project_info(self.get_project_number())
 
+    def download_data(self, download_option: DownloadDataOptions, target_directory: str) -> DBDownloadResponse:
+        if not self.get_project_exists():
+            raise ValueError('Project does not yet exist')
+        
+        project_info = self.get_project_info()
+        project_number = project_info.project_number
+
+        if not project_info.data_uploaded:
+            raise ValueError('Project does not have any associated data. Upload some data first!')
+
+        if not os.path.isdir(target_directory):
+            raise FileNotFoundError(f'Invalid directory: "{target_directory}"')
+        
+        # Create subfolder
+        today = datetime.today().strftime('%m-%d-%Y')
+        subfolder_name = f'{project_number} - DataProfiler Data Download - {today}'
+        download_directory = f'{target_directory}/{subfolder_name}'
+        if not os.path.exists(download_directory):
+            os.mkdir(download_directory)
+        
+        response = None
+        if download_option == DownloadDataOptions.STORAGE_ANALYZER_INPUTS:
+            # Create another subfolder for CSV files
+            subfolder = find_new_file_path(f'{download_directory}/StorageAnalyzer Inputs')
+            os.mkdir(subfolder)
+
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_storage_analyzer_inputs(project_number=project_number, download_folder=subfolder)
+                
+        elif download_option == DownloadDataOptions.INVENTORY_STRATIFICATION_REPORT:
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_inventory_stratification_report(project_number=project_number, download_folder=download_directory)
+
+        elif download_option == DownloadDataOptions.SUBWAREHOUSE_MATERIAL_FLOW_REPORT_CARTONS:
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_subwarehouse_material_flow_report(uom=UnitOfMeasure.CARTON, project_number=project_number, download_folder=download_directory)
+
+        elif download_option == DownloadDataOptions.SUBWAREHOUSE_MATERIAL_FLOW_REPORT_PALLETS:
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_subwarehouse_material_flow_report(uom=UnitOfMeasure.PALLET, project_number=project_number, download_folder=download_directory)
+
+        elif download_option == DownloadDataOptions.ITEMS_MATERIAL_FLOW_REPORT_CARTONS:
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_items_material_flow_report(uom=UnitOfMeasure.CARTON, project_number=project_number, download_folder=download_directory)
+
+        elif download_option == DownloadDataOptions.ITEMS_MATERIAL_FLOW_REPORT_PALLETS:
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_items_material_flow_report(uom=UnitOfMeasure.PALLET, project_number=project_number, download_folder=download_directory)
+
+        else:
+            response = DBDownloadResponse()
+        
+
+        return response
+
 
     ## Update ##
 
@@ -129,6 +187,58 @@ class DataProfiler:
                 response.rows_affected = service.update_project_in_project_table(new_project_info=new_project_info)
 
                 if response.rows_affected == 1:
+                    response.success = True
+
+        except pyodbc.DatabaseError as e:
+            response.success = False
+            response.error_message = e
+
+        self.refresh_project_info()
+
+        return 
+    
+    def update_subwhse_in_item_master(self, file_path: str) -> DBWriteResponse:
+        '''
+        Update Subwarehouse in Item Master for given SKUs
+
+        Params
+        ------
+        file_path : str
+            location of a file with columns = ['SKU', 'Subwarehouse']
+
+        Return
+        ------
+        DBWriteResponse
+        '''
+
+        if not self.get_project_exists():
+            raise ValueError('Project does not yet exist')
+                
+        project_info = self.get_project_info()
+
+        if not project_info.data_uploaded:
+            raise ValueError('Project does not have any associated data. Upload some data first!')
+        
+        # Validate given file
+        validation_obj = self._validate_file(file_type=UploadFileTypes.SUBWHSE_UPDATE, file_path=file_path, required_columns=['SKU', 'Subwarehouse'])
+
+        if not validation_obj.is_valid:
+            if not validation_obj.is_present:
+                raise FileNotFoundError(f'UPDATING SUBWAREHOUSE: Error: given file "{file_path}" does not exist. Please choose a valid file! Quitting.')
+            elif len(validation_obj.missing_columns) > 0:
+                raise ValueError(f'UPDATING SUBWAREHOUSE: Error: given file "{file_path}" does is missing columns. Quitting.\n\n{", ".join(validation_obj.missing_columns)}')
+            else:
+                raise ValueError(f'UPDATING SUBWAREHOUSE: Error: given file "{file_path}" is not valid. Please provide a valid data set. Quitting.')
+
+        # Read file
+        updated_subwhse_data_frame = pd.read_csv(file_path, dtype={'SKU': 'object', 'Subwarehouse': 'object'})
+
+        response = DBWriteResponse()
+        try:
+            with OutputTablesService(dev=self.dev) as service:
+                response.rows_affected = service.update_subwarehouse_in_item_master(project_info.project_number, data_frame=updated_subwhse_data_frame)
+
+                if response.rows_affected > 0:
                     response.success = True
 
         except pyodbc.DatabaseError as e:
@@ -174,11 +284,14 @@ class DataProfiler:
 
         log_file = open(log_file_path, 'w+')
         log_file.write(f'PROJECT NUMBER: {project_info.project_number}\n\n')
-
+        log_file.flush()
+        
         valid_data = True
         transform_response = TransformResponse(project_number=project_info.project_number, log_file_path=log_file_path)
 
         log_file.write(f'1. READ IN UPLOADED FILES\n')
+        log_file.flush()
+
         master_errors_dict = {}
 
         item_master = None
@@ -332,6 +445,8 @@ class DataProfiler:
 
             return transform_response
 
+        log_file.flush()
+
         ## 4. Transform and persist data ##
 
         transform_st = time()
@@ -386,6 +501,7 @@ class DataProfiler:
 
             log_file = open(log_file_path, 'w+')
             log_file.write(f'PROJECT NUMBER: {project_info.project_number}\n\n')
+            log_file.flush()
 
         # Try delete
         response = None
@@ -452,12 +568,12 @@ class DataProfiler:
 
             return validation_obj
 
-        validation_obj.item_master = self._validate_file(data_directory=data_directory, file_type=UploadFileTypes.ITEM_MASTER)
-        validation_obj.inbound_header = self._validate_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND_HEADER)
-        validation_obj.inbound_details = self._validate_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND_DETAILS)
-        validation_obj.inventory = self._validate_file(data_directory=data_directory, file_type=UploadFileTypes.INVENTORY)
-        validation_obj.order_header = self._validate_file(data_directory=data_directory, file_type=UploadFileTypes.ORDER_HEADER)
-        validation_obj.order_details = self._validate_file(data_directory=data_directory, file_type=UploadFileTypes.ORDER_DETAILS)
+        validation_obj.item_master = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.ITEM_MASTER)
+        validation_obj.inbound_header = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND_HEADER)
+        validation_obj.inbound_details = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND_DETAILS)
+        validation_obj.inventory = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INVENTORY)
+        validation_obj.order_header = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.ORDER_HEADER)
+        validation_obj.order_details = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.ORDER_DETAILS)
                 
         # Item Master
         if validation_obj.item_master.is_present:
@@ -527,8 +643,14 @@ class DataProfiler:
             
         return validation_obj
     
-    def _validate_file(self, data_directory: str, file_type: UploadFileTypes) -> FileValidation:
-        validation_obj = FileValidation(file_type=file_type, file_path=f'{data_directory}/{file_type.value}.csv')
+    def _validate_upload_file(self, data_directory: str, file_type: UploadFileTypes) -> FileValidation:
+        file_path = f'{data_directory}/{file_type.value}.csv'
+        required_columns = UPLOADS_REQUIRED_COLUMNS_MAPPER[file_type.value]
+
+        return self._validate_file(file_type=file_type, file_path=file_path, required_columns=required_columns)
+
+    def _validate_file(self, file_type: UploadFileTypes, file_path: str, required_columns: list) -> FileValidation:
+        validation_obj = FileValidation(file_type=file_type, file_path=file_path)
 
         # Is it present?
         if not os.path.exists(validation_obj.file_path) or os.stat(validation_obj.file_path).st_size == 0:
@@ -544,7 +666,7 @@ class DataProfiler:
             validation_obj.is_valid = False
             return validation_obj
         
-        missing_cols = validate_csv_column_names(file_path=validation_obj.file_path, columns=UPLOADS_REQUIRED_COLUMNS_MAPPER[file_type.value])
+        missing_cols = validate_csv_column_names(file_path=validation_obj.file_path, columns=required_columns)
         if missing_cols:
             validation_obj.is_valid = False
             validation_obj.missing_columns = missing_cols
@@ -557,7 +679,6 @@ class DataProfiler:
         
         # Otherwise, it's valid
         return validation_obj
-
 
     ''' Main Function - Read & Cleanse data '''
 
@@ -616,6 +737,8 @@ class DataProfiler:
         # Reindex for consistent column order
         df = df.reindex(columns=dtypes.keys())
 
+        log_file.flush()
+        
         return df, errors_list
 
 

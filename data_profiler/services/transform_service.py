@@ -11,6 +11,7 @@ import re
 from datetime import timedelta
 from time import time
 from io import TextIOWrapper
+import math
 
 import pandas as pd
 import numpy as np
@@ -18,6 +19,7 @@ from pyodbc import Connection, InterfaceError, DatabaseError
 
 # Data Profiler
 from ..database.helpers.constants import OUTPUT_TABLES_COLS_MAPPER, OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER, DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER
+from ..database.helpers.functions import insert_table_to_db
 from ..database.database_manager import DatabaseConnection
 
 from ..helpers.models.TransformOptions import TransformOptions, DateForAnalysis, WeekendDateRules
@@ -92,6 +94,7 @@ class TransformService:
 
         st = time()
         log_file.write(f'2. CREATE OUTPUT TABLES\n')
+        log_file.flush()
 
         # Start with Item Master
         item_master_data = self.create_item_master(project_num=self.project_number, item_master=item_master_df)
@@ -152,7 +155,7 @@ class TransformService:
             log_file.write(f'Project Number - Velocity rows: {len(project_number_velocity)}\n')
             log_file.write(f'Project Number - Order Number rows: {len(project_number_order_number)}\n')
             log_file.write(f'Velocity Ladder rows: {len(velocity_ladder)}\n')
-
+                
         # Reorder columns to match sql queries
         item_master_data = item_master_data.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['ItemMaster'])
         inbound_header = inbound_header.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InboundHeader'])
@@ -171,11 +174,13 @@ class TransformService:
         et = time()
         print(f'Output table creation time: {timedelta(seconds=et-st)}')
         log_file.write(f'Output table creation time: {timedelta(seconds=et-st)}\n\n')
-        
+        log_file.flush()
 
         ''' STEP 2: Insert into database '''
 
         log_file.write(f'3. INSERT TO DATABASE\n')
+        log_file.flush()
+
         insert_st = time()
 
         # Get SQL file mapper
@@ -186,39 +191,39 @@ class TransformService:
         try:
             with DatabaseConnection(dev=self.dev) as db_conn:
                 # FIRST - primary key tables
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ItemMaster', data_frame=item_master_data, sql_file_path=SQL_FILE_MAPPER['ItemMaster'])
+                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ItemMaster', data_frame=item_master_data, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['ItemMaster']}")
                 total_rows_inserted += rows
                 rows_inserted_obj.skus = rows
                                         
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InboundHeader', data_frame=inbound_header, sql_file_path=SQL_FILE_MAPPER['InboundHeader'])
+                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InboundHeader', data_frame=inbound_header, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['InboundHeader']}")
                 total_rows_inserted += rows
                 rows_inserted_obj.inbound_pos = rows
 
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ProjectNumber_Velocity', data_frame=project_number_velocity, sql_file_path=SQL_FILE_MAPPER['ProjectNumber_Velocity'])
+                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ProjectNumber_Velocity', data_frame=project_number_velocity, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['ProjectNumber_Velocity']}")
 
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ProjectNumber_OrderNumber', data_frame=project_number_order_number, sql_file_path=SQL_FILE_MAPPER['ProjectNumber_OrderNumber'])
+                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ProjectNumber_OrderNumber', data_frame=project_number_order_number, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['ProjectNumber_OrderNumber']}")
                 total_rows_inserted += rows
                 rows_inserted_obj.outbound_orders = rows
                 
                 # THEN - the rest
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InboundDetails', data_frame=inbound_details, sql_file_path=SQL_FILE_MAPPER['InboundDetails'])
+                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InboundDetails', data_frame=inbound_details, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['InboundDetails']}")
                 total_rows_inserted += rows
                 rows_inserted_obj.inbound_lines = rows
 
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InventoryData', data_frame=inventory_data, sql_file_path=SQL_FILE_MAPPER['InventoryData'])
+                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InventoryData', data_frame=inventory_data, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['InventoryData']}")
                 total_rows_inserted += rows
                 rows_inserted_obj.inventory_lines = rows
 
-                rows = self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OutboundData', data_frame=outbound_data, sql_file_path=SQL_FILE_MAPPER['OutboundData'])
+                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OutboundData', data_frame=outbound_data, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['OutboundData']}")
                 total_rows_inserted += rows
                 rows_inserted_obj.outbound_lines = rows
 
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OutboundDataByOrder', data_frame=outbound_data_by_order, sql_file_path=SQL_FILE_MAPPER['OutboundDataByOrder'])
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OrderVelocityCombinations', data_frame=order_velocity_combinations, sql_file_path=SQL_FILE_MAPPER['OrderVelocityCombinations'])
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocitySummary', data_frame=velocity_summary, sql_file_path=SQL_FILE_MAPPER['VelocitySummary'])
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocityLadder', data_frame=velocity_ladder, sql_file_path=SQL_FILE_MAPPER['VelocityLadder'])
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocityByMonth', data_frame=velocity_by_month, sql_file_path=SQL_FILE_MAPPER['VelocityByMonth'])
-                total_rows_inserted += self.insert_table_to_db(log_file=log_file, connection=db_conn, table_name='DailyOrderProfileByVelocity', data_frame=daily_order_profile_by_velocity, sql_file_path=SQL_FILE_MAPPER['DailyOrderProfileByVelocity'])
+                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OutboundDataByOrder', data_frame=outbound_data_by_order, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['OutboundDataByOrder']}")
+                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OrderVelocityCombinations', data_frame=order_velocity_combinations, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['OrderVelocityCombinations']}")
+                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocitySummary', data_frame=velocity_summary, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['VelocitySummary']}")
+                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocityLadder', data_frame=velocity_ladder, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['VelocityLadder']}")
+                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocityByMonth', data_frame=velocity_by_month, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['VelocityByMonth']}")
+                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='DailyOrderProfileByVelocity', data_frame=daily_order_profile_by_velocity, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['DailyOrderProfileByVelocity']}")
 
         # https://peps.python.org/pep-0249/#exceptions
         except InterfaceError as e:
@@ -243,99 +248,101 @@ class TransformService:
             insert_et = time()
             log_file.write(f'Success! Inserted {total_rows_inserted} rows in {timedelta(seconds=insert_et-insert_st)}\n\n')
 
+        log_file.flush()
+        
         return transform_response
 
     # NOTE - this maybe should exist somewhere else in future
-    def insert_table_to_db(self, connection: Connection, table_name: str, data_frame: pd.DataFrame, sql_file_path: str, log_file: TextIOWrapper) -> int:
-        '''
-        Inserts a dataframe into the database. Uses fast_executemany to insert data all in one transaction, thus speeding up process greatly
+    # def insert_table_to_db(self, connection: Connection, table_name: str, data_frame: pd.DataFrame, sql_file_path: str, log_file: TextIOWrapper) -> int:
+    #     '''
+    #     Inserts a dataframe into the database. Uses fast_executemany to insert data all in one transaction, thus speeding up process greatly
 
-        Note
-        ------
-        data_frame MUST BE 
-            1) in base python types
-            2) in type expected by table schema. make sure dates are stored as datetimes, etc.
+    #     Note
+    #     ------
+    #     data_frame MUST BE 
+    #         1) in base python types
+    #         2) in type expected by table schema. make sure dates are stored as datetimes, etc.
 
-        Args
-        ------
-        connection : Connection
-            a valid pyodbc Connection object (should be connected to aasdevserverfree)
-        table_name : str
-            the name of a table in the OutputTables schema. Only used for logging purposes
-        data_frame : pd.DataFrame
-            the data to insert
-        sql_file_path : str
-            the path to the insert sql file for the table
-        log_file : TextIOWrapper
-            a file-like object used for logging            
+    #     Args
+    #     ------
+    #     connection : Connection
+    #         a valid pyodbc Connection object (should be connected to aasdevserverfree)
+    #     table_name : str
+    #         the name of a table in the OutputTables schema. Only used for logging purposes
+    #     data_frame : pd.DataFrame
+    #         the data to insert
+    #     sql_file_path : str
+    #         the path to the insert sql file for the table
+    #     log_file : TextIOWrapper
+    #         a file-like object used for logging            
 
-        Return
-        ------
-        Number of rows inserted or -1 if error
-        '''
+    #     Return
+    #     ------
+    #     Number of rows inserted or -1 if error
+    #     '''
 
-        # If dataframe is empty, don't try inserting
-        log_file.write(f'{table_name}\n')
-        if len(data_frame) == 0:
-            log_file.write('Table is empty\n\n')
-            return 0
+    #     # If dataframe is empty, don't try inserting
+    #     log_file.write(f'{table_name}\n')
+    #     if len(data_frame) == 0:
+    #         log_file.write('Table is empty\n\n')
+    #         return 0
         
-        # Configure cursor
-        # https://stackoverflow.com/questions/29638136/how-to-speed-up-bulk-insert-to-ms-sql-server-using-pyodbc/47057189#47057189
-        cursor = connection.cursor()
-        connection.autocommit = False                   # autocommit = True could force a DB transaction for each query, which would defeat the point
-        cursor.fast_executemany = True
+    #     # Configure cursor
+    #     # https://stackoverflow.com/questions/29638136/how-to-speed-up-bulk-insert-to-ms-sql-server-using-pyodbc/47057189#47057189
+    #     cursor = connection.cursor()
+    #     connection.autocommit = False                   # autocommit = True could force a DB transaction for each query, which would defeat the point
+    #     cursor.fast_executemany = True
 
-        # Get sql query
-        fd = open(f'{self.sql_dir}/{sql_file_path}')
-        insert_query = fd.read()
-        fd.close()
+    #     # Get sql query
+    #     fd = open(f'{self.sql_dir}/{sql_file_path}')
+    #     insert_query = fd.read()
+    #     fd.close()
         
-        # Get data to insert in form of 2d list
-        data_lst = data_frame.to_dict('split')['data']
-        print(data_lst[0])
-        log_file.write(f'{data_lst[0]}\n')
+    #     # Get data to insert in form of 2d list
+    #     data_lst = data_frame.to_dict('split')['data']
+    #     print(data_lst[0])
+    #     log_file.write(f'{data_lst[0]}\n')
 
-        ## Batch insert ##
-        rows_inserted: int = 0
-        batch_size = 100000
-        batch_num = 1
-        error_encountered = False
-        insert_st = time()
+    #     ## Batch insert ##
+    #     rows_inserted: int = 0
+    #     batch_size = 100000
+    #     batch_num = 1
+    #     error_encountered = False
+    #     insert_st = time()
 
-        for i in range(0, len(data_lst), batch_size):
-            # Only proceed if no errors have been found
-            if not error_encountered:
-                start_idx = i
-                end_idx = i + batch_size
+    #     for i in range(0, len(data_lst), batch_size):
+    #         # Only proceed if no errors have been found
+    #         if not error_encountered:
+    #             start_idx = i
+    #             end_idx = i + batch_size
 
-                # Partition data into batch
-                batch_data = data_lst[start_idx:end_idx]
+    #             # Partition data into batch
+    #             batch_data = data_lst[start_idx:end_idx]
            
-                # Insert using excutemany
-                st = time()
-                print(f'Batch {batch_num}: attempting insert into {table_name}...')
-                log_file.write(f'Batch {batch_num}: attempting insert into {table_name}...\n')
+    #             # Insert using excutemany
+    #             st = time()
+    #             print(f'Batch {batch_num}: attempting insert into {table_name}...')
+    #             log_file.write(f'Batch {batch_num}: attempting insert into {table_name}...\n')
 
-                cursor.executemany(insert_query, batch_data)
-                connection.commit()
+    #             cursor.executemany(insert_query, batch_data)
+    #             connection.commit()
 
-                et = time()
-                print(f'Inserted {len(batch_data)} rows into {table_name} in {timedelta(seconds=et-st)} seconds.')
-                log_file.write(f'Inserted {len(batch_data)} rows into {table_name} in {timedelta(seconds=et-st)} seconds\n')
-                rows_inserted += len(batch_data)
+    #             et = time()
+    #             print(f'Inserted {len(batch_data)} rows into {table_name} in {timedelta(seconds=et-st)} seconds.')
+    #             log_file.write(f'Inserted {len(batch_data)} rows into {table_name} in {timedelta(seconds=et-st)} seconds\n')
+    #             rows_inserted += len(batch_data)
 
-            batch_num += 1
+    #         batch_num += 1
 
-        insert_et = time()
-        print(f'Inserted {batch_num-1} batches into {table_name} in {timedelta(seconds=insert_et-insert_st)} seconds')
-        log_file.write(f'Inserted {batch_num-1} batches into {table_name} in {timedelta(seconds=insert_et-insert_st)} seconds\n\n')
+    #     insert_et = time()
+    #     print(f'Inserted {batch_num-1} batches into {table_name} in {timedelta(seconds=insert_et-insert_st)} seconds')
+    #     log_file.write(f'Inserted {batch_num-1} batches into {table_name} in {timedelta(seconds=insert_et-insert_st)} seconds\n\n')
 
-        # Close cursor
-        connection.autocommit = True
-        cursor.close()
+    #     # Close cursor
+    #     connection.autocommit = True
+    #     cursor.close()
 
-        return rows_inserted
+    #     return rows_inserted
 
 
     ''' Create Table Functions '''
@@ -360,8 +367,14 @@ class TransformService:
         item_master_return['CartonCube'] = round((item_master_return['CartonLength'].astype(float) * item_master_return['CartonWidth'].astype(float) * item_master_return['CartonHeight'].astype(float))/(12*12*12),2)
         item_master_return['PalletCube'] = round((item_master_return['PalletLength'].astype(float) * item_master_return['PalletWidth'].astype(float) * item_master_return['PalletHeight'].astype(float))/(12*12*12),2)
         
+        # Add dimension ranges
+        item_master_return['PalletWidthRange'] = item_master_return['PalletWidth'].apply(lambda x: self.value_range(x, 5))
+        item_master_return['PalletLengthRange'] = item_master_return['PalletLength'].apply(lambda x: self.value_range(x, 5))
+        item_master_return['PalletHeightRange'] = item_master_return['PalletHeight'].apply(lambda x: self.value_range(x, 5))
+        item_master_return['PalletWeightRange'] = item_master_return['PalletWeight'].apply(lambda x: self.value_range(x, 200))
+
         # Fill in any nulls cells with empty string
-        item_master_return.replace(to_replace=pd.NA, value='', inplace=True)
+        # item_master_return = item_master_return.replace(to_replace=pd.NA, value='')
 
         return item_master_return
 
@@ -821,3 +834,11 @@ class TransformService:
             pass
 
         return df
+    
+    def value_range(self, dim, bin_width):
+        if dim == 0 or math.isnan(dim):
+            return '0'
+        
+        multiple = int(math.ceil(dim / bin_width) * bin_width)
+        return f"{multiple - (bin_width - 1)}-{multiple}"
+    

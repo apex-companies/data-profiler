@@ -16,6 +16,7 @@ from PIL import Image
 from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .helpers.models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
 from .helpers.models.Responses import TransformRowsInserted
+from .helpers.models.GeneralModels import DownloadDataOptions
 from .helpers.constants.app_constants import RESOURCES_DIR, RESOURCES_DIR_DEV
 from .frames.custom_widgets import ProjectInfoFrame
 
@@ -24,8 +25,8 @@ from .data_profiler import DataProfiler
 
 # Apex GUI
 from apex_gui.apex_app import ApexApp
-from apex_gui.frames.notification_dialogs import NotificationDialog, ResultsDialogWithLogFile, ConfirmDeleteDialog
-from apex_gui.frames.styled_widgets import Page, Section, SectionWithScrollbar, Frame, TransparentIconButton, PositiveIconButton, NeutralIconButton, DangerIconButton
+from apex_gui.frames.notification_dialogs import NotificationDialog, ResultsDialog, ResultsDialogWithLogFile, ConfirmDeleteDialog
+from apex_gui.frames.styled_widgets import Page, Section, SectionWithScrollbar, Frame, NeutralButton, TransparentIconButton, PositiveIconButton, NeutralIconButton, DangerIconButton
 from apex_gui.frames.custom_widgets import StaticValueWithLabel, DropdownWithLabel, CheckbuttonWithLabel, FileBrowser
 from apex_gui.styles.fonts import AppSubtitleFont, SectionHeaderFont, SectionSubheaderFont
 from apex_gui.styles.colors import *
@@ -77,6 +78,7 @@ class DataProfilerGUI(ApexApp):
         self._create_new_project_frame()
         self._create_loading_frame()
         self._create_upload_data_frame()
+        self._create_more_actions_frame()
 
         ''' Startup '''
 
@@ -107,7 +109,7 @@ class DataProfilerGUI(ApexApp):
         self.or_label = CTkLabel(self.start_frame_content_frame, text='OR', font=SectionHeaderFont())
         
         self.create_label = CTkLabel(self.start_frame_content_frame, text='Create new', font=SectionSubheaderFont())
-        self.start_frame_new_project_btn = PositiveIconButton(self.start_frame_content_frame, image=self.add_new_icon, command=self.show_new_project_frame)
+        self.start_frame_new_project_btn = PositiveIconButton(self.start_frame_content_frame, image=self.add_new_icon, command=self.navigate_to_new_project_frame_action)
 
         # Grid
         self._grid_start_frame()
@@ -141,11 +143,15 @@ class DataProfilerGUI(ApexApp):
         # LEVEL 1 - Parent = home_frame_header_frame
         self.home_frame_title = CTkLabel(self.home_frame_header_frame, text='Data Profile Dashboard', font=AppSubtitleFont())        
         self.home_frame_logout_btn = TransparentIconButton(self.home_frame_header_frame, image=self.back_icon, command=self.logout_action)
-        self.home_frame_delete_project_frame = TransparentIconButton(self.home_frame_header_frame, image=self.trash_icon, command=self.delete_project_action)
+        self.home_frame_task_bar_frame = Frame(self.home_frame_header_frame)
 
         # LEVEL 1 - Parent = home_frame_content_container
         self.home_frame_project_info_frame = Frame(self.home_frame_content_container)
         self.home_frame_data_info_frame = Frame(self.home_frame_content_container)
+
+        # LEVEL 2 - Parent = home_frame_task_bar_frame
+        self.home_frame_more_actions_btn = NeutralButton(self.home_frame_task_bar_frame, text='More Actions', command=self.navigate_to_more_actions_action)
+        self.home_frame_delete_project_frame = TransparentIconButton(self.home_frame_task_bar_frame, image=self.trash_icon, command=self.delete_project_action)
 
         # LEVEL 2 - home_frame_project_info_frame
         self.home_frame_project_info_title = CTkLabel(self.home_frame_project_info_frame, text='Project Info', font=SectionHeaderFont())
@@ -160,7 +166,7 @@ class DataProfilerGUI(ApexApp):
         self.home_frame_data_info_title = CTkLabel(self.home_frame_data_info_frame, text='Project Data Info', font=SectionHeaderFont())
         self.home_frame_data_info_section = SectionWithScrollbar(self.home_frame_data_info_frame, width=350, height=250)
         self.delete_project_data_button = DangerIconButton(self.home_frame_data_info_frame, image=self.trash_icon, command=self.delete_project_data_action)
-        self.home_frame_upload_data_button = PositiveIconButton(self.home_frame_data_info_frame, image=self.upload_icon, command=self.show_upload_data_frame_action)
+        self.home_frame_upload_data_button = PositiveIconButton(self.home_frame_data_info_frame, image=self.upload_icon, command=self.navigate_to_upload_data_frame_action)
 
         # LEVEL 3 - Parent = home_frame_data_info_section
         date_for_analysis = self.project_info.transform_options.date_for_analysis.value if self.project_info.transform_options.date_for_analysis else ''
@@ -173,12 +179,6 @@ class DataProfilerGUI(ApexApp):
         self.home_frame_inbound_processed = StaticValueWithLabel(self.home_frame_data_info_section, label_text='Inbound Processed', value=self.project_info.transform_options.process_inbound_data)#, alignment='vertical')
         self.home_frame_inventory_processed = StaticValueWithLabel(self.home_frame_data_info_section, label_text='Inventory Processed', value=self.project_info.transform_options.process_inventory_data)#, alignment='vertical')
         self.home_frame_outbound_processed = StaticValueWithLabel(self.home_frame_data_info_section, label_text='Outbound Processed', value=self.project_info.transform_options.process_outbound_data)#, alignment='vertical')
-        # self.home_frame_item_master_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Item Master File', value=str(self.project_info.uploaded_file_paths.item_master)[len(self.project_info.uploaded_file_paths.item_master) - 30:])#, alignment='vertical')
-        # self.home_frame_inbound_header_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Inbound Header File', value=str(self.project_info.uploaded_file_paths.inbound_header)[len(self.project_info.uploaded_file_paths.inbound_header) - 30:])#, alignment='vertical')
-        # self.home_frame_inbound_details_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Inbound Details File', value=str(self.project_info.uploaded_file_paths.inbound_details)[len(self.project_info.uploaded_file_paths.inbound_details) - 30:])#, alignment='vertical')
-        # self.home_frame_inventory_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Inventory File', value=str(self.project_info.uploaded_file_paths.inventory)[len(self.project_info.uploaded_file_paths.inventory) - 30:])#, alignment='vertical')
-        # self.home_frame_order_header_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Order Header File', value=str(self.project_info.uploaded_file_paths.order_header)[len(self.project_info.uploaded_file_paths.order_header) - 30:])#, alignment='vertical')
-        # self.home_frame_order_details_file = StaticValueWithLabel(self.home_frame_data_info_frame, label_text='Order Details File', value=str(self.project_info.uploaded_file_paths.order_details)[len(self.project_info.uploaded_file_paths.order_details) - 30:])#, alignment='vertical')
 
         # Grid
         self._grid_home_frame()
@@ -192,7 +192,7 @@ class DataProfilerGUI(ApexApp):
 
         # LEVEL 1 - upload_frame_header_frame
         self.upload_frame_title = CTkLabel(self.upload_frame_header_frame, text='Upload Project Data', font=AppSubtitleFont())
-        self.upload_frame_back_to_home_btn = TransparentIconButton(self.upload_frame_header_frame, image=self.back_icon, command=self.upload_frame_back_to_home_action)
+        self.upload_frame_back_to_home_btn = TransparentIconButton(self.upload_frame_header_frame, image=self.back_icon, command=self.navigate_to_home_action)
 
         # LEVEL 2 - upload_frame_content_frame
         self.upload_frame_upload_section = SectionWithScrollbar(self.upload_frame_content_frame, width=375, height=420)
@@ -214,6 +214,46 @@ class DataProfilerGUI(ApexApp):
 
         # Grid
         self._grid_upload_frame()
+
+    def _create_more_actions_frame(self):
+        self.more_actions_frame = Page(self)
+
+        # TOPLEVEL - Parent = more_actions_frame
+        self.more_actions_frame_header_frame = CTkFrame(self.more_actions_frame, fg_color=APEX_LIGHT_GRAY, corner_radius=0)
+        self.more_actions_frame_content_container = Frame(self.more_actions_frame)
+        
+        # LEVEL 1 - Parent = more_actions_frame_header_frame
+        self.more_actions_frame_title = CTkLabel(self.more_actions_frame_header_frame, text='More Data Actions', font=AppSubtitleFont())        
+        self.more_actions_frame_logout_btn = TransparentIconButton(self.more_actions_frame_header_frame, image=self.back_icon, command=self.navigate_to_home_action)
+        self.more_actions_frame_task_bar_frame = Frame(self.more_actions_frame_header_frame)
+
+        # LEVEL 1 - Parent = more_actions_frame_content_container
+        self.more_actions_frame_update_subwhse_section = Section(self.more_actions_frame_content_container)
+        self.more_actions_frame_download_data_section = Section(self.more_actions_frame_content_container)
+        self.more_actions_subframe_3 = Frame(self.more_actions_frame_content_container)
+        self.more_actions_subframe_4 = Frame(self.more_actions_frame_content_container)
+
+        # LEVEL 2 - Parent = more_actions_frame_task_bar_frame
+        self.more_actions_frame_home_btn = NeutralButton(self.more_actions_frame_task_bar_frame, text='Home', command=self.navigate_to_home_action)
+        self.more_actions_frame_delete_project_frame = TransparentIconButton(self.more_actions_frame_task_bar_frame, image=self.trash_icon, command=self.delete_project_action)
+
+        # LEVEL 2 - Parent = more_actions_frame_update_subwhse_frame
+        self.more_actions_frame_update_subwhse_title = CTkLabel(self.more_actions_frame_update_subwhse_section, text='Update Subwarehouse', font=SectionHeaderFont())
+        self.more_actions_frame_update_subwhse_browse = FileBrowser(self.more_actions_frame_update_subwhse_section, label_text='Select a file', path_type='CSV')
+        self.more_actions_frame_update_subwhse_submit_btn = PositiveIconButton(self.more_actions_frame_update_subwhse_section, image=self.check_icon, command=self.update_subwarehouse_in_item_master)
+
+        # LEVEL 2 - Parent = more_actions_frame_download_data_section
+        self.more_actions_frame_download_data_title = CTkLabel(self.more_actions_frame_download_data_section, text='Download Data', font=SectionHeaderFont())
+        self.more_actions_frame_download_data_options_dropdown = DropdownWithLabel(self.more_actions_frame_download_data_section, 
+                                                                label_text='Select a download option',
+                                                                dropdown_values=[option.value for option in DownloadDataOptions],
+                                                                default_val='')
+        self.more_actions_frame_download_data_folder_browse = FileBrowser(self.more_actions_frame_download_data_section, label_text='Select a download folder', path_type='folder')
+        self.more_actions_frame_download_data_submit_btn = PositiveIconButton(self.more_actions_frame_download_data_section, image=self.check_icon, command=self.download_data_submit_action)
+
+        # Grid
+        self._grid_more_actions_frame()
+
 
     def _create_loading_frame(self):
         self.loading_frame = Page(self)
@@ -302,14 +342,20 @@ class DataProfilerGUI(ApexApp):
 
         self.home_frame_title.grid(row=0, column=0, sticky='ew', pady=5)
         self.home_frame_logout_btn.grid(row=0, column=0, sticky='w', padx=(19,0), pady=5)
-        self.home_frame_delete_project_frame.grid(row=0, column=0, sticky='e', padx=(0,19), pady=5)
-
+        self.home_frame_task_bar_frame.grid(row=0, column=0, sticky='e', padx=(0,19), pady=5)
+        
         # LEVEL 1 - home_frame_content_container
         self.home_frame_content_container.grid_rowconfigure(0, weight=1)
         self.home_frame_content_container.grid_columnconfigure([0,1], weight=1)
 
         self.home_frame_project_info_frame.grid(row=0, column=0, padx=(50, 25), sticky='nsew')      # LEVEL 2 and 3 within ProjectInfoFrame class
         self.home_frame_data_info_frame.grid(row=0, column=1, padx=(25, 50), sticky='nsew')
+
+        # LEVEL 2 - home_frame_task_bar_frame
+        self.home_frame_task_bar_frame.grid_rowconfigure(0, weight=1)
+
+        self.home_frame_more_actions_btn.grid(row=0, column=0, sticky='ew', padx=(0,5))
+        self.home_frame_delete_project_frame.grid(row=0, column=1, sticky='ew', padx=(5,0))
 
         # LEVEL 2 - home_frame_project_info_frame
         self.home_frame_project_info_frame.grid_columnconfigure(0, weight=1)
@@ -344,12 +390,6 @@ class DataProfilerGUI(ApexApp):
             self.home_frame_inbound_processed.grid(row=4, column=0, sticky='ew', padx=20, pady=(20, 0))
             self.home_frame_inventory_processed.grid(row=5, column=0, sticky='ew', padx=20, pady=(20, 0))
             self.home_frame_outbound_processed.grid(row=6, column=0, sticky='ew', padx=20, pady=(20, 5))
-        # self.home_frame_item_master_file.grid(row=4, column=0, sticky='ew', padx=50, pady=(20, 0))
-        # self.home_frame_inbound_header_file.grid(row=5, column=0, sticky='ew', padx=50, pady=(20, 0))
-        # self.home_frame_inbound_details_file.grid(row=6, column=0, sticky='ew', padx=50, pady=(20, 0))
-        # self.home_frame_inventory_file.grid(row=7, column=0, sticky='ew', padx=50, pady=(20, 0))
-        # self.home_frame_order_header_file.grid(row=8, column=0, sticky='ew', padx=50, pady=(20, 0))
-        # self.home_frame_order_details_file.grid(row=9, column=0, sticky='ew', padx=50, pady=(20, 20))
 
     def _grid_upload_frame(self):
         # Parent = self
@@ -387,6 +427,58 @@ class DataProfilerGUI(ApexApp):
         self.upload_frame_process_inventory_data.grid(row=4, column=0, sticky='ew', padx=20, pady=(20, 0))
         self.upload_frame_process_outbound_data.grid(row=5, column=0, sticky='ew', padx=20, pady=(20, 5))        
 
+    def _grid_more_actions_frame(self):
+        # Parent = self
+        self.grid_page(self.more_actions_frame)
+
+        # TOPLEVEL - more_actions_frame
+        self.more_actions_frame.grid_columnconfigure(0, weight=1)
+        self.more_actions_frame.grid_rowconfigure(1, weight=1)
+
+        self.more_actions_frame_header_frame.grid(row=0, column=0, sticky='ew')
+        self.more_actions_frame_content_container.grid(row=1, column=0, sticky='nsew')
+        
+        # LEVEL 1 - more_actions_frame_header_frame
+        self.more_actions_frame_header_frame.grid_columnconfigure(0, weight=1)
+        self.more_actions_frame_header_frame.grid_rowconfigure(0, weight=1)
+
+        self.more_actions_frame_title.grid(row=0, column=0, sticky='ew', pady=5)
+        self.more_actions_frame_logout_btn.grid(row=0, column=0, sticky='w', padx=(19,0), pady=5)
+        self.more_actions_frame_task_bar_frame.grid(row=0, column=0, sticky='e', padx=(0,19), pady=5)
+        
+        # LEVEL 1 - more_actions_frame_content_container
+        self.more_actions_frame_content_container.grid_rowconfigure([0,1], weight=1)
+        self.more_actions_frame_content_container.grid_columnconfigure([0,1], weight=1)
+
+        self.more_actions_frame_update_subwhse_section.grid(row=0, column=0, sticky='nsew', padx=20, pady=20)      # LEVEL 2 and 3 within ProjectInfoFrame class
+        self.more_actions_frame_download_data_section.grid(row=0, column=1, sticky='nsew', padx=20, pady=20)
+        self.more_actions_subframe_3.grid(row=1, column=0, sticky='nsew')
+        self.more_actions_subframe_4.grid(row=1, column=1, sticky='nsew')
+
+        # LEVEL 2 - more_actions_frame_task_bar_frame
+        self.more_actions_frame_task_bar_frame.grid_rowconfigure(0, weight=1)
+
+        self.more_actions_frame_home_btn.grid(row=0, column=0, sticky='ew', padx=(0,5))
+        self.more_actions_frame_delete_project_frame.grid(row=0, column=1, sticky='ew', padx=(5,0))
+
+        # LEVEL 2 - more_actions_frame_update_subwhse_frame
+        self.more_actions_frame_update_subwhse_section.grid_rowconfigure(1, weight=1)
+        self.more_actions_frame_update_subwhse_section.grid_columnconfigure(0, weight=1)
+
+        self.more_actions_frame_update_subwhse_title.grid(row=0, column=0, sticky='ew', padx=10, pady=(10, 0))
+        self.more_actions_frame_update_subwhse_browse.grid(row=1, column=0, sticky='ew', padx=10, pady=20)
+        self.more_actions_frame_update_subwhse_submit_btn.grid(row=2, column=0, padx=10, pady=(0, 20))
+
+         # LEVEL 2 - more_actions_frame_download_data_section
+        self.more_actions_frame_download_data_section.grid_rowconfigure([1,2], weight=1)
+        self.more_actions_frame_download_data_section.grid_columnconfigure(0, weight=1)
+
+        self.more_actions_frame_download_data_title.grid(row=0, column=0, sticky='ew', padx=10, pady=(10, 0))
+        self.more_actions_frame_download_data_options_dropdown.grid(row=1, column=0, padx=10, pady=(20, 0))
+        self.more_actions_frame_download_data_folder_browse.grid(row=2, column=0, sticky='ew', padx=10, pady=(0,20))
+        self.more_actions_frame_download_data_submit_btn.grid(row=3, column=0, padx=10, pady=(0, 20))
+
+
     def _grid_loading_frame(self):
         # Parent = self
         self.grid_page(self.loading_frame)
@@ -418,7 +510,7 @@ class DataProfilerGUI(ApexApp):
             self.get_title_frame().grid_project_number_frame()
         else:
             self.get_title_frame().ungrid_project_number_frame()  
-    
+        self.update()
 
     ''' Main CRUD functions '''
     
@@ -449,10 +541,7 @@ class DataProfilerGUI(ApexApp):
             return
 
         # Show loading frame while executing
-        self._set_loading_frame_text('Creating new project...')
-        self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
-        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
-        self.update()
+        self.show_loading_frame_action('Creating new project...')
 
         # Get inputs
         self._set_project_number(new_project_info.project_number)
@@ -474,18 +563,14 @@ class DataProfilerGUI(ApexApp):
             self.new_project_frame_project_info_section.clear_frame()
 
             # Navigate to home
-            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-            self._toggle_frame_grid(frame=self.home_frame, grid=True)
-            self.update()
+            self.navigate_to_home_action()
 
             # Display notification of results
             notification_dialog = NotificationDialog(self, title='Success!', text=f'Created new data project for {self._get_project_number()}')
         
         else:
             # Navigate back to new project screen
-            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-            self._toggle_frame_grid(frame=self.new_project_frame, grid=True)
-            self.update()
+            self.navigate_to_new_project_frame_action()
 
             # Display notification of results
             message = f'Something went wrong when creating new project for {self._get_project_number()}:\n\n{response.error_message}'
@@ -522,32 +607,27 @@ class DataProfilerGUI(ApexApp):
             return
         
         # Show loading frame while executing
-        self._set_loading_frame_text('Transforming and uploading data...')
-        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
-        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
-        self.update()
+        self.show_loading_frame_action('Transforming and uploading data...')
 
         # Transform and upload
         results = self.DataProfiler.transform_and_upload_data(data_directory=data_dir, transform_options=transform_options)
 
         # Navigate appropriately based on success
         message = ''
-        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
         if not results.success:
             # Navigate back to upload frame
-            self._toggle_frame_grid(frame=self.upload_frame, grid=True)
+            self.navigate_to_upload_data_frame_action()
 
             # Display notification of results
             message = f'Trouble with the upload:\n{results.message}' 
         else:
             # Reset upload page
             self._create_upload_data_frame()
-            self._toggle_frame_grid(frame=self.upload_frame, grid=False)
             
             # Navigate to home
             self._refresh_project_info()
             self._create_home_frame()
-            self._toggle_frame_grid(frame=self.home_frame, grid=True)
+            self.navigate_to_home_action()
 
             # Display notification of results
             message = f'Successful transformation and data upload!\n\n{self.pretty_print_rows_inserted(results.rows_inserted)}'
@@ -581,10 +661,7 @@ class DataProfilerGUI(ApexApp):
 
     def save_project_info_changes(self):
         # Show loading frame while executing
-        self._set_loading_frame_text('Saving changes...')
-        self._toggle_frame_grid(frame=self.home_frame, grid=False)
-        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
-        self.update()
+        self.show_loading_frame_action('Saving changes...')
 
         # Create new project info object using inputs
         current_project_info: ExistingProjectProjectInfo = self._get_project_info()
@@ -622,11 +699,53 @@ class DataProfilerGUI(ApexApp):
             notification_dialog = NotificationDialog(self, title='Error', text=f'Could not save project info changes to database:\n\n{response.error_message}')
 
         # Navigate back to home
-        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-        self._toggle_frame_grid(frame=self.home_frame, grid=True)
-        self.update()
+        self.navigate_to_home_action()
 
         # Display notification of results
+        notification_dialog.attributes('-topmost', True)
+        notification_dialog.mainloop()
+        return
+
+    def update_subwarehouse_in_item_master(self):
+        # Make sure project has data exists
+        notification_dialog = None
+        if not self._get_project_info().data_uploaded:
+            message = f'Project has no data! Please upload data before updating subwarehouse'
+
+            notification_dialog = NotificationDialog(self, title='Data Profiler', text=message)
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+            return
+        
+        # Get selected file path
+        file_path = self.more_actions_frame_update_subwhse_browse.get_path()
+
+        if not file_path:
+            notification_dialog = NotificationDialog(self, title='Error', text='Update Subwarehouse:\n\nPlease select a valid CSV file.')
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+            return
+
+        # Show loading frame while executing
+        self.show_loading_frame_action('Updating subwarehouse...')
+
+        # Delete project
+        response = self.DataProfiler.update_subwhse_in_item_master(file_path=file_path)
+
+        notification_dialog = None
+        if response.success:
+            # Clear browse
+            self.more_actions_frame_update_subwhse_browse.clear_input()
+
+            # Success notification
+            notification_dialog = NotificationDialog(self, title='Success!', text=f'Update Subwarehouse:\n\nUpdated {response.rows_affected} items successfully.')
+        else:
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Update Subwarehouse:\n\nTrouble updating Subwarehouse values:\n\n{response.error_message}')   
+        
+        # Back to more actions
+        self.navigate_to_more_actions_action()
+
+        # Notify of results
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
         return
@@ -636,10 +755,7 @@ class DataProfilerGUI(ApexApp):
 
     def delete_project(self):
         # Show loading frame while executing
-        self._set_loading_frame_text('Deleting project...')
-        self._toggle_frame_grid(frame=self.home_frame, grid=False)
-        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
-        self.update()
+        self.show_loading_frame_action('Deleting project...')
 
         # Delete project
         response = self.DataProfiler.delete_project()
@@ -653,9 +769,7 @@ class DataProfilerGUI(ApexApp):
         
         else:
             # Navigate back to home
-            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-            self._toggle_frame_grid(frame=self.home_frame, grid=True)
-            self.update()
+            self.navigate_to_home_action()
 
             # Display notification of results
             notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble deleting project:\n\n{response.error_message}')        
@@ -670,10 +784,7 @@ class DataProfilerGUI(ApexApp):
             return
 
         # Show loading frame while executing
-        self._set_loading_frame_text('Deleting project data...')
-        self._toggle_frame_grid(frame=self.home_frame, grid=False)
-        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
-        self.update()
+        self.show_loading_frame_action('Deleting project data...')
 
         results = self.DataProfiler.delete_project_data()
 
@@ -687,9 +798,7 @@ class DataProfilerGUI(ApexApp):
             message = f'Encountered {len(results.errors_encountered)} errors when attempting to delete project data. Check log.'
 
         # Show self again
-        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-        self._toggle_frame_grid(frame=self.home_frame, grid=True)
-        self.update()
+        self.navigate_to_home_action()
 
         # Display notification of results
         notification_dialog = ResultsDialogWithLogFile(self, 
@@ -710,10 +819,7 @@ class DataProfilerGUI(ApexApp):
             self._set_project_number(self.select_project_number_dropdown.get_variable_value())
         
         # Show loading frame while executing
-        self._set_loading_frame_text('Loading...')
-        self._toggle_frame_grid(frame=self.start_frame, grid=False)
-        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
-        self.update()
+        self.show_loading_frame_action('Loading...')
 
         # Initialize a DataProfiler instance
         self._init_data_profiler()
@@ -725,60 +831,18 @@ class DataProfilerGUI(ApexApp):
             self._create_home_frame()
 
             # Navigate to home
-            self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-            self._toggle_frame_grid(frame=self.home_frame, grid=True)
-            self._toggle_project_number_frame_grid(grid=True)
+            self.navigate_to_home_action()
 
             print(self._get_project_info())
         else:
             confirm_dialog = ConfirmDeleteDialog(self, title='Data Profiler', 
                                              text=f'A data project for "{self._get_project_number()}" does not yet exist. Would you like to start one?',
-                                             positive_action=self.show_new_project_frame,
+                                             positive_action=self.navigate_to_new_project_frame_action,
                                              negative_action=self.logout_action)
         
             confirm_dialog.attributes('-topmost', True)
             confirm_dialog.mainloop()
 
-        self.update()
-
-    def show_new_project_frame(self):
-        self._toggle_frame_grid(self.loading_frame, False)
-        self._toggle_frame_grid(self.start_frame, False)
-        self._toggle_project_number_frame_grid(grid=False)
-        self._toggle_frame_grid(self.new_project_frame, True)
-        self.update()
-
-    def logout_action(self):
-        '''
-        This is basically an app reset. It ungrids every page, updates the set of project numbers, and navigates back to the start frame.
-        '''
-        
-        # Destroy our data profiler instance
-        self._destroy_data_profiler()
-
-        # Clear project number
-        self._set_project_number('')
-        self.select_project_number_dropdown.set_variable_value('')       
-
-        # Ungrid everything
-        if hasattr(self, 'home_frame'):
-            self._toggle_frame_grid(frame=self.home_frame, grid=False)
-        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
-        self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
-        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-        self._toggle_project_number_frame_grid(grid=False)
-        self._toggle_frame_grid(frame=self.start_frame, grid=False)
-
-        # Show loading screen while fetching project numbers
-        self._set_loading_frame_text('Fetching projects...')
-        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
-        self.update()
-
-        self._refresh_project_numbers()
-
-        # Once projects are loaded, nav to start
-        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
-        self._toggle_frame_grid(frame=self.start_frame, grid=True)
         self.update()
 
     def save_project_info_changes_action(self):
@@ -814,16 +878,6 @@ class DataProfilerGUI(ApexApp):
 
         return
 
-    def upload_frame_back_to_home_action(self):
-        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
-        self._toggle_frame_grid(frame=self.home_frame, grid=True)
-        self.update()
-
-    def show_upload_data_frame_action(self):
-        self._toggle_frame_grid(self.home_frame, grid=False)
-        self._toggle_frame_grid(self.upload_frame, grid=True)
-        return
-
     def delete_project_action(self):
         notification_dialog = None
         if self._get_project_info().data_uploaded:
@@ -852,6 +906,108 @@ class DataProfilerGUI(ApexApp):
         confirm_dialog.mainloop()
         return
     
+    def download_data_submit_action(self):
+        download_path = self.more_actions_frame_download_data_folder_browse.get_path()
+        download_option_input = self.more_actions_frame_download_data_options_dropdown.get_variable_value()
+
+        # Make sure project has data exists
+        message = None
+
+        if not self._get_project_info().data_uploaded:
+            message = f'Project has no data! Please upload data before attempting to downloading data or reports.'
+        elif not download_option_input:
+            message = f'Please select a download option from the dropdown.'
+        elif not download_path:
+            message = f'Please select a download folder.'
+        
+        # If it's not a valid request, notify and quit
+        if message:
+            notification_dialog = NotificationDialog(self, title='Data Profiler', text=message)
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+            return
+
+        # Show loading frame while executing
+        self.show_loading_frame_action(f'Downloading "{download_option_input}"...')
+
+        # Make the request to DataProfiler
+        download_option = DownloadDataOptions(download_option_input)
+        download_response = self.DataProfiler.download_data(download_option=download_option, target_directory=download_path)
+
+        # Notify of results
+        notification_dialog = None
+        if download_response.success:
+            # Display notification of results
+            notification_dialog = ResultsDialog(self, title='Success!', text=f'Downloaded "{download_option.value}" for {self._get_project_number()}.', results_dir=download_response.download_path)        
+        else:
+            # Display notification of results
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble downloading "{download_option.value}" :\n\n{download_response.message}') 
+
+        # Navigate back to more actions
+        self.navigate_to_more_actions_action()
+
+        # Display dialog
+        notification_dialog.attributes('-topmost', True)
+        notification_dialog.mainloop()
+
+    ## Navigations ##
+
+    def logout_action(self):
+        '''
+        This is basically an app reset. It ungrids every page, updates the set of project numbers, and navigates back to the start frame.
+        '''
+        
+        # Destroy our data profiler instance
+        self._destroy_data_profiler()
+
+        # Clear project number
+        self._set_project_number('')
+        self.select_project_number_dropdown.set_variable_value('')       
+
+        # Ungrid everything
+        if hasattr(self, 'home_frame'):
+            self._toggle_frame_grid(frame=self.home_frame, grid=False)
+        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
+        self._toggle_frame_grid(frame=self.more_actions_frame, grid=False)
+        self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+        self._toggle_project_number_frame_grid(grid=False)
+        self._toggle_frame_grid(frame=self.start_frame, grid=False)
+
+        # Show loading screen while fetching project numbers
+        self._set_loading_frame_text('Fetching projects...')
+        self._toggle_frame_grid(frame=self.loading_frame, grid=True)
+        self.update()
+
+        self._refresh_project_numbers()
+
+        # Once projects are loaded, nav to start
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+        self._toggle_frame_grid(frame=self.start_frame, grid=True)
+        self.update()
+
+    def show_loading_frame_action(self, text: str):
+        self._set_loading_frame_text(text)
+        self._navigate(self.loading_frame)
+
+    def navigate_to_new_project_frame_action(self):
+        self._navigate(self.new_project_frame)
+
+    # def upload_frame_back_to_home_action(self):
+    #     self._navigate(self.home_frame)
+    #     self._toggle_project_number_frame_grid(grid=True)
+
+    def navigate_to_upload_data_frame_action(self):
+        self._navigate(self.upload_frame)
+        self._toggle_project_number_frame_grid(grid=True)
+
+    def navigate_to_home_action(self):
+        self._navigate(to_frame=self.home_frame)
+        self._toggle_project_number_frame_grid(grid=True)
+
+    def navigate_to_more_actions_action(self):
+        self._navigate(to_frame=self.more_actions_frame)
+        self._toggle_project_number_frame_grid(grid=True)
 
     ''' Other critical/logic functions '''
 
@@ -862,6 +1018,24 @@ class DataProfilerGUI(ApexApp):
     def _destroy_data_profiler(self):
         self.DataProfiler = None
         self.project_info = None
+
+    def _navigate(self, to_frame: CTkFrame):
+        
+        # Ungrid everything
+        self._toggle_frame_grid(frame=self.start_frame, grid=False)
+        self._toggle_frame_grid(frame=self.new_project_frame, grid=False)
+        self._toggle_frame_grid(frame=self.upload_frame, grid=False)
+        self._toggle_frame_grid(frame=self.more_actions_frame, grid=False)
+        self._toggle_project_number_frame_grid(grid=False)
+        self._toggle_frame_grid(frame=self.loading_frame, grid=False)
+
+        # Home frame isn't created right away, so check it if exists before ungridding
+        if hasattr(self, 'home_frame'):
+            self._toggle_frame_grid(frame=self.home_frame, grid=False)
+
+        # Grid the to frame
+        self._toggle_frame_grid(frame=to_frame, grid=True)
+        self.update()
 
     # UNUSED
     def validate_data_directory(self):

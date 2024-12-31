@@ -7,7 +7,7 @@ Module containing various helper functions used throughout the codebase
 '''
 
 import pandas as pd
-
+import os
 
 # Checks if the given file_path can be opened as a pandas dataframe
 def file_path_is_valid_data_frame(file_path: str) -> bool:
@@ -63,3 +63,22 @@ def check_mismatching_primary_key_values(pk_list: list, fk_list: list) -> list[s
             erroneous_fks.append(key)
 
     return erroneous_fks
+
+# Given a file path, find one that's new by adding a suffix like "Items Report (2).xlsx"
+def find_new_file_path(file_path: str):
+    # If it's not taken, return it
+    if not os.path.exists(file_path):
+        return file_path
+    
+    # Add suffixes
+    i = 1
+    return_file_path = file_path
+    while i < 100:
+        i += 1
+        return_file_path = f'{file_path} ({i})'
+        
+        if not os.path.exists(return_file_path):
+            return return_file_path
+
+    # If suffixes didn't work, just return original
+    return file_path

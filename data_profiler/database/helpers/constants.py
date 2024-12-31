@@ -28,7 +28,8 @@ SCHEMAS = {
 
 OUTPUT_TABLES_ITEM_MASTER_COLS = ['ProjectNumber_SKU','ProjectNumber','SKU','SKUDescription','SKUClass','UnitOfMeasure','Velocity','EachLength','EachWidth','EachHeight','EachWeight',
                                   'InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight',
-                                  'CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Subwarehouse']
+                                  'CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Subwarehouse',
+                                  'PalletWidthRange','PalletLengthRange','PalletHeightRange','PalletWeightRange']
 OUTPUT_TABLES_OUTBOUND_DATA_COLS = ['ProjectNumber_SKU','Quantity','ReceivedDate','PickDate','ShipDate','Channel','Velocity','UnitsPerLineRange','Weekday','Week','Weekday_Idx','ProjectNumber_OrderNumber','Date','Week_Number', 'LineCube', 'LineWeight', 'UnitOfMeasure', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier', 'PickType']
 OUTPUT_TABLES_ORDER_VELOCITY_COMBINATIONS_COLS = ['ProjectNumber_OrderNumber','VelocityCombination']
 OUTPUT_TABLES_INBOUND_HEADER_COLS = ['ProjectNumber_PO_Number','ProjectNumber','PO_Number','ArrivalDate','ArrivalTime','ExpectedDate','ExpectedTime','Carrier','Mode','Lines','Units','SKUs','ShipmentNumber','UnloadType']
@@ -100,8 +101,17 @@ OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
 ## Select queries
 OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'PROD/select/select_all_from_project.sql'
 
+SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER = 'PROD/select/download_storage_analyzer_inputs/select_from_item_master.sql'
+SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY = 'PROD/select/download_storage_analyzer_inputs/select_from_inventory.sql'
+SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_OUTBOUND = 'PROD/select/download_storage_analyzer_inputs/select_from_outbound.sql'
+
+SQL_FILE_DOWNLOAD_INVENTORY_STRATIFICATION_REPORT = 'PROD/select/reports/inventory_stratification.sql'
+SQL_FILE_DOWNLOAD_SUBWAREHOUSE_MATERIAL_FLOW_PALLETS_REPORT = 'PROD/select/reports/subwarehouse_material_flow_pallets.sql'
+SQL_FILE_DOWNLOAD_ITEMS_MATERIAL_FLOW_REPORT = 'PROD/select/reports/items_material_flow.sql'
+
 ## Update queries
 OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'PROD/update/update_project.sql'
+OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER = 'PROD/update/update_subwhse_item_master.sql'
 
 ## Delete queries
 OUTPUT_TABLES_SQL_FILE_DELETE_FROM_TABLES_BY_PROJECT_NUMBER = 'PROD/delete/delete_from_tables_by_project_number.sql'
@@ -181,8 +191,17 @@ DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
 ## Select queries
 DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'DEV/select/select_all_from_project.sql'
 
+DEV_SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER = 'DEV/select/download_storage_analyzer_inputs/select_from_item_master.sql'
+DEV_SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY = 'DEV/select/download_storage_analyzer_inputs/select_from_inventory.sql'
+DEV_SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_OUTBOUND = 'DEV/select/download_storage_analyzer_inputs/select_from_outbound.sql'
+
+DEV_SQL_FILE_DOWNLOAD_INVENTORY_STRATIFICATION_REPORT = 'DEV/select/reports/inventory_stratification.sql'
+DEV_SQL_FILE_DOWNLOAD_SUBWAREHOUSE_MATERIAL_FLOW_PALLETS_REPORT = 'DEV/select/reports/subwarehouse_material_flow_pallets.sql'
+DEV_SQL_FILE_DOWNLOAD_ITEMS_MATERIAL_FLOW_REPORT = 'DEV/select/reports/items_material_flow.sql'
+
 ## Update queries
 DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_PROJECT = 'DEV/update/update_project.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER = 'DEV/update/update_subwhse_item_master.sql'
 
 ## Delete queries
 DEV_OUTPUT_TABLES_SQL_FILE_DELETE_FROM_TABLES_BY_PROJECT_NUMBER = 'DEV/delete/delete_from_tables_by_project_number.sql'

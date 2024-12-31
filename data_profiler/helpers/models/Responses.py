@@ -41,3 +41,9 @@ class DBWriteResponse(BaseModel):
     error_message: str = ''
 
 
+class DBDownloadResponse(BaseModel):
+    success: bool = False
+    rows_downloaded: int = 0
+    download_path: str = ''
+    message: str = ''
+

@@ -82,7 +82,7 @@ INBOUND_DETAILS_UPLOAD_REQUIRED_DTYPES = {
 INVENTORY_UPLOAD_REQUIRED_DTYPES = {
     'Period':'date',
     'SKU':'object',
-    'Quantity':'int64',
+    'Quantity':'float64',
     'UnitOfMeasure':'object',
     'Location': 'object',
     'Lot': 'object',
@@ -102,7 +102,7 @@ ORDER_DETAILS_UPLOAD_REQUIRED_DTYPES = {
     'SKU': 'object',
     'UnitOfMeasure': 'object',
     'PickType': 'object',
-    'Quantity': 'int64',
+    'Quantity': 'float64',
     'BusinessUnit': 'object', 
     'ShipContainerType': 'object',
     'SpecialHandlingCodes': 'object', 
