@@ -9,6 +9,7 @@ Common helper functions for interacting with database
 from io import TextIOWrapper
 from datetime import timedelta
 from time import time
+import math
 
 from pyodbc import Connection
 import pandas as pd
@@ -106,6 +107,7 @@ def insert_table_to_db(connection: Connection, table_name: str, data_frame: pd.D
     error_encountered = False
     insert_st = time()
 
+    batches = int(math.ceil(len(data_lst) / batch_size))
     for i in range(0, len(data_lst), batch_size):
         # Only proceed if no errors have been found
         if not error_encountered:
@@ -117,8 +119,8 @@ def insert_table_to_db(connection: Connection, table_name: str, data_frame: pd.D
         
             # Insert using excutemany
             st = time()
-            print(f'Batch {batch_num}: attempting insert into {table_name}...')
-            log_file.write(f'Batch {batch_num}: attempting insert into {table_name}...\n')
+            print(f'Batch {batch_num} of {batches}: attempting to insert {len(batch_data)} rows into {table_name}...')
+            log_file.write(f'Batch {batch_num} of {batches}: attempting to insert {len(batch_data)} rows  into {table_name}...\n')
             log_file.flush()
 
             cursor.executemany(insert_query, batch_data)

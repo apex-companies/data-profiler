@@ -159,6 +159,10 @@ class DataProfiler:
             with OutputTablesService(dev=self.dev) as service:
                 response = service.download_subwarehouse_material_flow_report(uom=UnitOfMeasure.PALLET, project_number=project_number, download_folder=download_directory)
 
+        elif download_option == DownloadDataOptions.ITEMS_MATERIAL_FLOW_REPORT_EACHES:
+            with OutputTablesService(dev=self.dev) as service:
+                response = service.download_items_material_flow_report(uom=UnitOfMeasure.EACH, project_number=project_number, download_folder=download_directory)
+
         elif download_option == DownloadDataOptions.ITEMS_MATERIAL_FLOW_REPORT_CARTONS:
             with OutputTablesService(dev=self.dev) as service:
                 response = service.download_items_material_flow_report(uom=UnitOfMeasure.CARTON, project_number=project_number, download_folder=download_directory)

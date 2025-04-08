@@ -15,7 +15,7 @@ import math
 
 import pandas as pd
 import numpy as np
-from pyodbc import Connection, InterfaceError, DatabaseError
+from pyodbc import Connection, InterfaceError, DatabaseError, OperationalError
 
 # Data Profiler
 from ..database.helpers.constants import OUTPUT_TABLES_COLS_MAPPER, OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER, DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER
@@ -232,10 +232,16 @@ class TransformService:
             log_file.write(f'ERROR - Could not connect to database. Quitting.\n\n')
             transform_response.success = False
             transform_response.message = 'Could not connect to database.'
+        except OperationalError as e:
+            # Errors related to DB operation. Not necessarily under control of programmer
+            print(e)
+            log_file.write(f'OPERATIONAL ERROR - {e}.\n\n')
+            transform_response.success = False
+            transform_response.message = 'Something unexpected happened and connection to the database was lost.'
         except DatabaseError as e:
             # Base error class for database related errors
             print(e)
-            log_file.write(f'ERROR - {e}\n\n')
+            log_file.write(f'DATABASE ERROR - {e}\n\n')
             transform_response.success = False
             transform_response.message = 'Something went wrong when inserting data to database. Check log.'
         else:
@@ -357,7 +363,7 @@ class TransformService:
 
         # Strip description of some characters
         item_master_return['SKUDescription'] = item_master_return['SKUDescription'].astype(str)
-        bad_characters = [r'"',r"'",r'\t',r'\n',r'<',r'>']
+        bad_characters = [r'"',r"'",r'\t',r'\n',r'<',r'>',r"\\", r"/", r"\(", r"\)"]
         for c in bad_characters:
             rgx = re.compile(pattern=c, flags=re.IGNORECASE)
             item_master_return['SKUDescription'] = item_master_return['SKUDescription'].str.replace(pat=rgx, repl='', regex=True)
@@ -396,6 +402,7 @@ class TransformService:
         ).reset_index()
 
         inbound_header = inbound_header.merge(inbound_by_receipt, on='PO_Number', how='left')
+        inbound_header = inbound_header.fillna(0) 
 
         # Adjust weekend dates
         inbound_header = self.adjust_weekend_dates(inbound_header, 'ArrivalDate')
