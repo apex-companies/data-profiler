@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 import math
 from pathlib import Path
 from pprint import pprint
+import plotly.express as px
+from plotly.graph_objects import Figure
 
 import pandas as pd
 import pyodbc
@@ -553,6 +555,189 @@ class DataProfiler:
         return response
 
 
+    ''' Main Functions - Other Analysis '''
+
+    def describe_data_frame(self, file_path: str, columns: str, file_type: str = 'csv', sheet_name: str = None, group_col: str = None) -> str:
+        '''
+        A function that describes a data frame. Its goal is to summarize the range of values found in every column and to alert the user to any flaws or errors in the data.
+
+        Params
+        ------
+        df : pd.DataFrame
+            a pandas dataframe
+        group_col : str
+            a *categorical* column in df by which the data is usefully grouped / aggregated
+
+        Returns
+        -------
+        Path to the folder of the exports. Exports:
+
+        1. an XLSX book with the original df and a sheet that describes its columns  
+        2. an HTML file with distribution charts of the numeric df columns
+        '''
+    
+        ## Create subfolder
+        project_info = self.get_project_info()
+
+        subfolder = f'{self.project_number} Data Description'
+        OUTPUT_DIR = f'{self.outputs_dir}/{subfolder}'
+        if not os.path.exists(OUTPUT_DIR):
+            os.mkdir(OUTPUT_DIR)
+
+        ## Start
+        df: pd.DataFrame = None
+        
+        if file_type == 'csv':
+            df = pd.read_csv(file_path, usecols=columns)
+        else:
+            df = pd.read_excel(file_path, sheet_name=sheet_name, usecols=columns)
+
+        df = df.replace('', pd.NA)
+
+        df_length = df.shape[0]
+        print(f'Data frame # rows: {df_length}')
+
+        ## Create Describe table
+        df_val = df.describe(include='all').transpose()
+
+        df_val['IQR'] = df_val['75%'] - df_val['25%']
+        df_val['Lower Fence'] = df_val['25%'] - (1.5 * df_val['IQR'])
+        df_val['Upper Fence'] = df_val['75%'] + (1.5 * df_val['IQR'])
+        df_val['Extreme Upper Fence'] = df_val['75%'] + (3 * df_val['IQR'])
+
+        df_val['Missing Values'] = df_length - df_val['count']
+
+        ## Explore numeric columns
+        df_val['Negative Values'] = 0
+        df_val['Zero Values'] = 0
+        df_val['Lower Outliers'] = 0
+        df_val['Upper Outliers'] = 0
+        df_val['Extreme Upper Outliers'] = 0
+
+        summary_strs: list[str] = []
+        histograms: list[Figure] = []
+        box_plots: list[Figure] = []
+
+        numeric_cols = df.select_dtypes(include='number').columns
+        for col in numeric_cols:
+            print('-'*50)
+            print(f'|{col.center(48)}|')
+            print('-'*50)
+
+            ## Min / Avg / Max
+            mini = df_val.loc[col, 'min']
+            avg = df_val.loc[col, 'mean']
+            maxi = df_val.loc[col, 'max']
+
+            print(f'Min: {mini:,}')
+            print(f'Avg: {avg:,.3f}')
+            print(f'Max: {maxi:,}')
+
+            ## Missing / Negatives / Zeros
+            missing_values = df_val.loc[col, 'Missing Values']
+
+            negative_values = len(df.loc[df[col] < 0, :])
+            df_val.loc[col, 'Negative Values'] = negative_values
+
+            zero_values = len(df.loc[df[col] == 0, :])
+            df_val.loc[col, 'Zero Values'] = zero_values
+
+            print(f'\nMissing: {missing_values:,.0f}')
+            print(f'Negatives: {negative_values:,.0f}')
+            print(f'Zeros: {zero_values:,.0f}')
+
+            ## Outliers
+            lower_fence = df_val.loc[col, 'Lower Fence']
+            upper_fence = df_val.loc[col, 'Upper Fence']
+            extreme_upper_fence = df_val.loc[col, 'Extreme Upper Fence']
+
+            lower_outliers = len(df.loc[df[col] < lower_fence, :])
+            upper_outliers = len(df.loc[df[col] > upper_fence, :])
+            extreme_upper_outliers = len(df.loc[df[col] > extreme_upper_fence, :])
+            
+            df_val.loc[col, 'Lower Outliers'] = lower_outliers
+            df_val.loc[col, 'Upper Outliers'] = upper_outliers
+            df_val.loc[col, 'Extreme Upper Outliers'] = extreme_upper_outliers
+            
+            print(f'\nLower Fence: {lower_fence:,.3f}')
+            print(f'   Outliers: {lower_outliers:,.0f}')
+            print(f'Upper Fence: {upper_fence:,.3f}')
+            print(f'   Outliers: {upper_outliers:,.0f}')
+            print(f'Extreme Upper Fence: {extreme_upper_fence:,.3f}')
+            print(f'   Outliers: {extreme_upper_outliers:,.0f}')
+
+            ## Summary
+            header = f"<h2>{col}</h2>"
+            avgs = f"Min: {mini:,}<br>Avg: {avg:,.3f}<br>Max: {maxi:,}<br>"
+            bad_vals = f"<br>Missing: {missing_values:,.0f}<br>Negatives: {negative_values:,.0f}<br>Zeros: {zero_values:,.0f}<br>"
+            outliers = f"<br>Lower Fence: {lower_fence:,.3f}<br>   Outliers: {lower_outliers:,.0f}<br>Upper Fence: {upper_fence:,.3f}<br>   Outliers: {upper_outliers:,.0f}<br>Extreme Upper Fence: {extreme_upper_fence:,.3f}<br>   Outliers: {extreme_upper_outliers:,.0f}<br>"
+
+            summary_str = header + avgs + bad_vals + outliers
+
+            ## Charts
+            histogram = px.histogram(
+                data_frame=df,
+                x=col,
+                title=f'Distribution: {col}'
+            )
+            histogram.update_layout(yaxis_title='# SKUs')
+
+            box_plot = px.box(
+                data_frame=df,
+                x=group_col,
+                y=col,
+                title=f'Distribution by SKU Class: {col}'
+            )
+
+            summary_strs.append(summary_str)
+            histograms.append(histogram)
+            box_plots.append(box_plot)
+
+
+        ## Export
+        df_val_col_order = ['Missing Values', 'Negative Values',
+        'Zero Values', 'Lower Outliers', 'Upper Outliers',
+        'Extreme Upper Outliers', 'count', 'unique', 'top', 'freq', 'mean', 'std', 'min', '25%', '50%',
+        '75%', 'max', 'IQR', 'Lower Fence', 'Upper Fence',
+        'Extreme Upper Fence']
+        df_val = df_val.reindex(columns=df_val_col_order)
+        
+        with pd.ExcelWriter(f'{OUTPUT_DIR}/description.xlsx') as writer:
+            df_size = df.shape[0] * df.shape[1]
+            if df_size < 100000:
+                df.to_excel(writer, index=False, sheet_name='Original')
+            df_val.to_excel(writer, index=True, sheet_name='Description Sheet')
+
+        with open(f'{OUTPUT_DIR}/distribution charts.html', 'w+') as f:
+            f.write(f'''<!DOCTYPE html>
+                        <html>
+                        <head>
+                        <meta charset="utf-8" />   <!--It is necessary to use the UTF-8 encoding with plotly graphics to get e.g. negative signs to render correctly -->
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        </head>
+
+                        <body>
+                        <h1>{self.project_number} - {project_info.company_name} - {project_info.company_location}</h1>
+                        <p>{file_path}</p>
+                        <br><br>
+                    ''')
+            
+            for i in range(len(summary_strs)):
+                summary_str = summary_strs[i]
+                histogram = histograms[i]
+                box_plot = box_plots[i]
+
+                hist_html = histogram.to_html(full_html=False, include_plotlyjs='cdn')
+                box_html = box_plot.to_html(full_html=False, include_plotlyjs='cdn')
+                
+                f.write(summary_str)
+                f.write(hist_html)
+                f.write(box_html)
+
+            f.write('</body></html>')
+
+        return OUTPUT_DIR
+
     ''' Main Functions - Validation '''
 
     def validate_data_directory(self, data_directory: str, transform_options: TransformOptions) -> DataDirectoryValidation: 
@@ -684,7 +869,7 @@ class DataProfiler:
         # Otherwise, it's valid
         return validation_obj
 
-    ''' Main Function - Read & Cleanse data '''
+    ''' Helper Functions '''
 
     def _read_and_cleanse_uploaded_data_file(self, file_type: UploadFileTypes, file_path: str, log_file: TextIOWrapper) -> tuple[pd.DataFrame, list]:
 
