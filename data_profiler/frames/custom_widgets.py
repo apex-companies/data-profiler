@@ -172,10 +172,7 @@ class DataDescriberColumnSelector(CTkToplevel):
 
     def get_grouping_col(self):
         col = self.grouping_col_dropdown.get_variable_value()
-        if col == 'None':
-            return None
-        else:
-            return col
+        return None if col == 'None' else col
 
     def get_selected_columns(self):
         selected_columns = []
@@ -192,7 +189,7 @@ class DataDescriberColumnSelector(CTkToplevel):
         if len(selected_cols) == 0:
             return False, 'Select at least one column to describe!'
 
-        if grouping_col not in selected_cols:
+        if grouping_col != None and grouping_col not in selected_cols:
             return False, f'Grouping column not in selected columns!'
 
         return True, ''

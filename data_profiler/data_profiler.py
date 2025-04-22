@@ -7,6 +7,7 @@ Main Python class for DataProfiler app logic. This class shouldn't interact dire
 '''
 
 # Python
+from typing import Literal
 import os
 from io import TextIOWrapper
 from time import time
@@ -557,7 +558,7 @@ class DataProfiler:
 
     ''' Main Functions - Other Analysis '''
 
-    def describe_data_frame(self, file_path: str, columns: str, file_type: str = 'csv', sheet_name: str = None, group_col: str = None) -> str:
+    def describe_data_frame(self, file_path: str, columns: str, file_type: Literal['csv', 'xslx'] = 'csv', sheet_name: str = None, group_col: str = None) -> str:
         '''
         A function that describes a data frame. Its goal is to summarize the range of values found in every column and to alert the user to any flaws or errors in the data.
 
@@ -682,11 +683,12 @@ class DataProfiler:
             )
             histogram.update_layout(yaxis_title='# SKUs')
 
+            box_plot_title = f'Distribution by {group_col}: {col}' if group_col else f'Distribution: {col}'
             box_plot = px.box(
                 data_frame=df,
                 x=group_col,
                 y=col,
-                title=f'Distribution by SKU Class: {col}'
+                title=box_plot_title
             )
 
             summary_strs.append(summary_str)
