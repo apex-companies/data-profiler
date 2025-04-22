@@ -13,7 +13,8 @@ pyodbc = "^5.1.0"
 cryptography = "^43.0.1"
 pandas = "^2.2.3"
 openpyxl = "^3.1.5"
-apex-gui = {path = "C:/Users/jack.miller/Documents/Apex/Consulting/apex-gui/dist/apex_gui-1.1.2-py3-none-any.whl"}
+plotly = "^6.0.1"
+apex-gui = {path = "C:/Users/jack.miller/Documents/Apex/Consulting/3 - Source Folders/apex-gui/dist/apex_gui-1.1.3-py3-none-any.whl"}
 
 
 [build-system]

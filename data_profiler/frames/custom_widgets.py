@@ -6,14 +6,17 @@ Oct 2024
 Custom ctk frames for DataProfiler
 '''
 
+from customtkinter import CTkToplevel, CTkLabel
+
 # Data Profiler
 from ..helpers.models.ProjectInfo import BaseProjectInfo
 
 # Apex GUI
-from apex_gui.frames.custom_widgets import EntryWithLabel, TextboxWithLabel
-from apex_gui.frames.styled_widgets import SectionWithScrollbar
+from apex_gui.frames.custom_widgets import EntryWithLabel, TextboxWithLabel, CheckbuttonWithLabel, DropdownWithLabel
+from apex_gui.frames.styled_widgets import SectionWithScrollbar, Frame, PositiveButton
 from apex_gui.helpers.constants import EntryType
-
+from apex_gui.styles.colors import *
+from apex_gui.styles.fonts import SectionSubheaderFont
 
 class ProjectInfoFrame(SectionWithScrollbar):
     '''
@@ -101,3 +104,102 @@ class ProjectInfoFrame(SectionWithScrollbar):
         self.salesperson.clear_input()
         self.start_date.clear_input()
         self.notes.clear_input()
+
+
+class DataDescriberColumnSelector(CTkToplevel):
+    '''
+    Poo
+    '''
+
+    def __init__(self, master, columns: list[str]):
+        super().__init__(master, fg_color=APEX_LIGHT_GRAY)
+
+        self.geometry('800x500')
+        self.title('Data Profiler')
+        
+        self.saved = False
+
+        ''' Widgets '''
+
+        # Parent = self
+        self.header_label = CTkLabel(self, text='Data Describer: Select Columns', font=SectionSubheaderFont())        
+        self.grouping_col_dropdown = DropdownWithLabel(self, 
+                                                        label_text='Select a column for grouping', 
+                                                        dropdown_values=['None'] + columns,
+                                                        default_val='None')
+        self.body = SectionWithScrollbar(self)
+        self.footer = Frame(self)
+        
+        # Parent = body        
+        self.checkbuttons: dict[str, CheckbuttonWithLabel] = {}
+        for column in columns:
+            label = CheckbuttonWithLabel(self.body, label_text=column, default_val=True)
+            self.checkbuttons[column] = label
+
+        # Parent = footer
+        self.action_btns_frame = Frame(self.footer)
+
+        # Parent = btns_frame
+        self.save_btn = PositiveButton(self.action_btns_frame, text='Save', command=self.save_btn_action)
+
+        ''' Grid '''
+
+        # Parent = self
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(2, weight=1)
+
+        self.header_label.grid(row=0, column=0)
+        self.grouping_col_dropdown.grid(row=1, column=0, pady=10)
+        self.body.grid(row=2, column=0, sticky='nsew', padx=20, pady=(0,20))
+        self.footer.grid(row=3, column=0)
+
+        # Parent = body
+        self.body.grid_columnconfigure(0, weight=1)
+
+        row = 1
+        for checkbutton in self.checkbuttons.values():
+            checkbutton.grid(row=row, column=0, pady=10)
+            row += 1
+
+        # Parent = footer
+        self.footer.grid_rowconfigure(0, weight=1)
+        self.footer.grid_columnconfigure(0, weight=1)
+
+        self.action_btns_frame.grid(row=0, column=0, pady=5)
+
+        # Parent = btns_frame
+        self.save_btn.grid(row=0, column=0)
+
+    def get_grouping_col(self):
+        col = self.grouping_col_dropdown.get_variable_value()
+        return None if col == 'None' else col
+
+    def get_selected_columns(self):
+        selected_columns = []
+        for column, label in self.checkbuttons.items():
+            if label.get_value():
+                selected_columns.append(column)
+
+        return selected_columns
+    
+    def validate_inputs(self) -> tuple[bool, str]:
+        grouping_col = self.get_grouping_col()
+        selected_cols = self.get_selected_columns()
+
+        if len(selected_cols) == 0:
+            return False, 'Select at least one column to describe!'
+
+        if grouping_col != None and grouping_col not in selected_cols:
+            return False, f'Grouping column not in selected columns!'
+
+        return True, ''
+
+    def save_btn_action(self):
+        self.set_saved(True)
+        self.destroy()
+
+    def get_saved(self):
+        return self.saved
+    
+    def set_saved(self, saved: bool):
+        self.saved = saved
