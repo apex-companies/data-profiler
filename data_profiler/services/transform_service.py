@@ -737,8 +737,7 @@ class TransformService:
         velocity_ladder = velocity_analysis.copy(deep=True)
 
         # Find %Lines groups
-        velocity_ladder['pct lines'] = velocity_ladder['Lines_RunningSum'] / velocity_ladder['Lines'].sum() 
-        velocity_ladder['%Lines'] = np.ceil(velocity_ladder['pct lines'] / 0.05) * 0.05
+        velocity_ladder['%Lines'] = np.ceil(velocity_ladder['Cum_Pct_Lines'] / 0.05) * 0.05
 
         # Group by %Lines and aggregate
         velocity_ladder = velocity_ladder.groupby('%Lines').agg(SKUs=('SKU', 'nunique'), Lines=('Lines', 'sum'), Units=('Units', 'sum'),
@@ -782,15 +781,15 @@ class TransformService:
         return ''
 
     # Return velocity of SKU by dividing its running sum of lines by total lines
-    def find_velocity(self, rsum_lines, total_lines) -> str:
-        percent_lines = rsum_lines / total_lines
-        if percent_lines <= 0.25:
+    def find_velocity(self, pct_lines, cum_pct_lines) -> str:
+        start_pct_lines = cum_pct_lines - pct_lines
+        if start_pct_lines <= 0.25:
             return 'A'
-        elif percent_lines <= 0.8:
+        elif start_pct_lines <= 0.8:
             return 'B'
-        elif percent_lines <= 0.95:
+        elif start_pct_lines <= 0.95:
             return 'C'
-        elif percent_lines <= 0.99:
+        elif start_pct_lines <= 0.99:
             return 'D'
         else: 
             return 'E'
@@ -801,11 +800,11 @@ class TransformService:
     # @Return: 
     #       pd.DataFrame, columns: SKU, Velocity
     def run_velocity_analysis(self, outbound_df: pd.DataFrame) -> pd.DataFrame:
-        total_lines = len(outbound_df)
 
         velocity_analysis = outbound_df.groupby('SKU').agg(Lines=('SKU', 'size'), Units=('Quantity', 'sum')).sort_values(by='Lines', ascending=False).reset_index()
-        velocity_analysis['Lines_RunningSum'] = velocity_analysis['Lines'].cumsum()
-        velocity_analysis['Velocity'] = velocity_analysis['Lines_RunningSum'].apply(lambda x: self.find_velocity(x, total_lines))
+        velocity_analysis['Pct_Lines'] = velocity_analysis['Lines'] / velocity_analysis['Lines'].sum()
+        velocity_analysis['Cum_Pct_Lines'] = velocity_analysis['Lines'].cumsum() / velocity_analysis['Lines'].sum()
+        velocity_analysis['Velocity'] = velocity_analysis.apply(lambda row: self.find_velocity(row['Pct_Lines'], row['Cum_Pct_Lines']), axis=1)
         
         return velocity_analysis
 
