@@ -29,7 +29,7 @@ DECLARE @DaysOfReceiving INT = (
 
 
 --- The Query ---
-SELECT TOP (10) @ProjectNumber as [Project Number], im.SubWarehouse, COUNT(*) as SKUs, @UOM as [Unit of Measure], 
+SELECT @ProjectNumber as [Project Number], im.SubWarehouse, COUNT(*) as SKUs, @UOM as [Unit of Measure], 
     @DaysOfReceiving as [Days of Receiving], ROUND(SUM(ib_by_sku.[Daily Lines]), 0) as [Daily IB Lines], ROUND(SUM(ib_by_sku.[Daily Qty]), 0) as [Daily IB Qty],
     ROUND(SUM(inv_by_sku.[Avg Inventory]), 0) as [Avg Total Inventory], 
     @DaysActive as [Days Active], ROUND(SUM(ob_by_sku.[Daily Lines]), 0) as [Daily OB Lines], ROUND(SUM(ob_by_sku.[Daily Qty]), 0) as [Daily OB Qty], 
