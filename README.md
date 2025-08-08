@@ -12,6 +12,14 @@
 ![More Actions Page](./documentation/screenshots/more%20actions%20page%20steelite.png)
 
 
+## Contents
+1. [About](#about)
+1. [How to Use](#how-to-use)
+1. [Development](#development)
+1. [Solution Architecture](#solution-architecture)
+1. [customtkinter](#customtkinter)
+1. [File Structure](#file-structure)
+
 ## About
 As mentioned above, *DataProfiler* is essentially a UI for the AAS_Development database, which makes client data accessible to the full suite of Apex Consulting Tools.
 
@@ -83,48 +91,41 @@ app.mainloop()
     .venv (Activated)
     ```
 
-1. Run "app_main.py" from the root directory ("data-profiler") to run  
+1. Navigate to the the root directory ("data-profiler")  
     ```bash
     ~$ cd /path/to/folder/data-profiler
     ```
 
+1. Run the app
     ```bash
     ~$ py -m app_main.py
     ```
 
-## File Structure
+
+## Solution Architecture
+
+![DP Solution Architecture](./documentation/Data%20Profile%20Tool%20-%20Solution%20Architecture%208.8.25.png)
+
+### DataProfilerGUI
+The *DataProfiler* application consists of two main Python classes - `DataProfiler` and `DataProfilerGUI`. The former is the logic hub and the latter (as you could guess in the name) is the user interface (UI).
 
 
-### ./data_profiler
+### DataProfiler
 
 
 
-### ./resources
+### Database Interaction
 
-#### SQL
-Two (almost) identical subfolders: DEV and PROD. DEV queries are used in development mode and interact with `OutputTables_Dev`. PROD queries are used in production mode and interact with `OutputTables_Prod`.
-
-> *IMPORTANT: When creating a new SQL file - such as a pre-made report - or updating an existing file, BE SURE to make the same change to both the DEV and PROD versions.*
-
-SQL folders are organized by query type: select, insert, update, and delete. Pre-made SQL reports read existing data, so they're under the select folder.
-
-#### Icons
-Find other Windows 10-styled icons here  
-https://icons8.com/icons/windows  
-
-Icons in use:   
-https://icons8.com/icon/14910/back-arrow  
-https://icons8.com/icon/16142/add-new  
-https://icons8.com/icon/14098/done  
-https://icons8.com/icon/16255/save  
-https://icons8.com/icon/14237/trash  
-https://icons8.com/icon/14090/upload  
+There are two main hubs of interaction (service) with database: `OutputTablesService` handles general interactions, and `TransformService` exists specifically to transform and insert client data into the database.
 
 
-### ./test data sets
+#### OutputTables Service
 
 
-## Key Classes and Functions
+#### Transform Service
+
+
+### Azure SQL Database
 
 
 ## customtkinter
@@ -167,3 +168,35 @@ Since all the widgets for the home page belong within the one frame `self.home_f
 ![Toggle Grid](./documentation/screenshots/technical/toggle%20grid%20func.png)
 
 All other *DataProfile* pages are structured and manipulated using this general strategy.
+
+
+## File Structure
+
+
+### ./data_profiler
+
+
+
+### ./resources
+
+#### SQL
+Two (almost) identical subfolders: DEV and PROD. DEV queries are used in development mode and interact with `OutputTables_Dev`. PROD queries are used in production mode and interact with `OutputTables_Prod`.
+
+> *IMPORTANT: When creating a new SQL file - such as a pre-made report - or updating an existing file, BE SURE to make the same change to both the DEV and PROD versions.*
+
+SQL folders are organized by query type: select, insert, update, and delete. Pre-made SQL reports read existing data, so they're under the select folder.
+
+#### Icons
+Find other Windows 10-styled icons here  
+https://icons8.com/icons/windows  
+
+Icons in use:   
+https://icons8.com/icon/14910/back-arrow  
+https://icons8.com/icon/16142/add-new  
+https://icons8.com/icon/14098/done  
+https://icons8.com/icon/16255/save  
+https://icons8.com/icon/14237/trash  
+https://icons8.com/icon/14090/upload  
+
+
+### ./test data sets
