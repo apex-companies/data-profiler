@@ -1,9 +1,3 @@
-
-<!-- <h1 style="display: flex; align-items: center">
-    <img src="./resources/Apex-Companies-Logo.gif" alt="drawing" width="150"/>  
-    <em style="padding-left: 10px">DataProfiler</em>
-</h1> -->
-
 ![Apex Logo](./resources/Apex-Companies-Logo.gif)
 
 # *DataProfiler*
@@ -20,9 +14,10 @@
 1. [About](#about)
 1. [How to Use](#how-to-use)
 1. [Development](#development)
-1. [Solution Architecture](#solution-architecture)
-1. [customtkinter](#customtkinter)
+1. [Testing](#testing)
 1. [File Structure](#file-structure)
+1. [Appendix A: Solution Architecture](#appendix-a-solution-architecture)
+1. [Appendix B: customtkinter](#appendix-b-customtkinter)
 
 ## About
 As mentioned above, *DataProfiler* is essentially a UI for the AAS_Development database, which makes client data accessible to the full suite of Apex Consulting Tools.
@@ -54,7 +49,8 @@ It's functionalities generally follow the CRUD pattern - Create, Read, Update, a
 
 ## How to Use
 
-See [DataProfiler SOP](./documentation/DataProfiler%20SOP.md). Available both as Markdown and Word file
+See [DataProfiler SOP](./documentation/DataProfiler%20SOP.md). Available both as Markdown and PDF
+
 
 ## Development
 
@@ -106,33 +102,119 @@ app.mainloop()
     ```
 
 
-## Solution Architecture
+## Testing
+
+Some [rudimentary testing code](./tests/test_data_profiler.py) has been created, but this is an area to develop.
+
+
+
+## File Structure
+
+
+### ./data_profiler
+
+Root contains the two main classes - `DataProfiler` and `DataProfilerGUI`
+
+#### database
+
+***constants.py*** This application doesn't use an ORM (object-relational mapper) so these constants basically play that role. Super important that the lists of tables / columns are accurate to the database.
+
+***database_manager.py*** Contains `DatabaseConnection`, which connects grabs our connection string and connects to our database and returns a `Connection` object. Also very important. 
+
+#### frames
+
+***custom_widgets.py*** Contains various custom frames for the GUI
+
+#### helpers
+
+What it sounds like
+
+***constants/data_file_constants.py*** Plays the other half of the ORM role. Makes sure incoming data files are structured with the correct columns and data types.
+
+***constants/app_constants.py*** Relatively few app-level constants, but you're gonna want to make sure that the file path constants are correct.
+
+***models/*** Contains the pydantic models that `DataProfiler` and `DataProfilerGUI` use to talk with each other.
+
+#### services
+
+Contain the services. See [below](#database-interaction)
+
+### ./resources
+
+#### SQL
+Two (almost) identical subfolders: DEV and PROD. DEV queries are used in development mode and interact with `OutputTables_Dev`. PROD queries are used in production mode and interact with `OutputTables_Prod`.
+
+> *IMPORTANT: When creating a new SQL file - such as a pre-made report - or updating an existing file, BE SURE to make the same change to both the DEV and PROD versions.*
+
+SQL folders are organized by query type: select, insert, update, and delete. Pre-made SQL reports read existing data, so they're under the select folder.
+
+#### Icons
+Find other Windows 10-styled icons here  
+https://icons8.com/icons/windows  
+
+Icons in use:   
+https://icons8.com/icon/14910/back-arrow  
+https://icons8.com/icon/16142/add-new  
+https://icons8.com/icon/14098/done  
+https://icons8.com/icon/16255/save  
+https://icons8.com/icon/14237/trash  
+https://icons8.com/icon/14090/upload  
+
+
+
+## Appendix A: Solution Architecture
 
 ![DP Solution Architecture](./documentation/Data%20Profile%20Tool%20-%20Solution%20Architecture%208.8.25.png)
 
+
 ### DataProfilerGUI
-The *DataProfiler* application consists of two main Python classes - `DataProfiler` and `DataProfilerGUI`. The former is the logic hub and the latter (as you could guess in the name) is the user interface (UI).
+File Location: [data_profiler_gui.py](./data_profiler/data_profiler_gui.py)
+
+As the graphical user interface (GUI) of the application, `DataProfilerGUI` provides service to the user (aka client). Taking input from the user, it interprets their requests and presents them to the backend server (business logic, database, etc.) on their behalf, returning any pertinent information.
+
+`DataProfilerGUI` is built on customtkinter, which you can read more about [below](#appendix-b-customtkinter). It often communicates with the "server" (`DataProfiler`) using pydantic data models, which essentially let you create your own data types. Learn about pydantic [here](https://docs.pydantic.dev/latest/).  
 
 
 ### DataProfiler
+File Location: [data_profiler.py](./data_profiler/data_profiler.py)
 
+As the "API Layer" of the application, `DataProfiler` takes requests from the client, delegates tasks to further layers, such as the database services or other logic hubs, and returns a response. Since this is not a web application, its "APIs" are not http routes but simply Python class methods.
+
+`DataProfiler` responds to requests of the CRUD order - create, read, update, and delete. It also contains some miscellaneous logic - such as "Data Describer", which it also contains the endpoint for - as well as some internal helper functions.
 
 
 ### Database Interaction
 
-There are two main hubs of interaction (service) with database: `OutputTablesService` handles general interactions, and `TransformService` exists specifically to transform and insert client data into the database.
-
+Two main hubs make up the application layer of *DataProfiler*, and both provide interaction (service) with database. 
 
 #### OutputTables Service
+File Location: [output_tables_service.py](./data_profiler/services/output_tables_service.py)  
+
+`OutputTablesService` provides general service to the *OutputTables* schema of the AAS_Development database. Get info for a project, a list of project numbers, download a pre-made SQL report, and more with this service.
 
 
 #### Transform Service
+File Location: [transform_service.py](./data_profiler/services/transform_service.py)  
 
+`TransformService` exists specifically to handle the upload (insert) of a new client dataset into the database. It contains class methods which create each of the tables in the *OutputTables* schema, a method which inserts a dataframe given a SQL insert query, and one main method which orchestrates the whole process. 
+
+#### Usage
+Due to the API-like nature of `DataProfiler`, both `OutputTablesService` and `TransformService` are designed for one-time use and are thus work well inside the Python "with" clause. The below example shows an optimal pattern for using these services. 
+
+```python
+project_info = BaseProjectInfo()
+with OutputTablesService(dev=self.dev) as service:
+    result = service.insert_new_project_to_project_table(project_info=project_info)
+
+```
 
 ### Azure SQL Database
 
+Check out [this lucid](https://lucid.app/lucidchart/1f2f04c0-6471-45e9-b123-f90a8523b9ba/edit?invitationId=inv_4aea5ff1-27ba-4e32-a10e-73449b3db657&page=u_SS~BOWu2-C#).
 
-## customtkinter
+
+
+## Appendix B: customtkinter
 
 This app - like other Apex apps - makes heavy use of the Python UI library customtkinter. Based on the classic library Tkinter, customtkinter provides more modern and customizable widgets.
 
@@ -174,33 +256,3 @@ Since all the widgets for the home page belong within the one frame `self.home_f
 All other *DataProfile* pages are structured and manipulated using this general strategy.
 
 
-## File Structure
-
-
-### ./data_profiler
-
-
-
-### ./resources
-
-#### SQL
-Two (almost) identical subfolders: DEV and PROD. DEV queries are used in development mode and interact with `OutputTables_Dev`. PROD queries are used in production mode and interact with `OutputTables_Prod`.
-
-> *IMPORTANT: When creating a new SQL file - such as a pre-made report - or updating an existing file, BE SURE to make the same change to both the DEV and PROD versions.*
-
-SQL folders are organized by query type: select, insert, update, and delete. Pre-made SQL reports read existing data, so they're under the select folder.
-
-#### Icons
-Find other Windows 10-styled icons here  
-https://icons8.com/icons/windows  
-
-Icons in use:   
-https://icons8.com/icon/14910/back-arrow  
-https://icons8.com/icon/16142/add-new  
-https://icons8.com/icon/14098/done  
-https://icons8.com/icon/16255/save  
-https://icons8.com/icon/14237/trash  
-https://icons8.com/icon/14090/upload  
-
-
-### ./test data sets

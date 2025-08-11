@@ -1,4 +1,5 @@
-# *DataProfiler* Standard Operating Procedure
+# *DataProfiler* SOP
+
 
 ## About
 
@@ -8,7 +9,7 @@
 
 ### Data directory 
 
-a folder with client data files. The folder should contain ALL files the user wishes to upload. See below for naming conventions:  
+A folder with client data files. The folder should contain ALL files the user wishes to upload. See below for naming conventions:  
 
 ```   
 ItemMaster.csv  
