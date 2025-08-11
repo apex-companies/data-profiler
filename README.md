@@ -4,14 +4,9 @@
     <em style="padding-left: 10px">DataProfiler</em>
 </h1> -->
 
-<div style="border-bottom: 0.5px solid; display: flex; flex-direction: row; align-items: center">
-    <img src="./resources/Apex-Companies-Logo.gif" alt="drawing" width="150"/>  
-    <span style="font-size: 2em; font-weight: bold;">
-        <em style="padding-left: 10px">DataProfiler</em>
-    </span>
-</div>
+![Apex Logo](./resources/Apex-Companies-Logo.gif)
 
-<br><br>
+# *DataProfiler*
 
 *DataProfiler* is the "home base" of data analysis for Apex Consulting. It is essentially a user interface (UI) for the AAS_Development database; its main function is to upload client data to the database, at which point the data can be used for a variety of purposes, the most notable of which being the Data Profile Report.
 
