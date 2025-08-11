@@ -1,8 +1,17 @@
 
-<h1 style="display: flex; align-items: center">
+<!-- <h1 style="display: flex; align-items: center">
     <img src="./resources/Apex-Companies-Logo.gif" alt="drawing" width="150"/>  
     <em style="padding-left: 10px">DataProfiler</em>
-</h1>
+</h1> -->
+
+<div style="border-bottom: 0.5px solid; display: flex; flex-direction: row; align-items: center">
+    <img src="./resources/Apex-Companies-Logo.gif" alt="drawing" width="150"/>  
+    <span style="font-size: 2em; font-weight: bold;">
+        <em style="padding-left: 10px">DataProfiler</em>
+    </span>
+</div>
+
+<br><br>
 
 *DataProfiler* is the "home base" of data analysis for Apex Consulting. It is essentially a user interface (UI) for the AAS_Development database; its main function is to upload client data to the database, at which point the data can be used for a variety of purposes, the most notable of which being the Data Profile Report.
 
@@ -78,25 +87,25 @@ app.mainloop()
 
 
 #### Steps to Run Locally
-1. Connect to Apex Azure VPN, if not in office
+1. Connect to Apex Azure VPN, if not in office  
 
-1. Activate virtual environment
+1. Activate virtual environment  
     ```bash
     ~$ source .venv/Scripts/activate
     ```
 
-    Verify environment is activated
+    Verify environment is activated  
     ```bash
     ~$ poetry env list
     .venv (Activated)
     ```
 
-1. Navigate to the the root directory ("data-profiler")  
+1. Navigate to the the root directory ("data-profiler")   
     ```bash
     ~$ cd /path/to/folder/data-profiler
     ```
 
-1. Run the app
+1. Run the app  
     ```bash
     ~$ py -m app_main.py
     ```
