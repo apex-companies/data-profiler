@@ -110,8 +110,55 @@ Some [rudimentary testing code](./tests/test_data_profiler.py) has been created,
 
 ## File Structure
 
+### ./resources
+
+#### SQL
+Two (almost) identical subfolders: DEV and PROD. DEV queries are used in development mode and interact with `OutputTables_Dev`. PROD queries are used in production mode and interact with `OutputTables_Prod`.
+
+> *IMPORTANT: When creating a new SQL file - such as a pre-made report - or updating an existing file, BE SURE to make the same change to both the DEV and PROD versions.*
+
+SQL folders are organized by query type: select, insert, update, and delete. Pre-made SQL reports read existing data, so they're under the select folder.
+
+#### Icons
+Find other Windows 10-styled icons here  
+https://icons8.com/icons/windows  
+
+Icons in use:   
+https://icons8.com/icon/14910/back-arrow  
+https://icons8.com/icon/16142/add-new  
+https://icons8.com/icon/14098/done  
+https://icons8.com/icon/16255/save  
+https://icons8.com/icon/14237/trash  
+https://icons8.com/icon/14090/upload  
+
 
 ### ./data_profiler
+
+    data_profiler
+    ├── data_profiler.py
+    ├── data_profiler_gui.py
+    ├── database
+    │   ├── database_manager.py
+    │   └── helpers
+    │       ├── constants.py
+    │       └── functions.py
+    ├── frames
+    │   └── custom_widgets.py
+    ├── helpers
+    │   ├── constants
+    │   │   ├── app_constants.py
+    │   │   └── data_file_constants.py
+    │   ├── functions
+    │   │   └── functions.py
+    │   └── models
+    │       ├── DataFiles.py
+    │       ├── GeneralModels.py
+    │       ├── ProjectInfo.py
+    │       ├── Responses.py
+    │       └── TransformOptions.py
+    └── services
+        ├── output_tables_service.py
+        └── transform_service.py
 
 Root contains the two main classes - `DataProfiler` and `DataProfilerGUI`
 
@@ -138,28 +185,6 @@ What it sounds like
 #### services
 
 Contain the services. See [below](#database-interaction)
-
-### ./resources
-
-#### SQL
-Two (almost) identical subfolders: DEV and PROD. DEV queries are used in development mode and interact with `OutputTables_Dev`. PROD queries are used in production mode and interact with `OutputTables_Prod`.
-
-> *IMPORTANT: When creating a new SQL file - such as a pre-made report - or updating an existing file, BE SURE to make the same change to both the DEV and PROD versions.*
-
-SQL folders are organized by query type: select, insert, update, and delete. Pre-made SQL reports read existing data, so they're under the select folder.
-
-#### Icons
-Find other Windows 10-styled icons here  
-https://icons8.com/icons/windows  
-
-Icons in use:   
-https://icons8.com/icon/14910/back-arrow  
-https://icons8.com/icon/16142/add-new  
-https://icons8.com/icon/14098/done  
-https://icons8.com/icon/16255/save  
-https://icons8.com/icon/14237/trash  
-https://icons8.com/icon/14090/upload  
-
 
 
 ## Appendix A: Solution Architecture
