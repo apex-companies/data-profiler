@@ -24,6 +24,7 @@ class UploadFileTypes(str, Enum):
     ORDER_HEADER = 'OrderHeader'
     ORDER_DETAILS = 'OrderDetails'
     SUBWHSE_UPDATE = 'SubwhseUpdate'
+    ITEM_MASTER_UPDATE = 'ItemMasterUpdate'
 
 class OtherFileTypes(str, Enum):
     SUBWHSE_UPDATE = 'SubwhseUpdate'
@@ -48,6 +49,7 @@ class FileValidation(BaseModel):
     is_present: bool = True
     is_valid: bool = True
     missing_columns: list = []
+    invalid_columns: list = []
 
 
 class DataDirectoryValidation(BaseModel):

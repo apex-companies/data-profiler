@@ -29,14 +29,14 @@ from .helpers.models.TransformOptions import TransformOptions
 from .helpers.models.Responses import DBWriteResponse, TransformResponse, DeleteResponse, DBDownloadResponse
 from .helpers.models.DataFiles import DataDirectoryValidation, FileValidation, UploadFileTypes, UploadedFilePaths
 from .helpers.models.GeneralModels import DownloadDataOptions, UnitOfMeasure
-from .helpers.constants.data_file_constants import UPLOADS_REQUIRED_COLUMNS_MAPPER, UPLOADS_REQUIRED_DTYPES_MAPPER,\
+from .helpers.constants.data_file_constants import FILE_TYPES_COLUMNS_MAPPER, FILE_TYPES_DTYPES_MAPPER,\
     DTYPES_DEFAULT_VALUES, DIRECTORY_ERROR_DOES_NOT_EXIST, FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS,\
     FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS, FILE_ERROR_INVENTORY_MISSING_COLUMNS, FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS,\
     FILE_ERROR_MISSING_ITEM_MASTER, FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS, FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS,\
     FILE_ERROR_MISSING_INVENTORY, FILE_ERROR_MISSING_INBOUND_HEADER, FILE_ERROR_MISSING_INBOUND_DETAILS,\
     FILE_ERROR_MISSING_OUTBOUND_HEADER, FILE_ERROR_MISSING_OUTBOUND_DETAILS
-from .helpers.functions.functions import file_path_is_valid_data_frame, data_frame_is_empty, validate_csv_column_names,\
-    validate_primary_keys, check_mismatching_primary_key_values
+from .helpers.functions.functions import file_path_is_valid_data_frame, data_frame_is_empty, csv_missing_column_names,\
+    csv_invalid_column_names, validate_primary_keys, check_mismatching_primary_key_values
 
 from .services.output_tables_service import OutputTablesService
 from .services.transform_service import TransformService
@@ -255,6 +255,67 @@ class DataProfiler:
         self.refresh_project_info()
 
         return response
+    
+    def update_item_master(self, file_path: str) -> DBWriteResponse:
+        '''
+        Update SKUs  in Item Master with a CSV of valid item master columns
+
+        Params
+        ------
+        file_path : str
+            location of a file with valid item master columns. required cols = [ SKU ]
+
+        Return
+        ------
+        DBWriteResponse
+        '''
+
+        if not self.get_project_exists():
+            raise ValueError('Project does not yet exist')
+                
+        project_info = self.get_project_info()
+
+        if not project_info.data_uploaded:
+            raise ValueError('Project does not have any associated data. Upload some data first!')
+        
+        # Validate given file
+        validation_obj = self._validate_file(file_type=UploadFileTypes.ITEM_MASTER_UPDATE, file_path=file_path, required_columns=['SKU'], valid_columns=FILE_TYPES_COLUMNS_MAPPER['ItemMaster'])
+
+        if not validation_obj.is_valid:
+            if not validation_obj.is_present:
+                raise FileNotFoundError(f'UPDATING ITEM MASTER: Error: given file "{file_path}" does not exist. Please choose a valid file! Quitting.')
+            elif len(validation_obj.missing_columns) > 0:
+                raise ValueError(f'UPDATING ITEM MASTER: Error: given file "{file_path}" does is missing columns. Quitting.\n\n{", ".join(validation_obj.missing_columns)}')
+            elif len(validation_obj.invalid_columns) > 0:
+                raise ValueError(f'UPDATING ITEM MASTER: Error: given file "{file_path}" has some invalid columns. ONLY provide valid Item Master columns. Quitting.\n\n{", ".join(validation_obj.invalid_columns)}')
+            else:
+                raise ValueError(f'UPDATING ITEM MASTER: Error: given file "{file_path}" is not valid. Please provide a valid data set. Quitting.')
+
+        # Read file
+        # update_item_master_data_frame = pd.read_csv(file_path, dtype={'SKU': 'object', 'Subwarehouse': 'object'})
+        df, errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.ITEM_MASTER, file_path=uploaded_files.item_master, log_file=log_file)
+        print(df.head())
+        print(f'Errors reading item master: {", ".join(errors_list)}')
+        if (len(errors_list) > 0):
+            valid_data = False
+            # master_errors_dict[UploadFileTypes.ITEM_MASTER.value] = item_master_errors_list
+
+        response = DBWriteResponse()
+        try:
+            with OutputTablesService(dev=self.dev) as service:
+                response.rows_affected = service.update_subwarehouse_in_item_master(project_info.project_number, data_frame=updated_subwhse_data_frame)
+
+                if response.rows_affected > 0:
+                    response.success = True
+
+        except pyodbc.DatabaseError as e:
+            response.success = False
+            response.error_message = e
+
+        self.refresh_project_info()
+
+        return response
+        
 
     def transform_and_upload_data(self, data_directory: str, transform_options: TransformOptions) -> TransformResponse:
         if not self.get_project_exists():
@@ -836,11 +897,11 @@ class DataProfiler:
     
     def _validate_upload_file(self, data_directory: str, file_type: UploadFileTypes) -> FileValidation:
         file_path = f'{data_directory}/{file_type.value}.csv'
-        required_columns = UPLOADS_REQUIRED_COLUMNS_MAPPER[file_type.value]
+        required_columns = FILE_TYPES_COLUMNS_MAPPER[file_type.value]
 
         return self._validate_file(file_type=file_type, file_path=file_path, required_columns=required_columns)
 
-    def _validate_file(self, file_type: UploadFileTypes, file_path: str, required_columns: list) -> FileValidation:
+    def _validate_file(self, file_type: UploadFileTypes, file_path: str, required_columns: list, valid_columns: list = None) -> FileValidation:
         validation_obj = FileValidation(file_type=file_type, file_path=file_path)
 
         # Is it present?
@@ -852,16 +913,25 @@ class DataProfiler:
         else:
             validation_obj.is_present = True
 
-        # Is it valid?
+        # Is it a data frame?
         if not file_path_is_valid_data_frame(validation_obj.file_path):
             validation_obj.is_valid = False
             return validation_obj
         
-        missing_cols = validate_csv_column_names(file_path=validation_obj.file_path, columns=required_columns)
+        # Does it have all required columns?
+        missing_cols = csv_missing_column_names(file_path=validation_obj.file_path, columns=required_columns)
         if missing_cols:
             validation_obj.is_valid = False
             validation_obj.missing_columns = missing_cols
             return validation_obj
+
+        # Does it have any columns it ain't supposed to?
+        if valid_columns:
+            invalid_cols = csv_invalid_column_names(file_path=validation_obj.file_path, valid_cols=valid_columns)
+            if invalid_cols:
+                validation_obj.is_valid = False
+                validation_obj.invalid_columns = invalid_cols
+                return validation_obj
 
         # Is dataframe empty?
         if data_frame_is_empty(file_path=validation_obj.file_path):     # Empty = headers present but no row data
@@ -873,7 +943,7 @@ class DataProfiler:
 
     ''' Helper Functions '''
 
-    def _read_and_cleanse_uploaded_data_file(self, file_type: UploadFileTypes, file_path: str, log_file: TextIOWrapper) -> tuple[pd.DataFrame, list]:
+    def _read_and_cleanse_uploaded_data_file(self, file_type: UploadFileTypes, file_path: str, log_file: TextIOWrapper = None) -> tuple[pd.DataFrame, list]:
 
         ''' 
         Reads given file and returns a cleansed dataframe. Converts column types to match database and re-order columns. Finds type errors now before attempting DB transactions.
@@ -883,16 +953,19 @@ class DataProfiler:
         pd.DataFrame
         '''
 
-        log_file.write(f'Reading {file_type.value}\n')
+        if log_file: log_file.write(f'Reading {file_type.value}\n')
 
-        dtypes = UPLOADS_REQUIRED_DTYPES_MAPPER[file_type.value]
+        dtypes = FILE_TYPES_DTYPES_MAPPER[file_type.value]
 
         df = pd.read_csv(file_path)
-        log_file.write(f'Shape: {df.shape}\n')
+        if log_file: log_file.write(f'Shape: {df.shape}\n')
 
         errors_encountered = 0
         errors_list = []
         for col, dtype in dtypes.items():
+            if not col in df.columns:
+                continue
+
             try:
                 rows_to_fill = 0
                 default_val = DTYPES_DEFAULT_VALUES[dtype]
@@ -910,25 +983,25 @@ class DataProfiler:
                 df[col] = df[col].replace(to_replace=math.nan, value=default_val)
                 
                 if rows_to_fill > 0:
-                    log_file.write(f'{col} - replacing erroneous cells with default value "{default_val}" to {rows_to_fill} rows\n')
+                    if log_file: log_file.write(f'{col} - replacing erroneous cells with default value "{default_val}" to {rows_to_fill} rows\n')
 
             except Exception as e:
-                log_file.write(f'ERROR - Could not convert field "{col}" to correct type {dtype}: {e}\n')
+                if log_file: log_file.write(f'ERROR - Could not convert field "{col}" to correct type {dtype}: {e}\n')
                 print(f'ERROR converting field "{col}" to correct type: {e}\n')
                 errors_list.append(e)
                 errors_encountered += 1
 
         if errors_encountered > 0:
-            log_file.write(f'{errors_encountered} error(s) encountered converting to correct dtypes.\n\n')
+            if log_file: log_file.write(f'{errors_encountered} error(s) encountered converting to correct dtypes.\n\n')
             print(f'{errors_encountered} error(s) encountered converting to correct dtypes. Quitting before DB insertion.')
         else:
-            log_file.write(f'Dtype conversions successful.\n\n')
+            if log_file: log_file.write(f'Dtype conversions successful.\n\n')
             print(f'Dtype conversions successful.')
 
         # Reindex for consistent column order
         df = df.reindex(columns=dtypes.keys())
 
-        log_file.flush()
+        if log_file: log_file.flush()
         
         return df, errors_list
 

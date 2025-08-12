@@ -28,7 +28,7 @@ def data_frame_is_empty(file_path: str) -> bool:
     return (len(df) == 0)
 
 # Takes name of CSV file and list of required columns and returns list of missing columns
-def validate_csv_column_names(file_path, columns):
+def csv_missing_column_names(file_path, columns):
     given_cols = []
     with open(file_path, 'r+') as f:
         given_cols = f.readline().strip().split(',')
@@ -39,6 +39,19 @@ def validate_csv_column_names(file_path, columns):
             missing_cols.append(col)
 
     return missing_cols
+
+# Takes name of CSV files and list of valid columns and returns list of columns that are not valid
+def csv_invalid_column_names(file_path, valid_cols: list) -> list:
+    given_cols = []
+    with open(file_path, 'r+') as f:
+        given_cols = f.readline().strip().split(',')
+
+    invalid_cols = []
+    for col in given_cols:
+        if col not in valid_cols:
+            invalid_cols.append(col)
+
+    return invalid_cols
 
 # Given a list of primary keys, this returns a list of keys that are invalid (a Falsy value)
 def validate_primary_keys(pk_list: list) -> list[str]:
