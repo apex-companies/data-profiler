@@ -9,10 +9,10 @@ Python constants relating to input/upload files for DataProfiler
 
 ''' Required Columns '''
 
-ITEM_MASTER_UPLOAD_REQUIRED_COLS = ['SKU','SKUDescription','SKUClass','UnitOfMeasure','EachLength','EachWidth','EachHeight','EachWeight','InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight','CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Conveyable','Subwarehouse','AllowToPickPallet','AllowToPickCarton','AllowToPickInnerPacks','AllowToPickUnits']
+ITEM_MASTER_UPLOAD_REQUIRED_COLS = ['SKU','SKUDescription','SKUClass','ProductLine', 'UnitOfMeasure','EachLength','EachWidth','EachHeight','EachWeight','InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight','CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Conveyable','Subwarehouse','AllowToPickPallet','AllowToPickCarton','AllowToPickInnerPacks','AllowToPickUnits']
 INBOUND_HEADER_UPLOAD_REQUIRED_COLS = ['PO_Number', 'ArrivalDate', 'ArrivalTime', 'ExpectedDate', 'ExpectedTime', 'Carrier', 'Mode', 'ShipmentNumber', 'UnloadType']
 INBOUND_DETAILS_UPLOAD_REQUIRED_COLS = ['PO_Number', 'SKU', 'UnitOfMeasure', 'Quantity', 'VendorID', 'SourcePoint']
-INVENTORY_UPLOAD_REQUIRED_COLS = ['Period','SKU','Quantity','UnitOfMeasure','Location','Lot','Subwarehouse']
+INVENTORY_UPLOAD_REQUIRED_COLS = ['Period','SKU','Quantity','UnitOfMeasure','Location','Lot', 'LPN', 'Subwarehouse']
 ORDER_HEADER_UPLOAD_REQUIRED_COLS = ['OrderNumber','ReceivedDate','PickDate','ShipDate','Channel']
 ORDER_DETAILS_UPLOAD_REQUIRED_COLS = ['OrderNumber','SKU', 'UnitOfMeasure', 'PickType', 'Quantity', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier']
 
@@ -32,6 +32,7 @@ ITEM_MASTER_UPLOAD_REQUIRED_DTYPES = {
     'SKU':'object',
     'SKUDescription':'object',
     'SKUClass':'object',
+    'ProductLine':'object',
     'UnitOfMeasure':'object',
     'EachLength':'float64',
     'EachWidth':'float64',
@@ -86,6 +87,7 @@ INVENTORY_UPLOAD_REQUIRED_DTYPES = {
     'UnitOfMeasure':'object',
     'Location': 'object',
     'Lot': 'object',
+    'LPN': 'object',
     'Subwarehouse': 'object'
 }
 

@@ -1,6 +1,7 @@
 SELECT [SKU]
     ,[SKUDescription]
     ,[SKUClass]
+    ,[ProductLine]
     ,[Subwarehouse]
     ,[UnitOfMeasure]
     ,[Velocity]

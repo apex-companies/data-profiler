@@ -7,6 +7,7 @@ INSERT INTO [OutputTables_Dev].[InventoryData] ([Period]
       ,[ExistsInInbound]
       ,[Location]
       ,[Lot]
+      ,[LPN]
       ,[LineCube]
       ,[LineWeight])
-VALUES (?,?,?,?,?,?,?,?,?,?,?);
+VALUES (?,?,?,?,?,?,?,?,?,?,?,?);

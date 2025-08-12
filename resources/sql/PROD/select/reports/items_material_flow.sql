@@ -28,7 +28,7 @@ DECLARE @DaysOfReceiving INT = (
 );
 
 --- The Query ---
-SELECT @ProjectNumber as [Project Number], im.SKU, im.SKUDescription, im.SKUClass, im.Velocity, @UOM as [Unit of Measure], 
+SELECT @ProjectNumber as [Project Number], im.SKU, im.SKUDescription, im.SKUClass, im.ProductLine, im.Velocity, @UOM as [Unit of Measure], 
     @DaysOfReceiving as [Days of Receiving], ROUND(ib_by_sku.Qty / @DaysOfReceiving, 2) as [IB Qty per Day], ib_by_sku.Qty as [Total IB Qty],
     inv_by_sku.[Avg Inventory], inv_by_sku.[Max Inventory], 
     @DaysActive as [Active Days], ROUND(ob_by_sku.Qty / @DaysActive, 2) as [OB Qty per Day], ob_by_sku.Qty as [Total OB Qty]
