@@ -35,8 +35,8 @@ from .helpers.constants.data_file_constants import FILE_TYPES_COLUMNS_MAPPER, FI
     FILE_ERROR_MISSING_ITEM_MASTER, FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS, FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS,\
     FILE_ERROR_MISSING_INVENTORY, FILE_ERROR_MISSING_INBOUND_HEADER, FILE_ERROR_MISSING_INBOUND_DETAILS,\
     FILE_ERROR_MISSING_OUTBOUND_HEADER, FILE_ERROR_MISSING_OUTBOUND_DETAILS
-from .helpers.functions.functions import file_path_is_valid_data_frame, data_frame_is_empty, csv_missing_column_names,\
-    csv_invalid_column_names, validate_primary_keys, check_mismatching_primary_key_values
+from .helpers.functions.functions import file_path_is_valid_data_frame, data_frame_is_empty, csv_given_columns, missing_column_names,\
+    invalid_column_names, validate_primary_keys, check_mismatching_primary_key_values
 
 from .services.output_tables_service import OutputTablesService
 from .services.transform_service import TransformService
@@ -204,61 +204,9 @@ class DataProfiler:
 
         return 
     
-    def update_subwhse_in_item_master(self, file_path: str) -> DBWriteResponse:
+    def update_item_master(self, file_path: str, update_progress_text_func: callable = None) -> DBWriteResponse:
         '''
-        Update Subwarehouse in Item Master for given SKUs
-
-        Params
-        ------
-        file_path : str
-            location of a file with columns = ['SKU', 'Subwarehouse']
-
-        Return
-        ------
-        DBWriteResponse
-        '''
-
-        if not self.get_project_exists():
-            raise ValueError('Project does not yet exist')
-                
-        project_info = self.get_project_info()
-
-        if not project_info.data_uploaded:
-            raise ValueError('Project does not have any associated data. Upload some data first!')
-        
-        # Validate given file
-        validation_obj = self._validate_file(file_type=UploadFileTypes.SUBWHSE_UPDATE, file_path=file_path, required_columns=['SKU', 'Subwarehouse'])
-
-        if not validation_obj.is_valid:
-            if not validation_obj.is_present:
-                raise FileNotFoundError(f'UPDATING SUBWAREHOUSE: Error: given file "{file_path}" does not exist. Please choose a valid file! Quitting.')
-            elif len(validation_obj.missing_columns) > 0:
-                raise ValueError(f'UPDATING SUBWAREHOUSE: Error: given file "{file_path}" does is missing columns. Quitting.\n\n{", ".join(validation_obj.missing_columns)}')
-            else:
-                raise ValueError(f'UPDATING SUBWAREHOUSE: Error: given file "{file_path}" is not valid. Please provide a valid data set. Quitting.')
-
-        # Read file
-        updated_subwhse_data_frame = pd.read_csv(file_path, dtype={'SKU': 'object', 'Subwarehouse': 'object'})
-
-        response = DBWriteResponse()
-        try:
-            with OutputTablesService(dev=self.dev) as service:
-                response.rows_affected = service.update_subwarehouse_in_item_master(project_info.project_number, data_frame=updated_subwhse_data_frame)
-
-                if response.rows_affected > 0:
-                    response.success = True
-
-        except pyodbc.DatabaseError as e:
-            response.success = False
-            response.error_message = e
-
-        self.refresh_project_info()
-
-        return response
-    
-    def update_item_master(self, file_path: str) -> DBWriteResponse:
-        '''
-        Update SKUs  in Item Master with a CSV of valid item master columns
+        Update SKUs in Item Master with a CSV of valid item master columns
 
         Params
         ------
@@ -270,6 +218,9 @@ class DataProfiler:
         DBWriteResponse
         '''
 
+        response = DBWriteResponse()
+
+        ## Validate inputs
         if not self.get_project_exists():
             raise ValueError('Project does not yet exist')
                 
@@ -279,38 +230,68 @@ class DataProfiler:
             raise ValueError('Project does not have any associated data. Upload some data first!')
         
         # Validate given file
+        if update_progress_text_func: update_progress_text_func('Validating file upload...')
         validation_obj = self._validate_file(file_type=UploadFileTypes.ITEM_MASTER_UPDATE, file_path=file_path, required_columns=['SKU'], valid_columns=FILE_TYPES_COLUMNS_MAPPER['ItemMaster'])
 
         if not validation_obj.is_valid:
+            response.success = False
+
             if not validation_obj.is_present:
-                raise FileNotFoundError(f'UPDATING ITEM MASTER: Error: given file "{file_path}" does not exist. Please choose a valid file! Quitting.')
+                response.message = f'Given file "{file_path}" does not exist. Please choose a valid file! Quitting.'
             elif len(validation_obj.missing_columns) > 0:
-                raise ValueError(f'UPDATING ITEM MASTER: Error: given file "{file_path}" does is missing columns. Quitting.\n\n{", ".join(validation_obj.missing_columns)}')
+                response.message = f'Given file "{file_path}" does is missing columns. Quitting.\n\nMissing columns: [{", ".join(validation_obj.missing_columns)}]\n\nGiven columns: [{", ".join(validation_obj.given_columns)}]'
             elif len(validation_obj.invalid_columns) > 0:
-                raise ValueError(f'UPDATING ITEM MASTER: Error: given file "{file_path}" has some invalid columns. ONLY provide valid Item Master columns. Quitting.\n\n{", ".join(validation_obj.invalid_columns)}')
+                response.message = f'Given file "{file_path}" has some invalid columns. ONLY provide valid Item Master columns. Quitting.\n\nInvalid columns: {", ".join(validation_obj.invalid_columns)}'
             else:
-                raise ValueError(f'UPDATING ITEM MASTER: Error: given file "{file_path}" is not valid. Please provide a valid data set. Quitting.')
+                response.message = f'Given file "{file_path}" is not valid. Please provide a valid data set. Quitting.'
+
+            return response
+        
+        ## Update item master
 
         # Read file
-        # update_item_master_data_frame = pd.read_csv(file_path, dtype={'SKU': 'object', 'Subwarehouse': 'object'})
-        df, errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.ITEM_MASTER, file_path=uploaded_files.item_master, log_file=log_file)
+        if update_progress_text_func: update_progress_text_func('Reading file...')
+        df, errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.ITEM_MASTER, file_path=file_path)
+        if len(errors_list) > 0:
+            print(f'Errors reading item master: {", ".join(errors_list)}')
+            response.success = False
+            response.message = f'Encountered some errors while reading file: {", ".join(errors_list)}'
+            return response
+        else:
+            # Shave df back down to original columns
+            # NOTE: _read_and_cleanse_uploaded_data_file return dfs with all item master columns and NaNs filled for columns not given
+            df = df[validation_obj.given_columns]
+        
         print(df.head())
-        print(f'Errors reading item master: {", ".join(errors_list)}')
-        if (len(errors_list) > 0):
-            valid_data = False
-            # master_errors_dict[UploadFileTypes.ITEM_MASTER.value] = item_master_errors_list
 
-        response = DBWriteResponse()
+        # Persist
         try:
             with OutputTablesService(dev=self.dev) as service:
-                response.rows_affected = service.update_subwarehouse_in_item_master(project_info.project_number, data_frame=updated_subwhse_data_frame)
+                if update_progress_text_func: update_progress_text_func('Validating SKUs...')
+                # Get list of SKUs and drop any from list that don't exist in database
+                sku_list = service.get_sku_list(project_number=project_info.project_number)
+                sku_list_set = set(sku_list)
+
+                b = len(df)
+                df = df.loc[df['SKU'].isin(sku_list_set), :]
+                a = len(df)
+                skus_dropped = b - a
+                print(f'Dropped {skus_dropped:,} SKUs not in database')
+
+                # Update item master
+                if update_progress_text_func: update_progress_text_func('Saving changes...')
+                response.rows_affected = service.update_item_master(project_info.project_number, data_frame=df)
 
                 if response.rows_affected > 0:
                     response.success = True
+                    response.message = f'Updated {response.rows_affected:,} items successfully.'
+
+                    if skus_dropped > 0:
+                        response.message += f'\n\nNote: Dropped {skus_dropped:,} SKUs from given file that are not in database.'
 
         except pyodbc.DatabaseError as e:
             response.success = False
-            response.error_message = e
+            response.message = e
 
         self.refresh_project_info()
 
@@ -918,8 +899,12 @@ class DataProfiler:
             validation_obj.is_valid = False
             return validation_obj
         
+        # Find given columns
+        given_cols = csv_given_columns(file_path=validation_obj.file_path)
+        validation_obj.given_columns = given_cols
+
         # Does it have all required columns?
-        missing_cols = csv_missing_column_names(file_path=validation_obj.file_path, columns=required_columns)
+        missing_cols = missing_column_names(given_cols=given_cols, required_cols=required_columns)
         if missing_cols:
             validation_obj.is_valid = False
             validation_obj.missing_columns = missing_cols
@@ -927,7 +912,7 @@ class DataProfiler:
 
         # Does it have any columns it ain't supposed to?
         if valid_columns:
-            invalid_cols = csv_invalid_column_names(file_path=validation_obj.file_path, valid_cols=valid_columns)
+            invalid_cols = invalid_column_names(given_cols=given_cols, valid_cols=valid_columns)
             if invalid_cols:
                 validation_obj.is_valid = False
                 validation_obj.invalid_columns = invalid_cols

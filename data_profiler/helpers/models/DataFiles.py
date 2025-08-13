@@ -48,6 +48,7 @@ class FileValidation(BaseModel):
     file_path: str = ''
     is_present: bool = True
     is_valid: bool = True
+    given_columns: list = []
     missing_columns: list = []
     invalid_columns: list = []
 

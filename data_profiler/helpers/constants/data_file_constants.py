@@ -9,7 +9,7 @@ Python constants relating to input/upload files for DataProfiler
 
 ''' Required Columns '''
 
-ITEM_MASTER_COLS = ['SKU','SKUDescription','SKUClass','ProductLine','UnitOfMeasure','EachLength','EachWidth','EachHeight','EachWeight','InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight','CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Conveyable','Subwarehouse','AllowToPickPallet','AllowToPickCarton','AllowToPickInnerPacks','AllowToPickUnits']
+ITEM_MASTER_COLS = ['SKU','SKUDescription','SKUClass','ProductLine','UnitOfMeasure','EachLength','EachWidth','EachHeight','EachWeight','InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight','CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Subwarehouse']
 INBOUND_HEADER_COLS = ['PO_Number', 'ArrivalDate', 'ArrivalTime', 'ExpectedDate', 'ExpectedTime', 'Carrier', 'Mode','ShipmentNumber', 'UnloadType']
 INBOUND_DETAILS_COLS = ['PO_Number', 'SKU', 'UnitOfMeasure', 'Quantity', 'VendorID','SourcePoint']
 INVENTORY_COLS = ['Period','SKU','Quantity','UnitOfMeasure','Location','Lot', 'LPN','Subwarehouse']
