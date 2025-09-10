@@ -488,7 +488,7 @@ class OutputTablesService:
             db_conn.autocommit = False                   # autocommit = True could force a DB transaction for each query, which would defeat the point
             cursor.fast_executemany = True
 
-            batch_size = 1000                            # Update is real slow, so set a moderate batch size
+            batch_size = 10000                           # Update is real slow, so set a moderate batch size
             batch_num = 1
 
             batches = int(math.ceil(len(data_lst) / batch_size))
