@@ -100,6 +100,7 @@ OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
 
 ## Select queries
 OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'PROD/select/select_all_from_project.sql'
+OUTPUT_TABLES_SQL_FILE_GET_SKU_LIST = 'PROD/select/get_sku_list.sql'
 
 SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER = 'PROD/select/download_storage_analyzer_inputs/select_from_item_master.sql'
 SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY = 'PROD/select/download_storage_analyzer_inputs/select_from_inventory.sql'
@@ -190,6 +191,7 @@ DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER = {
 
 ## Select queries
 DEV_OUTPUT_TABLES_SQL_FILE_SELECT_ALL_FROM_PROJECT = 'DEV/select/select_all_from_project.sql'
+DEV_OUTPUT_TABLES_SQL_FILE_GET_SKU_LIST = 'DEV/select/get_sku_list.sql'
 
 DEV_SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_ITEM_MASTER = 'DEV/select/download_storage_analyzer_inputs/select_from_item_master.sql'
 DEV_SQL_FILE_DOWNLOAD_STORAGE_ANALYZER_INPUTS_SELECT_FROM_INVENTORY = 'DEV/select/download_storage_analyzer_inputs/select_from_inventory.sql'

@@ -9,26 +9,26 @@ Python constants relating to input/upload files for DataProfiler
 
 ''' Required Columns '''
 
-ITEM_MASTER_UPLOAD_REQUIRED_COLS = ['SKU','SKUDescription','SKUClass','ProductLine', 'UnitOfMeasure','EachLength','EachWidth','EachHeight','EachWeight','InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight','CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Conveyable','Subwarehouse','AllowToPickPallet','AllowToPickCarton','AllowToPickInnerPacks','AllowToPickUnits']
-INBOUND_HEADER_UPLOAD_REQUIRED_COLS = ['PO_Number', 'ArrivalDate', 'ArrivalTime', 'ExpectedDate', 'ExpectedTime', 'Carrier', 'Mode', 'ShipmentNumber', 'UnloadType']
-INBOUND_DETAILS_UPLOAD_REQUIRED_COLS = ['PO_Number', 'SKU', 'UnitOfMeasure', 'Quantity', 'VendorID', 'SourcePoint']
-INVENTORY_UPLOAD_REQUIRED_COLS = ['Period','SKU','Quantity','UnitOfMeasure','Location','Lot', 'LPN', 'Subwarehouse']
-ORDER_HEADER_UPLOAD_REQUIRED_COLS = ['OrderNumber','ReceivedDate','PickDate','ShipDate','Channel']
-ORDER_DETAILS_UPLOAD_REQUIRED_COLS = ['OrderNumber','SKU', 'UnitOfMeasure', 'PickType', 'Quantity', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier']
+ITEM_MASTER_COLS = ['SKU','SKUDescription','SKUClass','ProductLine','UnitOfMeasure','EachLength','EachWidth','EachHeight','EachWeight','InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight','CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Subwarehouse']
+INBOUND_HEADER_COLS = ['PO_Number', 'ArrivalDate', 'ArrivalTime', 'ExpectedDate', 'ExpectedTime', 'Carrier', 'Mode','ShipmentNumber', 'UnloadType']
+INBOUND_DETAILS_COLS = ['PO_Number', 'SKU', 'UnitOfMeasure', 'Quantity', 'VendorID','SourcePoint']
+INVENTORY_COLS = ['Period','SKU','Quantity','UnitOfMeasure','Location','Lot', 'LPN','Subwarehouse']
+ORDER_HEADER_COLS = ['OrderNumber','ReceivedDate','PickDate','ShipDate','Channel']
+ORDER_DETAILS_COLS = ['OrderNumber','SKU', 'UnitOfMeasure', 'PickType', 'Quantity', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier']
 
-UPLOADS_REQUIRED_COLUMNS_MAPPER = {
-    'ItemMaster': ITEM_MASTER_UPLOAD_REQUIRED_COLS,
-    'InboundHeader': INBOUND_HEADER_UPLOAD_REQUIRED_COLS,
-    'InboundDetails': INBOUND_DETAILS_UPLOAD_REQUIRED_COLS,
-    'Inventory': INVENTORY_UPLOAD_REQUIRED_COLS,
-    'OrderHeader': ORDER_HEADER_UPLOAD_REQUIRED_COLS,
-    'OrderDetails': ORDER_DETAILS_UPLOAD_REQUIRED_COLS
+FILE_TYPES_COLUMNS_MAPPER = {
+    'ItemMaster': ITEM_MASTER_COLS,
+    'InboundHeader': INBOUND_HEADER_COLS,
+    'InboundDetails': INBOUND_DETAILS_COLS,
+    'Inventory': INVENTORY_COLS,
+    'OrderHeader': ORDER_HEADER_COLS,
+    'OrderDetails': ORDER_DETAILS_COLS
 }
 
 
 ''' Required column types '''
 
-ITEM_MASTER_UPLOAD_REQUIRED_DTYPES = {
+ITEM_MASTER_DTYPES = {
     'SKU':'object',
     'SKUDescription':'object',
     'SKUClass':'object',
@@ -59,7 +59,7 @@ ITEM_MASTER_UPLOAD_REQUIRED_DTYPES = {
     'Subwarehouse':'object'
 }
 
-INBOUND_HEADER_UPLOAD_REQUIRED_DTYPES = {
+INBOUND_HEADER_DTYPES = {
     'PO_Number': 'object',
     'ArrivalDate': 'date', 
     'ArrivalTime': 'time' , 
@@ -71,7 +71,7 @@ INBOUND_HEADER_UPLOAD_REQUIRED_DTYPES = {
     'UnloadType': 'object'
 }
 
-INBOUND_DETAILS_UPLOAD_REQUIRED_DTYPES = {
+INBOUND_DETAILS_DTYPES = {
     'PO_Number': 'object', 
     'SKU': 'object', 
     'UnitOfMeasure': 'object', 
@@ -80,7 +80,7 @@ INBOUND_DETAILS_UPLOAD_REQUIRED_DTYPES = {
     'SourcePoint': 'object'
 }
 
-INVENTORY_UPLOAD_REQUIRED_DTYPES = {
+INVENTORY_DTYPES = {
     'Period':'date',
     'SKU':'object',
     'Quantity':'float64',
@@ -91,7 +91,7 @@ INVENTORY_UPLOAD_REQUIRED_DTYPES = {
     'Subwarehouse': 'object'
 }
 
-ORDER_HEADER_UPLOAD_REQUIRED_DTYPES = {
+ORDER_HEADER_DTYPES = {
     'OrderNumber':'object',
     'ReceivedDate':'date',
     'PickDate':'date',
@@ -99,7 +99,7 @@ ORDER_HEADER_UPLOAD_REQUIRED_DTYPES = {
     'Channel':'object'
 }
 
-ORDER_DETAILS_UPLOAD_REQUIRED_DTYPES = {
+ORDER_DETAILS_DTYPES = {
     'OrderNumber': 'object',
     'SKU': 'object',
     'UnitOfMeasure': 'object',
@@ -111,13 +111,13 @@ ORDER_DETAILS_UPLOAD_REQUIRED_DTYPES = {
     'Carrier': 'object'
 }
 
-UPLOADS_REQUIRED_DTYPES_MAPPER = {
-    'ItemMaster': ITEM_MASTER_UPLOAD_REQUIRED_DTYPES,
-    'InboundHeader': INBOUND_HEADER_UPLOAD_REQUIRED_DTYPES,
-    'InboundDetails': INBOUND_DETAILS_UPLOAD_REQUIRED_DTYPES,
-    'Inventory': INVENTORY_UPLOAD_REQUIRED_DTYPES,
-    'OrderHeader': ORDER_HEADER_UPLOAD_REQUIRED_DTYPES,
-    'OrderDetails': ORDER_DETAILS_UPLOAD_REQUIRED_DTYPES
+FILE_TYPES_DTYPES_MAPPER = {
+    'ItemMaster': ITEM_MASTER_DTYPES,
+    'InboundHeader': INBOUND_HEADER_DTYPES,
+    'InboundDetails': INBOUND_DETAILS_DTYPES,
+    'Inventory': INVENTORY_DTYPES,
+    'OrderHeader': ORDER_HEADER_DTYPES,
+    'OrderDetails': ORDER_DETAILS_DTYPES
 }
 
 DTYPES_DEFAULT_VALUES = {

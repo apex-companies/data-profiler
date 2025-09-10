@@ -230,7 +230,7 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_task_bar_frame = Frame(self.more_actions_frame_header_frame)
 
         # LEVEL 1 - Parent = more_actions_frame_content_container
-        self.more_actions_frame_update_subwhse_section = Section(self.more_actions_frame_content_container)
+        self.more_actions_frame_update_item_master_section = Section(self.more_actions_frame_content_container)
         self.more_actions_frame_download_data_section = Section(self.more_actions_frame_content_container)
         self.more_actions_data_describer_section = Section(self.more_actions_frame_content_container)
         self.more_actions_subframe_4 = Frame(self.more_actions_frame_content_container)
@@ -239,10 +239,10 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_home_btn = NeutralButton(self.more_actions_frame_task_bar_frame, text='Home', command=self.navigate_to_home_action)
         self.more_actions_frame_delete_project_frame = TransparentIconButton(self.more_actions_frame_task_bar_frame, image=self.trash_icon, command=self._delete_project_action)
 
-        # LEVEL 2 - Parent = more_actions_frame_update_subwhse_section
-        self.more_actions_frame_update_subwhse_title = CTkLabel(self.more_actions_frame_update_subwhse_section, text='Update Subwarehouse', font=SectionHeaderFont())
-        self.more_actions_frame_update_subwhse_browse = FileBrowser(self.more_actions_frame_update_subwhse_section, label_text='Select a file', path_type='CSV')
-        self.more_actions_frame_update_subwhse_submit_btn = PositiveIconButton(self.more_actions_frame_update_subwhse_section, image=self.check_icon, command=self.update_subwarehouse_in_item_master)
+        # LEVEL 2 - Parent = more_actions_frame_update_item_master_section
+        self.more_actions_frame_update_item_master_title = CTkLabel(self.more_actions_frame_update_item_master_section, text='Update Item Master', font=SectionHeaderFont())
+        self.more_actions_frame_update_item_master_browse = FileBrowser(self.more_actions_frame_update_item_master_section, label_text='Select a file', path_type='CSV')
+        self.more_actions_frame_update_item_master_submit_btn = PositiveIconButton(self.more_actions_frame_update_item_master_section, image=self.check_icon, command=self.update_item_master)
 
         # LEVEL 2 - Parent = more_actions_frame_download_data_section
         self.more_actions_frame_download_data_title = CTkLabel(self.more_actions_frame_download_data_section, text='Download Data', font=SectionHeaderFont())
@@ -458,7 +458,7 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_content_container.grid_rowconfigure([0,1], weight=1)
         self.more_actions_frame_content_container.grid_columnconfigure([0,1], weight=1)
 
-        self.more_actions_frame_update_subwhse_section.grid(row=0, column=0, sticky='nsew', padx=20, pady=20)      # LEVEL 2 and 3 within ProjectInfoFrame class
+        self.more_actions_frame_update_item_master_section.grid(row=0, column=0, sticky='nsew', padx=20, pady=20)      # LEVEL 2 and 3 within ProjectInfoFrame class
         self.more_actions_frame_download_data_section.grid(row=0, column=1, sticky='nsew', padx=20, pady=20)
         self.more_actions_data_describer_section.grid(row=1, column=0, sticky='nsew', padx=20, pady=(0,20))
         self.more_actions_subframe_4.grid(row=1, column=1, sticky='nsew')
@@ -470,12 +470,12 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_delete_project_frame.grid(row=0, column=1, sticky='ew', padx=(5,0))
 
         # LEVEL 2 - more_actions_frame_update_subwhse_frame
-        self.more_actions_frame_update_subwhse_section.grid_rowconfigure(1, weight=1)
-        self.more_actions_frame_update_subwhse_section.grid_columnconfigure(0, weight=1)
+        self.more_actions_frame_update_item_master_section.grid_rowconfigure(1, weight=1)
+        self.more_actions_frame_update_item_master_section.grid_columnconfigure(0, weight=1)
 
-        self.more_actions_frame_update_subwhse_title.grid(row=0, column=0, sticky='ew', padx=10, pady=(10, 0))
-        self.more_actions_frame_update_subwhse_browse.grid(row=1, column=0, sticky='ew', padx=10, pady=20)
-        self.more_actions_frame_update_subwhse_submit_btn.grid(row=2, column=0, padx=10, pady=(0, 20))
+        self.more_actions_frame_update_item_master_title.grid(row=0, column=0, sticky='ew', padx=10, pady=(10, 0))
+        self.more_actions_frame_update_item_master_browse.grid(row=1, column=0, sticky='ew', padx=10, pady=20)
+        self.more_actions_frame_update_item_master_submit_btn.grid(row=2, column=0, padx=10, pady=(0, 20))
 
          # LEVEL 2 - more_actions_frame_download_data_section
         self.more_actions_frame_download_data_section.grid_rowconfigure([1,2], weight=1)
@@ -722,11 +722,11 @@ class DataProfilerGUI(ApexApp):
         notification_dialog.mainloop()
         return
 
-    def update_subwarehouse_in_item_master(self):
+    def update_item_master(self):
         # Make sure project has data exists
         notification_dialog = None
         if not self._get_project_info().data_uploaded:
-            message = f'Project has no data! Please upload data before updating subwarehouse'
+            message = f'Project has no data! Please upload data before updating item master'
 
             notification_dialog = NotificationDialog(self, title='Data Profiler', text=message)
             notification_dialog.attributes('-topmost', True)
@@ -734,39 +734,36 @@ class DataProfilerGUI(ApexApp):
             return
         
         # Get selected file path
-        file_path = self.more_actions_frame_update_subwhse_browse.get_path()
+        file_path = self.more_actions_frame_update_item_master_browse.get_path()
 
         if not file_path:
-            notification_dialog = NotificationDialog(self, title='Error', text='Update Subwarehouse:\n\nPlease select a valid CSV file.')
+            notification_dialog = NotificationDialog(self, title='Error', text='Update Item Master:\n\nPlease select a valid CSV file.')
             notification_dialog.attributes('-topmost', True)
             notification_dialog.mainloop()
             return
 
         # Show loading frame while executing
-        self.show_loading_frame_action('Updating subwarehouse...')
+        self.show_loading_frame_action('Loading...')
 
         # Delete project
-        response = self.DataProfiler.update_subwhse_in_item_master(file_path=file_path)
+        response = self.DataProfiler.update_item_master(file_path=file_path, update_progress_text_func=self._update_progess_text)
 
-        notification_dialog = None
-        if response.success:
-            # Clear browse
-            self.more_actions_frame_update_subwhse_browse.clear_input()
-
-            # Success notification
-            notification_dialog = NotificationDialog(self, title='Success!', text=f'Update Subwarehouse:\n\nUpdated {response.rows_affected} items successfully.')
-        else:
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Update Subwarehouse:\n\nTrouble updating Subwarehouse values:\n\n{response.error_message}')   
-        
         # Back to more actions
         self.navigate_to_more_actions_action()
 
+        # Clear browse, if operation was successful
+        if response.success:
+            self.more_actions_frame_update_item_master_browse.clear_input()
+        
         # Notify of results
+        title = 'Success!' if response.success else 'Error'
+        notification_dialog = NotificationDialog(self, title=title, text=f'Update Item Master:\n\n{response.message}')
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
+
         return
-
-
+    
+    
     ## Delete ##
 
     def delete_project(self):
@@ -1183,3 +1180,7 @@ class DataProfilerGUI(ApexApp):
 
     def _set_loading_frame_text(self, text: str):
         self.loading_frame_text_var.set(text)
+
+    def _update_progess_text(self, text: str):
+        self._set_loading_frame_text(text)
+        self.update()

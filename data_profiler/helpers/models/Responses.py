@@ -39,6 +39,7 @@ class DBWriteResponse(BaseModel):
     success: bool = False
     rows_affected: int = 0
     error_message: str = ''
+    message: str = ''
 
 
 class DBDownloadResponse(BaseModel):
