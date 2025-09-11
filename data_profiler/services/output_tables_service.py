@@ -7,6 +7,7 @@ Functions that interface with the OutputTables schema in the database
 '''
 
 # Python
+from typing import Callable
 from datetime import datetime, timedelta
 from time import time
 from io import TextIOWrapper
@@ -521,7 +522,7 @@ class OutputTablesService:
 
         return row_count
 
-    def delete_project_data(self, project_number: str, log_file: TextIOWrapper) -> DeleteResponse:
+    def delete_project_data(self, project_number: str, log_file: TextIOWrapper, update_progress_text_func: Callable[[str], None] = None) -> DeleteResponse:
         '''
         Delete from OutputTables schema. Removes records from all relevant DB tables belonging to the given project number
 
@@ -552,6 +553,7 @@ class OutputTablesService:
             cursor = db_conn.cursor()
 
             # We want to delete one table at a time so it's easier to tell where failure happens
+            i = 1
             for table,file in sql_file_mapper.items():
 
                 # If a single table is passed to be deleted, skip if not the correct table
@@ -561,6 +563,11 @@ class OutputTablesService:
                 if table == 'Project':
                     break
                 
+                # Delete
+                if update_progress_text_func: update_progress_text_func(f'Deleting from {table} ({i} / {len(sql_file_mapper.keys()) - 1})...')
+                log_file.write(f'Deleting from {table} - ')
+                log_file.flush()
+                
                 # Get delete query
                 fd = open(f'{self.sql_dir}/{file}')
                 delete_query = fd.read()
@@ -568,9 +575,7 @@ class OutputTablesService:
                 print(f'{delete_query} \n')
 
                 try:
-                    log_file.write(f'Deleting from {table} - ')
-                    log_file.flush()
-                    
+                                       
                     cursor.execute(delete_query, project_number)
                     rows_deleted = cursor.rowcount
                     total_rows_deleted += rows_deleted
@@ -588,6 +593,8 @@ class OutputTablesService:
 
                     response.success = False
                     response.errors_encountered.append(e)
+
+                i += 1
 
             cursor.close()  
             
