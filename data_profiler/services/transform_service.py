@@ -7,6 +7,7 @@ Functions that create the different output tables
 '''
 
 # Python
+from typing import Callable
 import re
 from datetime import timedelta
 from time import time
@@ -59,7 +60,8 @@ class TransformService:
                                          inventory_df: pd.DataFrame, 
                                          order_header_df: pd.DataFrame, 
                                          order_details_df: pd.DataFrame,
-                                         log_file: TextIOWrapper) -> TransformResponse:
+                                         log_file: TextIOWrapper,
+                                         update_progress_text_func: Callable[[str], None] = None) -> TransformResponse:
         '''
         Transforms the raw data dataframes and inserts into the OutputTables_Dev schema
 
@@ -70,9 +72,13 @@ class TransformService:
 
         rows_inserted_obj = TransformRowsInserted()
         transform_response = TransformResponse(project_number=self.project_number)
+        total_rows_of_data = 0
         total_rows_inserted = 0
+        
 
         '''STEP 1: Create output tables '''
+
+        if update_progress_text_func: update_progress_text_func('Transforming data...')
 
         # Instantiate dataframe variables - one for each output table
         item_master_data = pd.DataFrame()
@@ -98,11 +104,13 @@ class TransformService:
 
         # Start with Item Master
         item_master_data = self.create_item_master(project_num=self.project_number, item_master=item_master_df)
+        total_rows_of_data += len(item_master_data)
         log_file.write(f'Item Master rows: {len(item_master_data)}\n')
 
         # Create outbound so we can determine velocities
         if self.transform_options.process_outbound_data:
             outbound_data = self.create_outbound_data(project_num=self.project_number, order_header_df=order_header_df, order_details_df=order_details_df, item_master_df=item_master_data)
+            total_rows_of_data += len(outbound_data)
             order_nums = outbound_data['OrderNumber'].unique().tolist()
 
             # Run velocity analysis, and add velocity to Item Master, Outbound Data
@@ -124,7 +132,9 @@ class TransformService:
         if self.transform_options.process_inbound_data:
             inbound_header = self.create_inbound_header(project_num=self.project_number, inbound_header_df=inbound_header_df, inbound_details_df=inbound_details_df)
             inbound_details = self.create_inbound_details(project_num=self.project_number, inbound_details_df=inbound_details_df, item_master_df=item_master_data)
-
+            
+            total_rows_of_data += len(inbound_header)
+            total_rows_of_data += len(inbound_details)
             log_file.write(f'Inbound Header rows: {len(inbound_header)}\n')
             log_file.write(f'Inbound Details rows: {len(inbound_details)}\n')
 
@@ -134,6 +144,7 @@ class TransformService:
         if self.transform_options.process_inventory_data:
             inventory_data = self.create_inventory_data(project_num=self.project_number, inventory_df=inventory_df, velocity_analysis=velocity_analysis, inbound_skus=inbound_skus, item_master_df=item_master_data)
             
+            total_rows_of_data += len(inventory_data)
             log_file.write(f'Inventory Data rows: {len(inventory_data)}\n')
 
         # The rest - mostly outbound related
@@ -147,6 +158,14 @@ class TransformService:
             project_number_order_number = self.create_project_number_order_number(project_num=self.project_number, order_numbers=order_nums)
             velocity_ladder = self.create_velocity_ladder(project_num=self.project_number, velocity_analysis=velocity_analysis)
 
+            total_rows_of_data += len(order_velocity_combinations)
+            total_rows_of_data += len(velocity_summary)
+            total_rows_of_data += len(outbound_data_by_order)
+            total_rows_of_data += len(daily_order_profile_by_velocity)
+            total_rows_of_data += len(velocity_by_month)
+            total_rows_of_data += len(project_number_velocity)
+            total_rows_of_data += len(project_number_order_number)
+            total_rows_of_data += len(velocity_ladder)
             log_file.write(f'Order Velocity Combinations rows: {len(order_velocity_combinations)}\n')
             log_file.write(f'Velocity Summary rows: {len(velocity_summary)}\n')
             log_file.write(f'Outbound Data by Order rows: {len(outbound_data_by_order)}\n')
@@ -157,6 +176,8 @@ class TransformService:
             log_file.write(f'Velocity Ladder rows: {len(velocity_ladder)}\n')
                 
         # Reorder columns to match sql queries
+        # NOTE: at this point, we don't care if files are present (e.g., process_inbound_data = False)
+        #   Reindex and insertion will ignore blank dataframes
         item_master_data = item_master_data.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['ItemMaster'])
         inbound_header = inbound_header.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InboundHeader'])
         inbound_details = inbound_details.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InboundDetails'])
@@ -177,6 +198,7 @@ class TransformService:
         log_file.flush()
 
         ''' STEP 2: Insert into database '''
+        if update_progress_text_func: update_progress_text_func('Uploading to database...')
 
         log_file.write(f'3. INSERT TO DATABASE\n')
         log_file.flush()
@@ -186,45 +208,38 @@ class TransformService:
         # Get SQL file mapper
         SQL_FILE_MAPPER = DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER if self.dev else OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER
 
+        upload_df_mapper = {
+            'ItemMaster': item_master_data,
+            'InboundHeader': inbound_header,
+            'ProjectNumber_Velocity': project_number_velocity,
+            'ProjectNumber_OrderNumber': project_number_order_number,
+            'InboundDetails': inbound_details,
+            'InventoryData': inventory_data,
+            'OutboundData': outbound_data,
+            'OutboundDataByOrder': outbound_data_by_order,
+            'OrderVelocityCombinations': order_velocity_combinations,
+            'VelocitySummary': velocity_summary,
+            'VelocityLadder': velocity_ladder,
+            'VelocityByMonth': velocity_by_month,
+            'DailyOrderProfileByVelocity': daily_order_profile_by_velocity,
+        }
+
         # IDEA - keep track, in data_profiler, of tables that have been inserted. so, if there's an error halfway thru, it could
-            # pick up where it left off. For now, just delete
+        #   pick up where it left off. For now, just delete
         try:
             with DatabaseConnection(dev=self.dev) as db_conn:
-                # FIRST - primary key tables
-                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ItemMaster', data_frame=item_master_data, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['ItemMaster']}")
-                total_rows_inserted += rows
-                rows_inserted_obj.skus = rows
-                                        
-                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InboundHeader', data_frame=inbound_header, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['InboundHeader']}")
-                total_rows_inserted += rows
-                rows_inserted_obj.inbound_pos = rows
-
-                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ProjectNumber_Velocity', data_frame=project_number_velocity, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['ProjectNumber_Velocity']}")
-
-                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='ProjectNumber_OrderNumber', data_frame=project_number_order_number, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['ProjectNumber_OrderNumber']}")
-                total_rows_inserted += rows
-                rows_inserted_obj.outbound_orders = rows
+                for table,df in upload_df_mapper.items():
+                    # Progress message str
+                    progress_str = f'Rows Inserted: {total_rows_inserted:,} / {total_rows_of_data:,} ({(total_rows_inserted / total_rows_of_data) * 100:,.0f}%)'
+                    current_str = f'Uploading {table} ({len(df):,} rows)...'
+                    message_str = f'{progress_str}\n\n{current_str}'
+                    if update_progress_text_func: update_progress_text_func(message_str)
+                    
+                    # Insert
+                    rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name=table, data_frame=df, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER[table]}")
+                    total_rows_inserted += rows
+                    rows_inserted_obj.skus = rows
                 
-                # THEN - the rest
-                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InboundDetails', data_frame=inbound_details, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['InboundDetails']}")
-                total_rows_inserted += rows
-                rows_inserted_obj.inbound_lines = rows
-
-                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='InventoryData', data_frame=inventory_data, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['InventoryData']}")
-                total_rows_inserted += rows
-                rows_inserted_obj.inventory_lines = rows
-
-                rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OutboundData', data_frame=outbound_data, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['OutboundData']}")
-                total_rows_inserted += rows
-                rows_inserted_obj.outbound_lines = rows
-
-                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OutboundDataByOrder', data_frame=outbound_data_by_order, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['OutboundDataByOrder']}")
-                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='OrderVelocityCombinations', data_frame=order_velocity_combinations, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['OrderVelocityCombinations']}")
-                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocitySummary', data_frame=velocity_summary, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['VelocitySummary']}")
-                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocityLadder', data_frame=velocity_ladder, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['VelocityLadder']}")
-                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='VelocityByMonth', data_frame=velocity_by_month, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['VelocityByMonth']}")
-                total_rows_inserted += insert_table_to_db(log_file=log_file, connection=db_conn, table_name='DailyOrderProfileByVelocity', data_frame=daily_order_profile_by_velocity, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER['DailyOrderProfileByVelocity']}")
-
         # https://peps.python.org/pep-0249/#exceptions
         except InterfaceError as e:
             # Base error class for interfacing (e.g., connecting) to database
@@ -245,11 +260,17 @@ class TransformService:
             transform_response.success = False
             transform_response.message = 'Something went wrong when inserting data to database. Check log.'
         else:
-            rows_inserted_obj.total_rows_inserted = total_rows_inserted
-
             transform_response.success = True
             transform_response.message = 'Successful transform and insertion.'
             transform_response.rows_inserted = rows_inserted_obj
+
+            rows_inserted_obj.total_rows_inserted = total_rows_inserted
+            rows_inserted_obj.skus = len(item_master_data)
+            rows_inserted_obj.inbound_pos = len(inbound_header)
+            rows_inserted_obj.inbound_lines = len(inbound_details)
+            rows_inserted_obj.inventory_lines = len(inventory_data)
+            rows_inserted_obj.outbound_orders = len(project_number_order_number)
+            rows_inserted_obj.outbound_lines = len(outbound_data)
 
             insert_et = time()
             log_file.write(f'Success! Inserted {total_rows_inserted} rows in {timedelta(seconds=insert_et-insert_st)}\n\n')

@@ -4,6 +4,7 @@ INSERT INTO [OutputTables_Dev].[ItemMaster]
       ,[SKU]
       ,[SKUDescription]
       ,[SKUClass]
+      ,[ProductLine]
       ,[UnitOfMeasure]
       ,[Velocity]
       ,[EachLength]
@@ -32,7 +33,6 @@ INSERT INTO [OutputTables_Dev].[ItemMaster]
       ,[PalletWidthRange]
       ,[PalletLengthRange]
       ,[PalletHeightRange]
-      ,[PalletWeightRange]
-      ,[ProductLine])
+      ,[PalletWeightRange])
 VALUES
       (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)

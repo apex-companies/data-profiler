@@ -7,7 +7,7 @@ Main Python class for DataProfiler app logic. This class shouldn't interact dire
 '''
 
 # Python
-from typing import Literal
+from typing import Literal, Callable
 import os
 from io import TextIOWrapper
 from time import time
@@ -204,7 +204,7 @@ class DataProfiler:
 
         return 
     
-    def update_item_master(self, file_path: str, update_progress_text_func: callable = None) -> DBWriteResponse:
+    def update_item_master(self, file_path: str, update_progress_text_func: Callable[[str], None] = None) -> DBWriteResponse:
         '''
         Update SKUs in Item Master with a CSV of valid item master columns
 
@@ -298,7 +298,7 @@ class DataProfiler:
         return response
         
 
-    def transform_and_upload_data(self, data_directory: str, transform_options: TransformOptions) -> TransformResponse:
+    def transform_and_upload_data(self, data_directory: str, transform_options: TransformOptions, update_progress_text_func: Callable[[str], None] = None) -> TransformResponse:
         if not self.get_project_exists():
             raise ValueError('Project does not yet exist.')
         
@@ -308,6 +308,8 @@ class DataProfiler:
             raise ValueError('Project already has data uploaded. If you would like to update project data, delete it and re-upload.')
         
         ## 1. Validate data directory ##
+        if update_progress_text_func: update_progress_text_func('Validating file uploads...')
+
         data_directory_validation = self.validate_data_directory(data_directory=data_directory, transform_options=transform_options)
         pprint(data_directory_validation.model_dump())
 
@@ -325,7 +327,8 @@ class DataProfiler:
         )
         
         ## 2. Read files ##
-    
+        if update_progress_text_func: update_progress_text_func('Reading data...')
+
         # Create log file
         log_file_path = f'{self.get_outputs_dir()}/{project_info.project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_transform.txt'
         # if self.dev:
@@ -430,6 +433,7 @@ class DataProfiler:
             return transform_response
         
         ## 3. Validate files once they're read ##
+        if update_progress_text_func: update_progress_text_func('Validating file contents...')
 
         # SKU Checks
         bad_im_skus = validate_primary_keys(IM_SKUS)
@@ -497,7 +501,7 @@ class DataProfiler:
         log_file.flush()
 
         ## 4. Transform and persist data ##
-
+        
         transform_st = time()
         print('Transforming...')
     
@@ -505,7 +509,7 @@ class DataProfiler:
         with TransformService(project_number=project_info.project_number, transform_options=transform_options, dev=self.dev) as service:
             transform_response = service.transform_and_persist_dataframes(item_master_df=item_master, inbound_header_df=inbound_header, inbound_details_df=inbound_details,
                                                             inventory_df=inventory, order_header_df=order_header, order_details_df=order_details,
-                                                            log_file=log_file)
+                                                            log_file=log_file, update_progress_text_func=update_progress_text_func)
 
         transform_response.log_file_path = log_file_path
 
@@ -534,7 +538,7 @@ class DataProfiler:
 
     ## Delete ##
 
-    def delete_project_data(self, log_file: TextIOWrapper | None = None) -> DeleteResponse:
+    def delete_project_data(self, log_file: TextIOWrapper | None = None, update_progress_text_func: Callable[[str], None] = None) -> DeleteResponse:
         if not self.get_project_exists():
             raise ValueError('Project does not yet exist')
         
@@ -555,7 +559,7 @@ class DataProfiler:
         # Try delete
         response = None
         with OutputTablesService(dev=self.dev) as service:
-            response = service.delete_project_data(project_number=project_info.project_number, log_file=log_file)
+            response = service.delete_project_data(project_number=project_info.project_number, log_file=log_file, update_progress_text_func=update_progress_text_func)
             response.log_file_path = log_file_path
 
         # Update row in Project, if successful

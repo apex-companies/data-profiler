@@ -626,7 +626,7 @@ class DataProfilerGUI(ApexApp):
         self.show_loading_frame_action('Transforming and uploading data...')
 
         # Transform and upload
-        results = self.DataProfiler.transform_and_upload_data(data_directory=data_dir, transform_options=transform_options)
+        results = self.DataProfiler.transform_and_upload_data(data_directory=data_dir, transform_options=transform_options, update_progress_text_func=self._update_progess_text)
 
         # Navigate appropriately based on success
         message = ''
@@ -799,7 +799,7 @@ class DataProfilerGUI(ApexApp):
         # Show loading frame while executing
         self.show_loading_frame_action('Deleting project data...')
 
-        results = self.DataProfiler.delete_project_data()
+        results = self.DataProfiler.delete_project_data(update_progress_text_func=self._update_progess_text)
 
         message = ''
         if results.success:
