@@ -27,13 +27,13 @@ from .helpers.functions.functions import find_new_file_path
 from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .helpers.models.TransformOptions import TransformOptions
 from .helpers.models.Responses import DBWriteResponse, TransformResponse, DeleteResponse, DBDownloadResponse
-from .helpers.models.DataFiles import DataDirectoryValidation, FileValidation, UploadFileTypes, UploadedFilePaths
+from .helpers.models.DataFiles import DataUploadType, DataDirectoryValidation, FileValidation, UploadFileTypes, UploadedFilePaths
 from .helpers.models.GeneralModels import DownloadDataOptions, UnitOfMeasure
 from .helpers.constants.data_file_constants import FILE_TYPES_COLUMNS_MAPPER, FILE_TYPES_DTYPES_MAPPER,\
     DTYPES_DEFAULT_VALUES, DIRECTORY_ERROR_DOES_NOT_EXIST, FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS,\
-    FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS, FILE_ERROR_INVENTORY_MISSING_COLUMNS, FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS,\
+    FILE_ERROR_INBOUND_MISSING_COLUMNS, FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS, FILE_ERROR_INVENTORY_MISSING_COLUMNS, FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS,\
     FILE_ERROR_MISSING_ITEM_MASTER, FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS, FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS,\
-    FILE_ERROR_MISSING_INVENTORY, FILE_ERROR_MISSING_INBOUND_HEADER, FILE_ERROR_MISSING_INBOUND_DETAILS,\
+    FILE_ERROR_MISSING_INVENTORY, FILE_ERROR_OUTBOUND_MISSING_COLUMNS, FILE_ERROR_MISSING_INBOUND_HEADER, FILE_ERROR_MISSING_INBOUND_DETAILS,\
     FILE_ERROR_MISSING_OUTBOUND_HEADER, FILE_ERROR_MISSING_OUTBOUND_DETAILS
 from .helpers.functions.functions import file_path_is_valid_data_frame, data_frame_is_empty, csv_given_columns, missing_column_names,\
     invalid_column_names, validate_primary_keys, check_mismatching_primary_key_values
@@ -805,14 +805,26 @@ class DataProfiler:
 
             return validation_obj
 
+        ## Appraise contents of directory
+        file_contents = os.listdir(data_directory)
+        for ft in UploadFileTypes: 
+            file_name = f'{ft.value}.csv'
+            if file_name in file_contents:
+                validation_obj.given_files.append(ft)
+
+        if UploadFileTypes.INBOUND_HEADER in file_contents or UploadFileTypes.INBOUND_DETAILS in file_contents or\
+            UploadFileTypes.ORDER_HEADER in file_contents and UploadFileTypes.ORDER_DETAILS in file_contents:
+            validation_obj.data_upload_type = DataUploadType.HEADERS
+        
+        print(file_contents)
+        print(validation_obj.given_files)
+
+        ## Item Master
+
+        # Validate contents
         validation_obj.item_master = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.ITEM_MASTER)
-        validation_obj.inbound_header = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND_HEADER)
-        validation_obj.inbound_details = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND_DETAILS)
-        validation_obj.inventory = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INVENTORY)
-        validation_obj.order_header = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.ORDER_HEADER)
-        validation_obj.order_details = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.ORDER_DETAILS)
-                
-        # Item Master
+
+        # Error strings
         if validation_obj.item_master.is_present:
             validation_obj.given_files.append(UploadFileTypes.ITEM_MASTER.value)
 
@@ -822,29 +834,48 @@ class DataProfiler:
         else:
             validation_obj.errors_list.append(FILE_ERROR_MISSING_ITEM_MASTER)
 
-        if transform_options.process_inbound_data:
-            # Inbound Header
-            if validation_obj.inbound_header.is_present:
-                validation_obj.given_files.append(UploadFileTypes.INBOUND_HEADER.value)
+        ## Inbound
+        if transform_options.process_inbound_data:            
+            if UploadFileTypes.INBOUND in validation_obj.given_files:
+                # Validate contents
+                validation_obj.inbound = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND)
 
-                if len(validation_obj.inbound_header.missing_columns) > 0:
-                    error = f'{FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS}\n[{", ".join(validation_obj.inbound_header.missing_columns)}]'
-                    validation_obj.errors_list.append(error)
+                # Error strings
+                if len(validation_obj.inbound.missing_columns) > 0:
+                        error = f'{FILE_ERROR_INBOUND_MISSING_COLUMNS}\n[{", ".join(validation_obj.inbound.missing_columns)}]'
+                        validation_obj.errors_list.append(error)      
+
             else:
-                validation_obj.errors_list.append(FILE_ERROR_MISSING_INBOUND_HEADER)
+                # Validate contents
+                validation_obj.inbound_header = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND_HEADER)
+                validation_obj.inbound_details = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND_DETAILS)
 
-            # Inbound Details
-            if validation_obj.inbound_details.is_present:
-                validation_obj.given_files.append(UploadFileTypes.INBOUND_DETAILS.value)
+                # Error strings
+                if validation_obj.inbound_header.is_present:
+                    validation_obj.given_files.append(UploadFileTypes.INBOUND_HEADER.value)
 
-                if len(validation_obj.inbound_details.missing_columns) > 0:
-                    error = f'{FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS}\n[{", ".join(validation_obj.inbound_details.missing_columns)}]'
-                    validation_obj.errors_list.append(error)
-            else:
-                validation_obj.errors_list.append(FILE_ERROR_MISSING_INBOUND_DETAILS)
+                    if len(validation_obj.inbound_header.missing_columns) > 0:
+                        error = f'{FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS}\n[{", ".join(validation_obj.inbound_header.missing_columns)}]'
+                        validation_obj.errors_list.append(error)
+                else:
+                    validation_obj.errors_list.append(FILE_ERROR_MISSING_INBOUND_HEADER)
 
+                # Inbound Details
+                if validation_obj.inbound_details.is_present:
+                    validation_obj.given_files.append(UploadFileTypes.INBOUND_DETAILS.value)
+
+                    if len(validation_obj.inbound_details.missing_columns) > 0:
+                        error = f'{FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS}\n[{", ".join(validation_obj.inbound_details.missing_columns)}]'
+                        validation_obj.errors_list.append(error)
+                else:
+                    validation_obj.errors_list.append(FILE_ERROR_MISSING_INBOUND_DETAILS)
+
+        ## Inventory
         if transform_options.process_inventory_data:
-            # Inventory
+            # Validate contents
+            validation_obj.inventory = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INVENTORY)
+            
+            # Error strings
             if validation_obj.inventory.is_present:
                 validation_obj.given_files.append(UploadFileTypes.INVENTORY.value)
 
@@ -854,26 +885,40 @@ class DataProfiler:
             else:
                 validation_obj.errors_list.append(FILE_ERROR_MISSING_INVENTORY)
 
+        ## Outbound
         if transform_options.process_outbound_data:
-            # Order Header
-            if validation_obj.order_header.is_present:
-                validation_obj.given_files.append(UploadFileTypes.ORDER_HEADER.value)
+            if UploadFileTypes.OUTBOUND in validation_obj.given_files:
+                # Validate contents
+                validation_obj.outbound = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.OUTBOUND)
 
-                if len(validation_obj.order_header.missing_columns) > 0:
-                    error = f'{FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS}\n[{", ".join(validation_obj.order_header.missing_columns)}]'
+                # Error strings
+                if len(validation_obj.outbound.missing_columns) > 0:
+                    error = f'{FILE_ERROR_OUTBOUND_MISSING_COLUMNS}\n[{", ".join(validation_obj.outbound.missing_columns)}]'
                     validation_obj.errors_list.append(error)
-            else:
-                validation_obj.errors_list.append(FILE_ERROR_MISSING_OUTBOUND_HEADER)
+            else:    
+                # Validate contents
+                validation_obj.order_header = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.ORDER_HEADER)
+                validation_obj.order_details = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.ORDER_DETAILS)
+                    
+                # Error strings
+                if validation_obj.order_header.is_present:
+                    validation_obj.given_files.append(UploadFileTypes.ORDER_HEADER.value)
 
-            # Order Details
-            if validation_obj.order_details.is_present:
-                validation_obj.given_files.append(UploadFileTypes.ORDER_DETAILS.value)
+                    if len(validation_obj.order_header.missing_columns) > 0:
+                        error = f'{FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS}\n[{", ".join(validation_obj.order_header.missing_columns)}]'
+                        validation_obj.errors_list.append(error)
+                else:
+                    validation_obj.errors_list.append(FILE_ERROR_MISSING_OUTBOUND_HEADER)
 
-                if len(validation_obj.order_details.missing_columns) > 0:
-                    error = f'{FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS}\n[{", ".join(validation_obj.order_details.missing_columns)}]'
-                    validation_obj.errors_list.append(error)
-            else:
-                validation_obj.errors_list.append(FILE_ERROR_MISSING_OUTBOUND_DETAILS)
+                # Order Details
+                if validation_obj.order_details.is_present:
+                    validation_obj.given_files.append(UploadFileTypes.ORDER_DETAILS.value)
+
+                    if len(validation_obj.order_details.missing_columns) > 0:
+                        error = f'{FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS}\n[{", ".join(validation_obj.order_details.missing_columns)}]'
+                        validation_obj.errors_list.append(error)
+                else:
+                    validation_obj.errors_list.append(FILE_ERROR_MISSING_OUTBOUND_DETAILS)
 
         if len(validation_obj.errors_list) > 0:
             validation_obj.is_valid = False
@@ -883,7 +928,8 @@ class DataProfiler:
     def _validate_upload_file(self, data_directory: str, file_type: UploadFileTypes) -> FileValidation:
         file_path = f'{data_directory}/{file_type.value}.csv'
         required_columns = FILE_TYPES_COLUMNS_MAPPER[file_type.value]
-
+        print(required_columns)
+        
         return self._validate_file(file_type=file_type, file_path=file_path, required_columns=required_columns)
 
     def _validate_file(self, file_type: UploadFileTypes, file_path: str, required_columns: list, valid_columns: list = None) -> FileValidation:

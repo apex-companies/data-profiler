@@ -7,6 +7,7 @@ GUI for data profiler app. Creates an instance of DataProfiler as backend logic 
 '''
 
 # Python
+import os
 from pprint import pprint
 import customtkinter
 from customtkinter import CTkLabel, StringVar, CTkFrame, CTkImage
@@ -19,7 +20,7 @@ from .helpers.models.TransformOptions import DateForAnalysis, WeekendDateRules, 
 from .helpers.models.Responses import TransformRowsInserted
 from .helpers.models.GeneralModels import DownloadDataOptions
 from .helpers.constants.app_constants import RESOURCES_DIR, RESOURCES_DIR_DEV
-from .frames.custom_widgets import ProjectInfoFrame, DataDescriberColumnSelector
+from .frames.custom_widgets import ProjectInfoFrame, DataDirectoryFileSelectory, DataDescriberColumnSelector
 
 from .services.output_tables_service import OutputTablesService
 from .data_profiler import DataProfiler
@@ -598,6 +599,38 @@ class DataProfilerGUI(ApexApp):
     
     def upload_data_action(self):
         data_dir = self.upload_frame_data_directory_browse.get_path()
+        
+        data_dir_contents = []
+        for file in os.listdir(data_dir):
+            if file.endswith('.csv'):
+                data_dir_contents.append(file) 
+
+
+        # Have user select the columns to include
+        file_selector = DataDirectoryFileSelectory(self, files=data_dir_contents)
+        file_selector.attributes('-topmost', True)
+        self.wait_window(file_selector)
+
+        # Run description, if user saved inputs
+        if not file_selector.get_saved():
+            return
+        
+        # Validate inputs
+        success, message = file_selector.validate_inputs()
+        if not success:
+            # Display dialog
+            notification_dialog = NotificationDialog(self, title='Data Profiler', text=f'Data Describer ERROR:\n{message}')
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+            return
+
+        # Show loading frame while executing
+        self.show_loading_frame_action(f'Describing data...')
+        
+        # Get user inputted values
+        selected_files = file_selector.get_selected_files()
+        print(selected_files)
+        input()
 
         # Transform options don't need validation (cuz they're dropdowns and checkboxes)
         transform_options = TransformOptions(

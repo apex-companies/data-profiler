@@ -106,6 +106,92 @@ class ProjectInfoFrame(SectionWithScrollbar):
         self.notes.clear_input()
 
 
+class DataDirectoryFileSelectory(CTkToplevel):
+    '''
+    Poo
+    '''
+
+    def __init__(self, master, files: list[str]):
+        super().__init__(master, fg_color=APEX_LIGHT_GRAY)
+
+        self.geometry('800x500')
+        self.title('Data Profiler')
+        
+        self.saved = False
+
+        ''' Widgets '''
+
+        # Parent = self
+        self.header_label = CTkLabel(self, text='Data Directory: Select Files', font=SectionSubheaderFont())        
+        self.body = SectionWithScrollbar(self)
+        self.footer = Frame(self)
+        
+        # Parent = body        
+        self.checkbuttons: dict[str, CheckbuttonWithLabel] = {}
+        for file in files:
+            label = CheckbuttonWithLabel(self.body, label_text=file, default_val=True)
+            self.checkbuttons[file] = label
+
+        # Parent = footer
+        self.action_btns_frame = Frame(self.footer)
+
+        # Parent = btns_frame
+        self.save_btn = PositiveButton(self.action_btns_frame, text='Save', command=self.save_btn_action)
+
+        ''' Grid '''
+
+        # Parent = self
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(2, weight=1)
+
+        self.header_label.grid(row=0, column=0)
+        self.body.grid(row=1, column=0, sticky='nsew', padx=20, pady=(0,20))
+        self.footer.grid(row=2, column=0)
+
+        # Parent = body
+        self.body.grid_columnconfigure(0, weight=1)
+
+        row = 1
+        for checkbutton in self.checkbuttons.values():
+            checkbutton.grid(row=row, column=0, pady=10)
+            row += 1
+
+        # Parent = footer
+        self.footer.grid_rowconfigure(0, weight=1)
+        self.footer.grid_columnconfigure(0, weight=1)
+
+        self.action_btns_frame.grid(row=0, column=0, pady=5)
+
+        # Parent = btns_frame
+        self.save_btn.grid(row=0, column=0)
+
+    def get_selected_files(self):
+        selected_files = []
+        for file, label in self.checkbuttons.items():
+            if label.get_value():
+                selected_files.append(file)
+
+        return selected_files
+    
+    def validate_inputs(self) -> tuple[bool, str]:
+        selected_files = self.get_selected_files()
+
+        if len(selected_files) == 0:
+            return False, 'Select at least one file!'
+
+        return True, ''
+
+    def save_btn_action(self):
+        self.set_saved(True)
+        self.destroy()
+
+    def get_saved(self):
+        return self.saved
+    
+    def set_saved(self, saved: bool):
+        self.saved = saved
+
+
 class DataDescriberColumnSelector(CTkToplevel):
     '''
     Poo

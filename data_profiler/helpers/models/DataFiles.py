@@ -11,16 +11,18 @@ from enum import Enum
 
 from typing import Union
 
-class FileType(Enum):
-# class FileType(BaseModel):
-    BASE_FILE = 'BaseFile'
 
-# class UploadFileTypes(FileType, Enum):
+class DataUploadType(Enum):
+    REGULAR = 1
+    HEADERS = 2
+
 class UploadFileTypes(str, Enum):
     ITEM_MASTER = 'ItemMaster'
+    INBOUND = 'Inbound'
     INBOUND_HEADER = 'InboundHeader'
     INBOUND_DETAILS = 'InboundDetails'
     INVENTORY = 'Inventory'
+    OUTBOUND = 'Outbound'
     ORDER_HEADER = 'OrderHeader'
     ORDER_DETAILS = 'OrderDetails'
     SUBWHSE_UPDATE = 'SubwhseUpdate'
@@ -32,7 +34,6 @@ class OtherFileTypes(str, Enum):
 class UploadedFile(BaseModel):
     file_type: UploadFileTypes
     file_path: str
-
 
 class UploadedFilePaths(BaseModel):
     item_master: str = ''
@@ -55,12 +56,18 @@ class FileValidation(BaseModel):
 
 class DataDirectoryValidation(BaseModel):
     file_path: str
-    is_valid: bool = True
+    data_upload_type: DataUploadType = DataUploadType.REGULAR
     given_files: list = []
+
+    is_valid: bool = True
     errors_list: list = []
+
     item_master: FileValidation = FileValidation(file_type=UploadFileTypes.ITEM_MASTER)
+    inbound: FileValidation = FileValidation(file_type=UploadFileTypes.INBOUND)
+    inventory: FileValidation = FileValidation(file_type=UploadFileTypes.INVENTORY)
+    outbound: FileValidation = FileValidation(file_type=UploadFileTypes.OUTBOUND)
+
     inbound_header: FileValidation = FileValidation(file_type=UploadFileTypes.INBOUND_HEADER)
     inbound_details: FileValidation = FileValidation(file_type=UploadFileTypes.INBOUND_DETAILS)
-    inventory: FileValidation = FileValidation(file_type=UploadFileTypes.INVENTORY)
     order_header: FileValidation = FileValidation(file_type=UploadFileTypes.ORDER_HEADER)
     order_details: FileValidation = FileValidation(file_type=UploadFileTypes.ORDER_DETAILS)
