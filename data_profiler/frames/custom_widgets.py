@@ -10,7 +10,6 @@ from customtkinter import CTkToplevel, CTkLabel
 
 # Data Profiler
 from ..helpers.models.ProjectInfo import BaseProjectInfo
-from ..helpers.models.DataFiles import UploadFileTypes
 
 # Apex GUI
 from apex_gui.frames.custom_widgets import EntryWithLabel, TextboxWithLabel, CheckbuttonWithLabel, DropdownWithLabel
@@ -18,6 +17,8 @@ from apex_gui.frames.styled_widgets import SectionWithScrollbar, Frame, Positive
 from apex_gui.helpers.constants import EntryType
 from apex_gui.styles.colors import *
 from apex_gui.styles.fonts import SectionSubheaderFont
+
+
 
 class ProjectInfoFrame(SectionWithScrollbar):
     '''
@@ -105,118 +106,6 @@ class ProjectInfoFrame(SectionWithScrollbar):
         self.salesperson.clear_input()
         self.start_date.clear_input()
         self.notes.clear_input()
-
-
-class DataDirectoryFileSelectory(CTkToplevel):
-    '''
-    Poo
-    '''
-
-    def __init__(self, master, files: list[str]):
-        super().__init__(master, fg_color=APEX_LIGHT_GRAY)
-
-        self.geometry('800x500')
-        self.title('Data Profiler')
-        
-        self.saved = False
-
-        ''' Widgets '''
-
-        # Parent = self
-        self.header_label = CTkLabel(self, text='Data Directory: Select Files', font=SectionSubheaderFont())        
-        self.body = SectionWithScrollbar(self)
-        self.footer = Frame(self)
-        
-        # Parent = body        
-        self.checkbuttons: dict[str, CheckbuttonWithLabel] = {}
-        for file in files:
-            label = CheckbuttonWithLabel(self.body, label_text=file, default_val=False)
-            self.checkbuttons[file] = label
-        self.set_checkbutton_defaults()
-
-        # Parent = footer
-        self.action_btns_frame = Frame(self.footer)
-
-        # Parent = btns_frame
-        self.save_btn = PositiveButton(self.action_btns_frame, text='Save', command=self.save_btn_action)
-
-        ''' Grid '''
-
-        # Parent = self
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
-
-        self.header_label.grid(row=0, column=0)
-        self.body.grid(row=1, column=0, sticky='nsew', padx=20, pady=(0,20))
-        self.footer.grid(row=2, column=0)
-
-        # Parent = body
-        self.body.grid_columnconfigure(0, weight=1)
-
-        row = 1
-        for checkbutton in self.checkbuttons.values():
-            checkbutton.grid(row=row, column=0, pady=10)
-            row += 1
-
-        # Parent = footer
-        self.footer.grid_rowconfigure(0, weight=1)
-        self.footer.grid_columnconfigure(0, weight=1)
-
-        self.action_btns_frame.grid(row=0, column=0, pady=5)
-
-        # Parent = btns_frame
-        self.save_btn.grid(row=0, column=0)
-
-    def set_checkbutton_defaults(self):
-        if f'{UploadFileTypes.ITEM_MASTER.value}.csv' in self.checkbuttons.keys():
-            self.checkbuttons[f'{UploadFileTypes.ITEM_MASTER.value}.csv'].set_value(True)
-        
-        if f'{UploadFileTypes.INVENTORY.value}.csv' in self.checkbuttons.keys():
-            self.checkbuttons[f'{UploadFileTypes.INVENTORY.value}.csv'].set_value(True)
-
-        if f'{UploadFileTypes.INBOUND.value}.csv' in self.checkbuttons.keys():
-            self.checkbuttons[f'{UploadFileTypes.INBOUND.value}.csv'].set_value(True)
-        else:
-            if f'{UploadFileTypes.INBOUND_HEADER.value}.csv' in self.checkbuttons.keys():
-                self.checkbuttons[f'{UploadFileTypes.INBOUND_HEADER.value}.csv'].set_value(True)
-            if f'{UploadFileTypes.INBOUND_DETAILS.value}.csv' in self.checkbuttons.keys():
-                self.checkbuttons[f'{UploadFileTypes.INBOUND_DETAILS.value}.csv'].set_value(True)
-
-        if f'{UploadFileTypes.OUTBOUND.value}.csv' in self.checkbuttons.keys():
-            self.checkbuttons[f'{UploadFileTypes.OUTBOUND.value}.csv'].set_value(True)
-        else:
-            if f'{UploadFileTypes.ORDER_HEADER.value}.csv' in self.checkbuttons.keys():
-                self.checkbuttons[f'{UploadFileTypes.ORDER_HEADER.value}.csv'].set_value(True)
-            if f'{UploadFileTypes.ORDER_DETAILS.value}.csv' in self.checkbuttons.keys():
-                self.checkbuttons[f'{UploadFileTypes.ORDER_DETAILS.value}.csv'].set_value(True)
-
-    def get_selected_files(self):
-        selected_files = []
-        for file, label in self.checkbuttons.items():
-            if label.get_value():
-                selected_files.append(file)
-
-        return selected_files
-    
-    def validate_inputs(self) -> tuple[bool, str]:
-        selected_files = self.get_selected_files()
-
-        if len(selected_files) == 0:
-            return False, 'No files selected!'
-
-        
-
-        return True, ''
-
-    def save_btn_action(self):
-        self.set_saved(True)
-        self.destroy()
-
-    def get_saved(self):
-        return self.saved
-    
-    def set_saved(self, saved: bool):
-        self.saved = saved
 
 
 class DataDescriberColumnSelector(CTkToplevel):

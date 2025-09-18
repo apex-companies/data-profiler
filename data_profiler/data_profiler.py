@@ -15,11 +15,11 @@ from datetime import datetime, timedelta
 import math
 from pathlib import Path
 from pprint import pprint
-import plotly.express as px
-from plotly.graph_objects import Figure
 
 import pandas as pd
 import pyodbc
+import plotly.express as px
+from plotly.graph_objects import Figure
 
 # Data Profiler
 from .helpers.functions.functions import find_new_file_path
@@ -27,16 +27,12 @@ from .helpers.functions.functions import find_new_file_path
 from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .helpers.models.TransformOptions import TransformOptions
 from .helpers.models.Responses import DBWriteResponse, TransformResponse, DeleteResponse, DBDownloadResponse
-from .helpers.models.DataFiles import DataUploadType, DataDirectoryValidation, FileValidation, UploadFileTypes, UploadedFilePaths
+from .helpers.models.DataFiles import UploadFileType, UploadedFilePaths
 from .helpers.models.GeneralModels import DownloadDataOptions, UnitOfMeasure
-from .helpers.constants.data_file_constants import FILE_TYPES_COLUMNS_MAPPER, FILE_TYPES_DTYPES_MAPPER,\
-    DTYPES_DEFAULT_VALUES, DIRECTORY_ERROR_DOES_NOT_EXIST, FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS,\
-    FILE_ERROR_MISSING_INBOUND, FILE_ERROR_INBOUND_MISSING_COLUMNS, FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS, FILE_ERROR_INVENTORY_MISSING_COLUMNS, FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS,\
-    FILE_ERROR_MISSING_ITEM_MASTER, FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS, FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS,\
-    FILE_ERROR_MISSING_INVENTORY, FILE_ERROR_OUTBOUND_MISSING_COLUMNS, FILE_ERROR_MISSING_INBOUND_HEADER, FILE_ERROR_MISSING_INBOUND_DETAILS,\
-    FILE_ERROR_MISSING_OUTBOUND, FILE_ERROR_MISSING_OUTBOUND_HEADER, FILE_ERROR_MISSING_OUTBOUND_DETAILS
-from .helpers.functions.functions import file_path_is_valid_data_frame, data_frame_is_empty, csv_given_columns, missing_column_names,\
-    invalid_column_names, validate_primary_keys, check_mismatching_primary_key_values
+from .helpers.constants.data_file_constants import FILE_TYPES_COLUMNS_MAPPER
+from .helpers.functions.data_file_functions import validate_file_structure, read_and_cleanse_uploaded_data_file
+
+from .helpers.data_directory import DataDirectory
 
 from .services.output_tables_service import OutputTablesService
 from .services.transform_service import TransformService
@@ -231,7 +227,7 @@ class DataProfiler:
         
         # Validate given file
         if update_progress_text_func: update_progress_text_func('Validating file upload...')
-        validation_obj = self._validate_file(file_type=UploadFileTypes.ITEM_MASTER_UPDATE, file_path=file_path, required_columns=['SKU'], valid_columns=FILE_TYPES_COLUMNS_MAPPER['ItemMaster'])
+        validation_obj = validate_file_structure(file_type=UploadFileType.ITEM_MASTER_UPDATE, file_path=file_path, required_columns=['SKU'], valid_columns=FILE_TYPES_COLUMNS_MAPPER['ItemMaster'])
 
         if not validation_obj.is_valid:
             response.success = False
@@ -251,7 +247,7 @@ class DataProfiler:
 
         # Read file
         if update_progress_text_func: update_progress_text_func('Reading file...')
-        df, errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.ITEM_MASTER, file_path=file_path)
+        df, errors_list = read_and_cleanse_uploaded_data_file(file_type=UploadFileType.ITEM_MASTER, file_path=file_path)
         if len(errors_list) > 0:
             print(f'Errors reading item master: {", ".join(errors_list)}')
             response.success = False
@@ -259,7 +255,7 @@ class DataProfiler:
             return response
         else:
             # Shave df back down to original columns
-            # NOTE: _read_and_cleanse_uploaded_data_file return dfs with all item master columns and NaNs filled for columns not given
+            # NOTE: read_and_cleanse_uploaded_data_file return dfs with all item master columns and NaNs filled for columns not given
             df = df[validation_obj.given_columns]
         
         print(df.head())
@@ -297,7 +293,6 @@ class DataProfiler:
 
         return response
         
-
     def transform_and_upload_data(self, data_directory: str, transform_options: TransformOptions, update_progress_text_func: Callable[[str], None] = None) -> TransformResponse:
         if not self.get_project_exists():
             raise ValueError('Project does not yet exist.')
@@ -306,239 +301,63 @@ class DataProfiler:
 
         if project_info.data_uploaded:
             raise ValueError('Project already has data uploaded. If you would like to update project data, delete it and re-upload.')
-        
-        ## 1. Validate data directory ##
-        if update_progress_text_func: update_progress_text_func('Validating file uploads...')
-
-        data_directory_validation = self.validate_data_directory(data_directory=data_directory, transform_options=transform_options)
-
-        if not data_directory_validation.is_valid:
-            errors_str = '\n\n'.join(data_directory_validation.errors_list)
-            raise ValueError(f'Invalid data directory: {errors_str}')
-        
-        uploaded_files = UploadedFilePaths(
-            item_master = data_directory_validation.item_master.file_path,
-            inbound_header = data_directory_validation.inbound_header.file_path if transform_options.process_inbound_data else '',
-            inbound_details = data_directory_validation.inbound_details.file_path if transform_options.process_inbound_data else '',
-            inventory = data_directory_validation.inventory.file_path if transform_options.process_inventory_data else '',
-            order_header = data_directory_validation.order_header.file_path if transform_options.process_outbound_data else '',
-            order_details = data_directory_validation.order_details.file_path if transform_options.process_outbound_data else ''
-        )
-        
-        ## 2. Read files ##
-        if update_progress_text_func: update_progress_text_func('Reading data...')
 
         # Create log file
         log_file_path = f'{self.get_outputs_dir()}/{project_info.project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_transform.txt'
-        # if self.dev:
-        #     log_file_path = f'{os.getcwd()}/{log_file_path}'        # prepend full absolute path if in dev
-
         log_file = open(log_file_path, 'w+')
+
         log_file.write(f'PROJECT NUMBER: {project_info.project_number}\n\n')
         log_file.flush()
-        
-        valid_data = True
+
+        # Create response object
         transform_response = TransformResponse(project_number=project_info.project_number, log_file_path=log_file_path)
 
-        log_file.write(f'1. READ IN UPLOADED FILES\n')
-        log_file.flush()
+        # Create DataDirectory object
+        DataDirectoryObj = DataDirectory(path=data_directory, transform_options=transform_options, update_progress_text_func=update_progress_text_func)
 
-        master_errors_dict = {}
+        ## Validate data directory ##
+        if update_progress_text_func: update_progress_text_func('Validating file uploads...')
 
-        item_master = None
-        inbound = None
-        inventory = None
-        outbound = None
-
-        inbound_header = None
-        inbound_details = None
-        order_header = None
-        order_details = None
-
-        IM_SKUS = []
-        IB_SKUS = []
-        INV_SKUS = []
-        OB_SKUS = []
-
-        IB_RECEIPTS = []
-        IBH_RECEIPTS = []
-        IBD_RECEIPTS = []
-
-        OB_ORDERS = []
-        OBH_ORDERS = []
-        OBD_ORDERS = []
-
-        ## Read files (and cleanse along the way)
-        
-        # If item master isn't present, error will already have come up
-        item_master, item_master_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.ITEM_MASTER, file_path=data_directory_validation.item_master.file_path, log_file=log_file)
-        print(item_master.head())
-        print(f'Errors reading item master: {", ".join(item_master_errors_list)}')
-        if (len(item_master_errors_list) > 0):
-            valid_data = False
-            master_errors_dict[UploadFileTypes.ITEM_MASTER.value] = item_master_errors_list
-        IM_SKUS = item_master['SKU'].unique().tolist()
-
-        if transform_options.process_inbound_data:
-            if transform_options.data_upload_type == DataUploadType.REGULAR:
-                inbound, inbound_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.INBOUND, file_path=data_directory_validation.inbound.file_path, log_file=log_file)
-                print(inbound.head())
-                print(f'Errors reading inbound: {", ".join(inbound_errors_list)}')
-                if len(inbound_errors_list) > 0:
-                    valid_data = False
-                    master_errors_dict[UploadFileTypes.INBOUND.value] = inbound_errors_list
-
-                IB_SKUS = inbound['SKU'].unique().tolist()
-                IB_RECEIPTS = inbound['PO_Number'].unique().tolist()
-
-            else:
-                inbound_header, inbound_header_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.INBOUND_HEADER, file_path=data_directory_validation.inbound_header.file_path, log_file=log_file)
-                print(inbound_header.head())
-                print(f'Errors reading inbound header: {", ".join(inbound_header_errors_list)}')
-                if len(inbound_header_errors_list) > 0:
-                    valid_data = False
-                    master_errors_dict[UploadFileTypes.INBOUND_HEADER.value] = inbound_header_errors_list
-
-                inbound_details, inbound_details_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.INBOUND_DETAILS, file_path=data_directory_validation.inbound_details.file_path, log_file=log_file)
-                print(inbound_details.head())
-                print(f'Errors reading inbound details: {", ".join(inbound_details_errors_list)}')
-                if len(inbound_details_errors_list) > 0:
-                    valid_data = False
-                    master_errors_dict[UploadFileTypes.INBOUND_DETAILS.value] = inbound_details_errors_list
-
-                IB_SKUS = inbound_details['SKU'].unique().tolist()
-                IBH_RECEIPTS = inbound_header['PO_Number'].unique().tolist()
-                IBD_RECEIPTS = inbound_details['PO_Number'].unique().tolist()
-
-        if transform_options.process_inventory_data:
-            inventory, inventory_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.INVENTORY, file_path=data_directory_validation.inventory.file_path, log_file=log_file)
-            print(inventory.head())
-            print(f'Errors reading inventory: {", ".join(inventory_errors_list)}')
-            if len(inventory_errors_list) > 0:
-                valid_data = False
-                master_errors_dict[UploadFileTypes.INVENTORY.value] = inventory_errors_list
-
-            INV_SKUS = inventory['SKU'].unique().tolist()
-
-        if transform_options.process_outbound_data:
-            if transform_options.data_upload_type == DataUploadType.REGULAR:
-                outbound, outbound_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.OUTBOUND, file_path=data_directory_validation.outbound.file_path, log_file=log_file)
-                print(outbound.head())
-                print(f'Errors reading outbound: {", ".join(outbound_errors_list)}')
-                if len(outbound_errors_list) > 0:
-                    valid_data = False
-                    master_errors_dict[UploadFileTypes.OUTBOUND.value] = outbound_errors_list
-                    
-                OB_SKUS = outbound['SKU'].unique().tolist()
-                OB_ORDERS = outbound['OrderNumber'].unique().tolist()
-
-            else:
-                order_header, order_header_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.ORDER_HEADER, file_path=data_directory_validation.order_header.file_path, log_file=log_file)
-                print(order_header.head())
-                print(f'Errors reading order header: {", ".join(order_header_errors_list)}')
-                if len(order_header_errors_list) > 0:
-                    valid_data = False
-                    master_errors_dict[UploadFileTypes.ORDER_HEADER.value] = order_header_errors_list
-
-                order_details, order_details_errors_list = self._read_and_cleanse_uploaded_data_file(file_type=UploadFileTypes.ORDER_DETAILS, file_path=data_directory_validation.order_details.file_path, log_file=log_file)
-                print(order_details.head())
-                print(f'Errors reading order details: {", ".join(order_details_errors_list)}')
-                if len(order_details_errors_list) > 0:
-                    valid_data = False
-                    master_errors_dict[UploadFileTypes.ORDER_DETAILS.value] = order_details_errors_list
-
-                OB_SKUS = order_details['SKU'].unique().tolist()
-                OBH_ORDERS = order_header['OrderNumber'].unique().tolist()
-                OBD_ORDERS = order_details['OrderNumber'].unique().tolist()
-            
-        if not valid_data:
-            log_file.write(f'\nCritical issues reading the data. Cannot continue.\n')
-            log_file.close()
+        dir_validation_obj = DataDirectoryObj.validate_directory()
+        if not dir_validation_obj.is_valid:
+            errors_str = '\n\n'.join(dir_validation_obj.errors_list)
+            message = f'Invalid data directory:\n\n{errors_str}'
 
             transform_response.success = False
-            transform_response.message = f'ERROR - Some critical issues reading the data. Check log.'
-
+            transform_response.message = message
             return transform_response
-        
-        ## 3. Validate files once they're read ##
-        if update_progress_text_func: update_progress_text_func('Validating file contents...')
 
-        # SKU Checks
-        bad_im_skus = validate_primary_keys(IM_SKUS)
+        uploaded_files = UploadedFilePaths(
+            item_master = dir_validation_obj.item_master.file_path,
+            inbound_header = dir_validation_obj.inbound_header.file_path if transform_options.process_inbound_data else '',
+            inbound_details = dir_validation_obj.inbound_details.file_path if transform_options.process_inbound_data else '',
+            inventory = dir_validation_obj.inventory.file_path if transform_options.process_inventory_data else '',
+            order_header = dir_validation_obj.order_header.file_path if transform_options.process_outbound_data else '',
+            order_details = dir_validation_obj.order_details.file_path if transform_options.process_outbound_data else ''
+        )
 
-        if len(bad_im_skus) > 0:
-            valid_data = False
-            log_file.write(f'ERROR - Found {len(bad_im_skus)} erroneous Item Master SKUs\n')
-            log_file.write(f'{bad_im_skus[:10]}...\n')
 
-        bad_ib_skus = check_mismatching_primary_key_values(IM_SKUS, IB_SKUS)
-        bad_inv_skus = check_mismatching_primary_key_values(IM_SKUS, INV_SKUS)
-        bad_ob_skus = check_mismatching_primary_key_values(IM_SKUS, OB_SKUS)
-
-        if len(bad_ib_skus) > 0:
-            valid_data = False
-            log_file.write(f'ERROR - {len(bad_ib_skus)} Inbound{" Details" if transform_options.data_upload_type == DataUploadType.HEADERS else ""} SKUs not in Item Master\n')
-            log_file.write(f'{bad_ib_skus[:10]}...\n')
-        
-        if len(bad_inv_skus) > 0:
-            valid_data = False
-            log_file.write(f'ERROR - {len(bad_inv_skus)} Inventory SKUs not in Item Master\n')
-            log_file.write(f'{bad_inv_skus[:10]}...\n')
-
-        if len(bad_ob_skus) > 0:
-            valid_data = False
-            log_file.write(f'ERROR - {len(bad_ob_skus)} {"Order Details" if transform_options.data_upload_type == DataUploadType.HEADERS else "Outbound"} SKUs not in Item Master\n')
-            log_file.write(f'{bad_ob_skus[:10]}...\n')
-
-        # Receipt/Order Number Checks
-        if transform_options.data_upload_type == DataUploadType.HEADERS:
-            bad_receipt_numbers = validate_primary_keys(IBH_RECEIPTS)
-            bad_order_numbers = validate_primary_keys(OBH_ORDERS)
-
-            if len(bad_receipt_numbers) > 0:
-                valid_data = False
-                log_file.write(f'ERROR - Found {len(bad_receipt_numbers)} erroneous Inbound Header receipt numbers\n')
-                log_file.write(f'{bad_receipt_numbers[:10]}...\n')
-
-            if len(bad_order_numbers) > 0:
-                valid_data = False
-                log_file.write(f'ERROR - Found {len(bad_order_numbers)} erroneous Order Header order numbers\n')
-                log_file.write(f'{bad_order_numbers[:10]}...\n')
-
-            bad_ibd_receipts = check_mismatching_primary_key_values(IBH_RECEIPTS, IBD_RECEIPTS)
-            bad_obd_receipts = check_mismatching_primary_key_values(OBH_ORDERS, OBD_ORDERS)
-            
-            if len(bad_ibd_receipts) > 0:
-                valid_data = False
-                log_file.write(f'ERROR - {len(bad_ibd_receipts)} Inbound Details receipt numbers not in Inbound Header\n')
-                log_file.write(f'{bad_ibd_receipts[:10]}...\n')
-
-            if len(bad_obd_receipts) > 0:
-                valid_data = False
-                log_file.write(f'ERROR - {len(bad_obd_receipts)} Order Details order numbers not in Order Header\n')
-                log_file.write(f'{bad_obd_receipts[:10]}...\n')
-
-        if not valid_data:
-            log_file.write(f'\nSome primary/foreign key issues. Cannot continue.\n')
-            log_file.close()
-
+        ## Read files and validate contents
+        success, message = DataDirectoryObj.read_and_validate_file_contents(log_file=log_file)
+        if not success:
             transform_response.success = False
-            transform_response.message = f'ERROR - Found some primary/foreign key issues. Cannot continue. Check log.'
-
+            transform_response.message = message
             return transform_response
 
-        log_file.flush()
 
-        ## 4. Transform and persist data ##
+        ## Transform and persist data ##
         
         transform_st = time()
         print('Transforming...')
     
         transform_response = None
-        with TransformService(project_number=project_info.project_number, transform_options=transform_options, dev=self.dev) as service:
-            transform_response = service.transform_and_persist_dataframes(item_master_df=item_master, inbound_header_df=inbound_header, inbound_details_df=inbound_details,
-                                                            inventory_df=inventory, order_header_df=order_header, order_details_df=order_details,
-                                                            log_file=log_file, update_progress_text_func=update_progress_text_func)
+        with TransformService(
+                project_number=project_info.project_number, 
+                DataDirectoryObj=DataDirectoryObj,
+                transform_options=transform_options, 
+                update_progress_text_func=update_progress_text_func, 
+                dev=self.dev) as service:
+            transform_response = service.transform_and_persist_dataframes(log_file=log_file)
 
         transform_response.log_file_path = log_file_path
 
@@ -578,8 +397,6 @@ class DataProfiler:
         log_file_path = ''
         if not log_file_given:
             log_file_path = f'{self.get_outputs_dir()}/{project_info.project_number}-{datetime.now().strftime(format="%Y%m%d-%H.%M.%S")}_delete_from_output_tables.txt'
-            # if self.dev:
-            #     log_file_path = f'{os.getcwd()}/{log_file_path}'
 
             log_file = open(log_file_path, 'w+')
             log_file.write(f'PROJECT NUMBER: {project_info.project_number}\n\n')
@@ -814,274 +631,6 @@ class DataProfiler:
             f.write('</body></html>')
 
         return OUTPUT_DIR
-
-    ''' Main Functions - Validation '''
-
-    def validate_data_directory(self, data_directory: str, transform_options: TransformOptions) -> DataDirectoryValidation: 
-        '''
-        Validates a data directory. 
-
-        Valid data directory =  
-            1) All files are present  
-            2) those files have all required column headers
-        '''
-
-        validation_obj = DataDirectoryValidation(file_path=data_directory)
-        
-        if not os.path.isdir(data_directory):
-            validation_obj.errors_list.append(DIRECTORY_ERROR_DOES_NOT_EXIST)
-            validation_obj.is_valid = False
-
-            return validation_obj
-
-        ## Appraise contents of directory
-        # file_contents = os.listdir(data_directory)
-        # for ft in UploadFileTypes: 
-        #     file_name = f'{ft.value}.csv'
-        #     if file_name in file_contents:
-        #         validation_obj.given_files.append(ft)
-
-        # if UploadFileTypes.INBOUND_HEADER in file_contents or UploadFileTypes.INBOUND_DETAILS in file_contents or\
-        #     UploadFileTypes.ORDER_HEADER in file_contents and UploadFileTypes.ORDER_DETAILS in file_contents:
-        #     validation_obj.data_upload_type = DataUploadType.HEADERS
-        
-        # print(file_contents)
-        # print(validation_obj.given_files)
-
-        validation_obj.data_upload_type = transform_options.data_upload_type
-
-        ## Item Master
-
-        # Validate contents
-        validation_obj.item_master = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.ITEM_MASTER)
-
-        # Error strings
-        if validation_obj.item_master.is_present:
-            validation_obj.given_files.append(UploadFileTypes.ITEM_MASTER.value)
-
-            if len(validation_obj.item_master.missing_columns) > 0:
-                error = f'{FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS}\n[{", ".join(validation_obj.item_master.missing_columns)}]'
-                validation_obj.errors_list.append(error)
-        else:
-            validation_obj.errors_list.append(FILE_ERROR_MISSING_ITEM_MASTER)
-
-        ## Inbound
-        if transform_options.process_inbound_data:            
-            # if UploadFileTypes.INBOUND in validation_obj.given_files:
-            if transform_options.data_upload_type == DataUploadType.REGULAR:
-                # Validate contents
-                validation_obj.inbound = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND)
-
-                # Error strings
-                if validation_obj.inbound.is_present:
-                    validation_obj.given_files.append(UploadFileTypes.INBOUND.value)
-
-                    if len(validation_obj.inbound.missing_columns) > 0:
-                        error = f'{FILE_ERROR_INBOUND_MISSING_COLUMNS}\n[{", ".join(validation_obj.inbound.missing_columns)}]'
-                        validation_obj.errors_list.append(error)
-                else:
-                    validation_obj.errors_list.append(FILE_ERROR_MISSING_INBOUND)  
-
-            else:
-                # Validate contents
-                validation_obj.inbound_header = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND_HEADER)
-                validation_obj.inbound_details = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INBOUND_DETAILS)
-
-                # Error strings
-                if validation_obj.inbound_header.is_present:
-                    validation_obj.given_files.append(UploadFileTypes.INBOUND_HEADER.value)
-
-                    if len(validation_obj.inbound_header.missing_columns) > 0:
-                        error = f'{FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS}\n[{", ".join(validation_obj.inbound_header.missing_columns)}]'
-                        validation_obj.errors_list.append(error)
-                else:
-                    validation_obj.errors_list.append(FILE_ERROR_MISSING_INBOUND_HEADER)
-
-                # Inbound Details
-                if validation_obj.inbound_details.is_present:
-                    validation_obj.given_files.append(UploadFileTypes.INBOUND_DETAILS.value)
-
-                    if len(validation_obj.inbound_details.missing_columns) > 0:
-                        error = f'{FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS}\n[{", ".join(validation_obj.inbound_details.missing_columns)}]'
-                        validation_obj.errors_list.append(error)
-                else:
-                    validation_obj.errors_list.append(FILE_ERROR_MISSING_INBOUND_DETAILS)
-
-        ## Inventory
-        if transform_options.process_inventory_data:
-            # Validate contents
-            validation_obj.inventory = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.INVENTORY)
-            
-            # Error strings
-            if validation_obj.inventory.is_present:
-                validation_obj.given_files.append(UploadFileTypes.INVENTORY.value)
-
-                if len(validation_obj.inventory.missing_columns) > 0:
-                    error = f'{FILE_ERROR_INVENTORY_MISSING_COLUMNS}\n[{", ".join(validation_obj.inventory.missing_columns)}]'
-                    validation_obj.errors_list.append(error)
-            else:
-                validation_obj.errors_list.append(FILE_ERROR_MISSING_INVENTORY)
-
-        ## Outbound
-        if transform_options.process_outbound_data:
-            # if UploadFileTypes.OUTBOUND in validation_obj.given_files:
-            if transform_options.data_upload_type == DataUploadType.REGULAR:
-                # Validate contents
-                validation_obj.outbound = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.OUTBOUND)
-
-                # Error strings
-                if validation_obj.outbound.is_present:
-                    validation_obj.given_files.append(UploadFileTypes.OUTBOUND.value)
-
-                    if len(validation_obj.outbound.missing_columns) > 0:
-                        error = f'{FILE_ERROR_OUTBOUND_MISSING_COLUMNS}\n[{", ".join(validation_obj.outbound.missing_columns)}]'
-                        validation_obj.errors_list.append(error)
-                else:
-                    validation_obj.errors_list.append(FILE_ERROR_MISSING_OUTBOUND)  
-            else:    
-                # Validate contents
-                validation_obj.order_header = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.ORDER_HEADER)
-                validation_obj.order_details = self._validate_upload_file(data_directory=data_directory, file_type=UploadFileTypes.ORDER_DETAILS)
-                    
-                # Error strings
-                if validation_obj.order_header.is_present:
-                    validation_obj.given_files.append(UploadFileTypes.ORDER_HEADER.value)
-
-                    if len(validation_obj.order_header.missing_columns) > 0:
-                        error = f'{FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS}\n[{", ".join(validation_obj.order_header.missing_columns)}]'
-                        validation_obj.errors_list.append(error)
-                else:
-                    validation_obj.errors_list.append(FILE_ERROR_MISSING_OUTBOUND_HEADER)
-
-                # Order Details
-                if validation_obj.order_details.is_present:
-                    validation_obj.given_files.append(UploadFileTypes.ORDER_DETAILS.value)
-
-                    if len(validation_obj.order_details.missing_columns) > 0:
-                        error = f'{FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS}\n[{", ".join(validation_obj.order_details.missing_columns)}]'
-                        validation_obj.errors_list.append(error)
-                else:
-                    validation_obj.errors_list.append(FILE_ERROR_MISSING_OUTBOUND_DETAILS)
-
-        if len(validation_obj.errors_list) > 0:
-            validation_obj.is_valid = False
-            
-        return validation_obj
-    
-    def _validate_upload_file(self, data_directory: str, file_type: UploadFileTypes) -> FileValidation:
-        file_path = f'{data_directory}/{file_type.value}.csv'
-        required_columns = FILE_TYPES_COLUMNS_MAPPER[file_type.value]
-        print(required_columns)
-        
-        return self._validate_file(file_type=file_type, file_path=file_path, required_columns=required_columns)
-
-    def _validate_file(self, file_type: UploadFileTypes, file_path: str, required_columns: list, valid_columns: list = None) -> FileValidation:
-        validation_obj = FileValidation(file_type=file_type, file_path=file_path)
-
-        # Is it present?
-        if not os.path.exists(validation_obj.file_path) or os.stat(validation_obj.file_path).st_size == 0:
-            validation_obj.is_present = False
-            validation_obj.is_valid = False
-            validation_obj.file_path = ''
-            return validation_obj
-        else:
-            validation_obj.is_present = True
-
-        # Is it a data frame?
-        if not file_path_is_valid_data_frame(validation_obj.file_path):
-            validation_obj.is_valid = False
-            return validation_obj
-        
-        # Find given columns
-        given_cols = csv_given_columns(file_path=validation_obj.file_path)
-        validation_obj.given_columns = given_cols
-
-        # Does it have all required columns?
-        missing_cols = missing_column_names(given_cols=given_cols, required_cols=required_columns)
-        if missing_cols:
-            validation_obj.is_valid = False
-            validation_obj.missing_columns = missing_cols
-            return validation_obj
-
-        # Does it have any columns it ain't supposed to?
-        if valid_columns:
-            invalid_cols = invalid_column_names(given_cols=given_cols, valid_cols=valid_columns)
-            if invalid_cols:
-                validation_obj.is_valid = False
-                validation_obj.invalid_columns = invalid_cols
-                return validation_obj
-
-        # Is dataframe empty?
-        if data_frame_is_empty(file_path=validation_obj.file_path):     # Empty = headers present but no row data
-            validation_obj.is_present = False
-            return validation_obj
-        
-        # Otherwise, it's valid
-        return validation_obj
-
-    ''' Helper Functions '''
-
-    def _read_and_cleanse_uploaded_data_file(self, file_type: UploadFileTypes, file_path: str, log_file: TextIOWrapper = None) -> tuple[pd.DataFrame, list]:
-
-        ''' 
-        Reads given file and returns a cleansed dataframe. Converts column types to match database and re-order columns. Finds type errors now before attempting DB transactions.
-
-        Return
-        ------
-        pd.DataFrame
-        '''
-
-        if log_file: log_file.write(f'Reading {file_type.value}\n')
-
-        dtypes = FILE_TYPES_DTYPES_MAPPER[file_type.value]
-
-        df = pd.read_csv(file_path)
-        if log_file: log_file.write(f'Shape: {df.shape}\n')
-
-        errors_encountered = 0
-        errors_list = []
-        for col, dtype in dtypes.items():
-            if not col in df.columns:
-                continue
-
-            try:
-                rows_to_fill = 0
-                default_val = DTYPES_DEFAULT_VALUES[dtype]
-
-                if dtype == 'date':
-                    df[col] = pd.to_datetime(df[col], dayfirst=True, format='mixed', errors='coerce')
-                elif dtype == 'time':
-                    df[col] = pd.to_datetime(df[col], format='%H:%M:%S', errors='coerce')
-                elif dtype == 'float64' or dtype == 'int64':
-                    df[col] = pd.to_numeric(df[col], errors='coerce')
-                elif dtype == 'object':
-                    df[col] = df[col].astype("string")
-                
-                rows_to_fill = len(df.loc[df[col].isna(), :])
-                df[col] = df[col].replace(to_replace=math.nan, value=default_val)
-                
-                if rows_to_fill > 0:
-                    if log_file: log_file.write(f'{col} - replacing erroneous cells with default value "{default_val}" to {rows_to_fill} rows\n')
-
-            except Exception as e:
-                if log_file: log_file.write(f'ERROR - Could not convert field "{col}" to correct type {dtype}: {e}\n')
-                print(f'ERROR converting field "{col}" to correct type: {e}\n')
-                errors_list.append(e)
-                errors_encountered += 1
-
-        if errors_encountered > 0:
-            if log_file: log_file.write(f'{errors_encountered} error(s) encountered converting to correct dtypes.\n\n')
-            print(f'{errors_encountered} error(s) encountered converting to correct dtypes. Quitting before DB insertion.')
-        else:
-            if log_file: log_file.write(f'Dtype conversions successful.\n\n')
-            print(f'Dtype conversions successful.')
-
-        # Reindex for consistent column order
-        df = df.reindex(columns=dtypes.keys())
-
-        if log_file: log_file.flush()
-        
-        return df, errors_list
 
 
     ''' Getters/Setters '''

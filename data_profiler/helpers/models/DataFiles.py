@@ -12,11 +12,11 @@ from enum import Enum
 from typing import Union
 
 
-class DataUploadType(str, Enum):
+class DataDirectoryType(str, Enum):
     REGULAR = 'Regular'
     HEADERS = 'Headers'
 
-class UploadFileTypes(str, Enum):
+class UploadFileType(str, Enum):
     ITEM_MASTER = 'ItemMaster'
     INBOUND = 'Inbound'
     INBOUND_HEADER = 'InboundHeader'
@@ -32,7 +32,7 @@ class OtherFileTypes(str, Enum):
     SUBWHSE_UPDATE = 'SubwhseUpdate'
 
 class UploadedFile(BaseModel):
-    file_type: UploadFileTypes
+    file_type: UploadFileType
     file_path: str
 
 class UploadedFilePaths(BaseModel):
@@ -48,7 +48,7 @@ class UploadedFilePaths(BaseModel):
 
 
 class FileValidation(BaseModel):
-    file_type: UploadFileTypes
+    file_type: UploadFileType
     file_path: str = ''
     is_present: bool = True
     is_valid: bool = True
@@ -59,18 +59,18 @@ class FileValidation(BaseModel):
 
 class DataDirectoryValidation(BaseModel):
     file_path: str
-    data_upload_type: DataUploadType = DataUploadType.REGULAR
+    data_directory_type: DataDirectoryType = DataDirectoryType.REGULAR
     given_files: list = []
 
     is_valid: bool = True
     errors_list: list = []
 
-    item_master: FileValidation = FileValidation(file_type=UploadFileTypes.ITEM_MASTER)
-    inbound: FileValidation = FileValidation(file_type=UploadFileTypes.INBOUND)
-    inventory: FileValidation = FileValidation(file_type=UploadFileTypes.INVENTORY)
-    outbound: FileValidation = FileValidation(file_type=UploadFileTypes.OUTBOUND)
+    item_master: FileValidation = FileValidation(file_type=UploadFileType.ITEM_MASTER)
+    inbound: FileValidation = FileValidation(file_type=UploadFileType.INBOUND)
+    inventory: FileValidation = FileValidation(file_type=UploadFileType.INVENTORY)
+    outbound: FileValidation = FileValidation(file_type=UploadFileType.OUTBOUND)
 
-    inbound_header: FileValidation = FileValidation(file_type=UploadFileTypes.INBOUND_HEADER)
-    inbound_details: FileValidation = FileValidation(file_type=UploadFileTypes.INBOUND_DETAILS)
-    order_header: FileValidation = FileValidation(file_type=UploadFileTypes.ORDER_HEADER)
-    order_details: FileValidation = FileValidation(file_type=UploadFileTypes.ORDER_DETAILS)
+    inbound_header: FileValidation = FileValidation(file_type=UploadFileType.INBOUND_HEADER)
+    inbound_details: FileValidation = FileValidation(file_type=UploadFileType.INBOUND_DETAILS)
+    order_header: FileValidation = FileValidation(file_type=UploadFileType.ORDER_HEADER)
+    order_details: FileValidation = FileValidation(file_type=UploadFileType.ORDER_DETAILS)
