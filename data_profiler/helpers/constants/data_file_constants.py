@@ -174,9 +174,12 @@ DTYPES_DEFAULT_VALUES = {
 DIRECTORY_ERROR_DOES_NOT_EXIST = 'The given data directory does not exist.'
 
 FILE_ERROR_MISSING_ITEM_MASTER = 'Item Master is missing. Cannot continue.'
+FILE_ERROR_MISSING_INBOUND = '"Process Inbound Data" set to true but Inbound is not found.'
+FILE_ERROR_MISSING_INVENTORY = '"Process Inventory Data" set to true but Inventory file is not found.'
+FILE_ERROR_MISSING_OUTBOUND = '"Process Outbound Data" set to true but Outbound file is not found.'
+
 FILE_ERROR_MISSING_INBOUND_HEADER = '"Process Inbound Data" set to true but Inbound Header is not found.'
 FILE_ERROR_MISSING_INBOUND_DETAILS = '"Process Inbound Data" set to true but Inbound Details is not found.'
-FILE_ERROR_MISSING_INVENTORY = '"Process Inventory Data" set to true but Inventory file is not found.'
 FILE_ERROR_MISSING_OUTBOUND_HEADER = '"Process Outbound Data" set to true but Outbound Header is not found.'
 FILE_ERROR_MISSING_OUTBOUND_DETAILS = '"Process Outbound Data" set to true but Outbound Details is not found.'
 

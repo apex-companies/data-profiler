@@ -10,6 +10,7 @@ from customtkinter import CTkToplevel, CTkLabel
 
 # Data Profiler
 from ..helpers.models.ProjectInfo import BaseProjectInfo
+from ..helpers.models.DataFiles import UploadFileTypes
 
 # Apex GUI
 from apex_gui.frames.custom_widgets import EntryWithLabel, TextboxWithLabel, CheckbuttonWithLabel, DropdownWithLabel
@@ -129,8 +130,9 @@ class DataDirectoryFileSelectory(CTkToplevel):
         # Parent = body        
         self.checkbuttons: dict[str, CheckbuttonWithLabel] = {}
         for file in files:
-            label = CheckbuttonWithLabel(self.body, label_text=file, default_val=True)
+            label = CheckbuttonWithLabel(self.body, label_text=file, default_val=False)
             self.checkbuttons[file] = label
+        self.set_checkbutton_defaults()
 
         # Parent = footer
         self.action_btns_frame = Frame(self.footer)
@@ -142,7 +144,7 @@ class DataDirectoryFileSelectory(CTkToplevel):
 
         # Parent = self
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(1, weight=1)
 
         self.header_label.grid(row=0, column=0)
         self.body.grid(row=1, column=0, sticky='nsew', padx=20, pady=(0,20))
@@ -165,6 +167,29 @@ class DataDirectoryFileSelectory(CTkToplevel):
         # Parent = btns_frame
         self.save_btn.grid(row=0, column=0)
 
+    def set_checkbutton_defaults(self):
+        if f'{UploadFileTypes.ITEM_MASTER.value}.csv' in self.checkbuttons.keys():
+            self.checkbuttons[f'{UploadFileTypes.ITEM_MASTER.value}.csv'].set_value(True)
+        
+        if f'{UploadFileTypes.INVENTORY.value}.csv' in self.checkbuttons.keys():
+            self.checkbuttons[f'{UploadFileTypes.INVENTORY.value}.csv'].set_value(True)
+
+        if f'{UploadFileTypes.INBOUND.value}.csv' in self.checkbuttons.keys():
+            self.checkbuttons[f'{UploadFileTypes.INBOUND.value}.csv'].set_value(True)
+        else:
+            if f'{UploadFileTypes.INBOUND_HEADER.value}.csv' in self.checkbuttons.keys():
+                self.checkbuttons[f'{UploadFileTypes.INBOUND_HEADER.value}.csv'].set_value(True)
+            if f'{UploadFileTypes.INBOUND_DETAILS.value}.csv' in self.checkbuttons.keys():
+                self.checkbuttons[f'{UploadFileTypes.INBOUND_DETAILS.value}.csv'].set_value(True)
+
+        if f'{UploadFileTypes.OUTBOUND.value}.csv' in self.checkbuttons.keys():
+            self.checkbuttons[f'{UploadFileTypes.OUTBOUND.value}.csv'].set_value(True)
+        else:
+            if f'{UploadFileTypes.ORDER_HEADER.value}.csv' in self.checkbuttons.keys():
+                self.checkbuttons[f'{UploadFileTypes.ORDER_HEADER.value}.csv'].set_value(True)
+            if f'{UploadFileTypes.ORDER_DETAILS.value}.csv' in self.checkbuttons.keys():
+                self.checkbuttons[f'{UploadFileTypes.ORDER_DETAILS.value}.csv'].set_value(True)
+
     def get_selected_files(self):
         selected_files = []
         for file, label in self.checkbuttons.items():
@@ -177,7 +202,9 @@ class DataDirectoryFileSelectory(CTkToplevel):
         selected_files = self.get_selected_files()
 
         if len(selected_files) == 0:
-            return False, 'Select at least one file!'
+            return False, 'No files selected!'
+
+        
 
         return True, ''
 

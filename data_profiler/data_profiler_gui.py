@@ -19,6 +19,7 @@ from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectI
 from .helpers.models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
 from .helpers.models.Responses import TransformRowsInserted
 from .helpers.models.GeneralModels import DownloadDataOptions
+from .helpers.models.DataFiles import DataUploadType
 from .helpers.constants.app_constants import RESOURCES_DIR, RESOURCES_DIR_DEV
 from .frames.custom_widgets import ProjectInfoFrame, DataDirectoryFileSelectory, DataDescriberColumnSelector
 
@@ -29,7 +30,7 @@ from .data_profiler import DataProfiler
 from apex_gui.apex_app import ApexApp
 from apex_gui.frames.notification_dialogs import NotificationDialog, ResultsDialog, ResultsDialogWithLogFile, ConfirmDeleteDialog
 from apex_gui.frames.styled_widgets import Page, Section, SectionWithScrollbar, Frame, NeutralButton, TransparentIconButton, PositiveIconButton, NeutralIconButton, DangerIconButton
-from apex_gui.frames.custom_widgets import EntryWithLabel, StaticValueWithLabel, DropdownWithLabel, CheckbuttonWithLabel, FileBrowser
+from apex_gui.frames.custom_widgets import Toggle, StaticValueWithLabel, DropdownWithLabel, CheckbuttonWithLabel, FileBrowser
 from apex_gui.styles.fonts import AppSubtitleFont, SectionHeaderFont, SectionSubheaderFont
 from apex_gui.styles.colors import *
 from apex_gui.helpers.constants import EntryType
@@ -197,12 +198,13 @@ class DataProfilerGUI(ApexApp):
         self.upload_frame_title = CTkLabel(self.upload_frame_header_frame, text='Upload Project Data', font=AppSubtitleFont())
         self.upload_frame_back_to_home_btn = TransparentIconButton(self.upload_frame_header_frame, image=self.back_icon, command=self.navigate_to_home_action)
 
-        # LEVEL 2 - upload_frame_content_frame
+        # LEVEL 1 - upload_frame_content_frame
         self.upload_frame_upload_section = SectionWithScrollbar(self.upload_frame_content_frame, width=375, height=420)
         self.upload_frame_submit_btn = PositiveIconButton(self.upload_frame_content_frame, image=self.check_icon, command=self.upload_data_action)#, state='disabled')
 
-        # LEVEL 3 - upload_frame_upload_section
-        self.upload_frame_data_directory_browse = FileBrowser(self.upload_frame_upload_section, label_text='Select a data directory', path_type='folder')#, btn_action=self.validate_data_directory)
+        # LEVEL 2 - upload_frame_upload_section
+        self.upload_frame_data_directory_browse = FileBrowser(self.upload_frame_upload_section, label_text='Select a data directory', path_type='folder')
+        self.upload_frame_data_upload_type = Toggle(self.upload_frame_upload_section, on_value_text=DataUploadType.HEADERS.value, off_value_text=DataUploadType.REGULAR.value, default='off')
 
         self.upload_frame_date_for_analysis = DropdownWithLabel(self.upload_frame_upload_section, label_text='Date for Analysis', default_val=DateForAnalysis.PICK_DATE.value,
                                                                 dropdown_values=[DateForAnalysis.RECEIVED_DATE.value, DateForAnalysis.PICK_DATE.value, DateForAnalysis.SHIP_DATE.value],
@@ -427,14 +429,15 @@ class DataProfilerGUI(ApexApp):
         # LEVEL 2 - upload_frame_upload_section
         self.upload_frame_upload_section.grid_columnconfigure(0, weight=1)
 
-        self.upload_frame_data_directory_browse.grid(row=0, column=0, sticky='ew', padx=20, pady=(5, 20))
+        self.upload_frame_data_directory_browse.grid(row=0, column=0, sticky='ew', padx=20, pady=(5, 0))
+        self.upload_frame_data_upload_type.grid(row=1, column=0, padx=20, pady=(5, 20))
 
-        self.upload_frame_date_for_analysis.grid(row=1, column=0, sticky='ew', padx=20, pady=(20, 0))
-        self.upload_frame_weekend_date_rule.grid(row=2, column=0, sticky='ew', padx=20, pady=(20, 20))
+        self.upload_frame_date_for_analysis.grid(row=2, column=0, sticky='ew', padx=20, pady=(20, 0))
+        self.upload_frame_weekend_date_rule.grid(row=3, column=0, sticky='ew', padx=20, pady=(20, 20))
 
-        self.upload_frame_process_inbound_data.grid(row=3, column=0, sticky='ew', padx=20, pady=(20, 0))
-        self.upload_frame_process_inventory_data.grid(row=4, column=0, sticky='ew', padx=20, pady=(20, 0))
-        self.upload_frame_process_outbound_data.grid(row=5, column=0, sticky='ew', padx=20, pady=(20, 5))        
+        self.upload_frame_process_inbound_data.grid(row=4, column=0, sticky='ew', padx=20, pady=(20, 0))
+        self.upload_frame_process_inventory_data.grid(row=5, column=0, sticky='ew', padx=20, pady=(20, 0))
+        self.upload_frame_process_outbound_data.grid(row=6, column=0, sticky='ew', padx=20, pady=(20, 5))        
 
     def _grid_more_actions_frame(self):
         # Parent = self
@@ -606,36 +609,37 @@ class DataProfilerGUI(ApexApp):
                 data_dir_contents.append(file) 
 
 
-        # Have user select the columns to include
-        file_selector = DataDirectoryFileSelectory(self, files=data_dir_contents)
-        file_selector.attributes('-topmost', True)
-        self.wait_window(file_selector)
+        # # Have user select the columns to include
+        # file_selector = DataDirectoryFileSelectory(self, files=data_dir_contents)
+        # file_selector.attributes('-topmost', True)
+        # self.wait_window(file_selector)
 
-        # Run description, if user saved inputs
-        if not file_selector.get_saved():
-            return
+        # # Run description, if user saved inputs
+        # if not file_selector.get_saved():
+        #     return
         
-        # Validate inputs
-        success, message = file_selector.validate_inputs()
-        if not success:
-            # Display dialog
-            notification_dialog = NotificationDialog(self, title='Data Profiler', text=f'Data Describer ERROR:\n{message}')
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
-            return
+        # # Validate inputs
+        # success, message = file_selector.validate_inputs()
+        # if not success:
+        #     # Display dialog
+        #     notification_dialog = NotificationDialog(self, title='Data Profiler', text=f'Data Describer ERROR:\n{message}')
+        #     notification_dialog.attributes('-topmost', True)
+        #     notification_dialog.mainloop()
+        #     return
 
-        # Show loading frame while executing
-        self.show_loading_frame_action(f'Describing data...')
+        # # Show loading frame while executing
+        # self.show_loading_frame_action(f'Describing data...')
         
-        # Get user inputted values
-        selected_files = file_selector.get_selected_files()
-        print(selected_files)
-        input()
+        # # Get user inputted values
+        # selected_files = file_selector.get_selected_files()
+        # print(selected_files)
+        # input()
 
-        # Transform options don't need validation (cuz they're dropdowns and checkboxes)
+        # Transform options don't need validation (cuz they're dropdowns and checkboxes)       
         transform_options = TransformOptions(
             date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
             weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
+            data_upload_type=DataUploadType(self.upload_frame_data_upload_type.get_value()),
             process_inbound_data=self.upload_frame_process_inbound_data.get_value(),
             process_inventory_data=self.upload_frame_process_inventory_data.get_value(),
             process_outbound_data=self.upload_frame_process_outbound_data.get_value(),

@@ -12,9 +12,9 @@ from enum import Enum
 from typing import Union
 
 
-class DataUploadType(Enum):
-    REGULAR = 1
-    HEADERS = 2
+class DataUploadType(str, Enum):
+    REGULAR = 'Regular'
+    HEADERS = 'Headers'
 
 class UploadFileTypes(str, Enum):
     ITEM_MASTER = 'ItemMaster'
@@ -37,9 +37,12 @@ class UploadedFile(BaseModel):
 
 class UploadedFilePaths(BaseModel):
     item_master: str = ''
+    inbound: str = ''
+    inventory: str = ''
+    outbound: str = ''
+    
     inbound_header: str = ''
     inbound_details: str = ''
-    inventory: str = ''
     order_header: str = ''
     order_details: str = ''
 

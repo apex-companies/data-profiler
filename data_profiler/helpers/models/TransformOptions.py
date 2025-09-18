@@ -9,6 +9,7 @@ Transform options models
 from enum import Enum
 from pydantic import BaseModel
 
+from .DataFiles import DataUploadType
 
 class DateForAnalysis(str, Enum):
     RECEIVED_DATE = 'ReceivedDate'
@@ -26,6 +27,7 @@ class WeekendDateRules(str, Enum):
 class TransformOptions(BaseModel):
     date_for_analysis: DateForAnalysis | None = None
     weekend_date_rule: WeekendDateRules | None = None
+    data_upload_type: DataUploadType = DataUploadType.REGULAR
     process_inbound_data: bool = True
     process_inventory_data: bool = True
     process_outbound_data: bool = True
