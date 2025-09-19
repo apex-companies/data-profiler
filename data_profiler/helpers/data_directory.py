@@ -363,15 +363,21 @@ class DataDirectory:
         
         ## Split to header / details if necessary
         if self.directory_type == DataDirectoryType.REGULAR:
-            # Get headers
-            inbound_header = self._get_header_from_inbound_df(inbound_df=inbound)
-            order_header = self._get_header_from_outbound_df(outbound_df=outbound)
+            if self.transform_options.process_inbound_data:
+                # Get header
+                inbound_header = self._get_header_from_inbound_df(inbound_df=inbound)
+            
+                # Reindex
+                inbound_header = inbound_header.reindex(columns=FILE_TYPES_COLUMNS_MAPPER[UploadFileType.INBOUND_HEADER.value])
+                inbound_details = inbound.reindex(columns=FILE_TYPES_COLUMNS_MAPPER[UploadFileType.INBOUND_DETAILS.value])
 
-            # Reindex
-            inbound_header = inbound_header.reindex(columns=FILE_TYPES_COLUMNS_MAPPER[UploadFileType.INBOUND_HEADER.value])
-            inbound_details = inbound.reindex(columns=FILE_TYPES_COLUMNS_MAPPER[UploadFileType.INBOUND_DETAILS.value])
-            order_header = order_header.reindex(columns=FILE_TYPES_COLUMNS_MAPPER[UploadFileType.ORDER_HEADER.value])
-            order_details = outbound.reindex(columns=FILE_TYPES_COLUMNS_MAPPER[UploadFileType.ORDER_DETAILS.value])
+            if self.transform_options.process_outbound_data:
+                # Get header
+                order_header = self._get_header_from_outbound_df(outbound_df=outbound)
+
+                # Reindex
+                order_header = order_header.reindex(columns=FILE_TYPES_COLUMNS_MAPPER[UploadFileType.ORDER_HEADER.value])
+                order_details = outbound.reindex(columns=FILE_TYPES_COLUMNS_MAPPER[UploadFileType.ORDER_DETAILS.value])
         
         ## Save dataframes
         self.item_master = item_master

@@ -76,14 +76,6 @@ class TransformService:
 
         if self.update_progress_text_func: self.update_progress_text_func('Transforming data...')
 
-        # Get input dataframes
-        item_master_input = self.DataDirectoryObj.get_df(UploadFileType.ITEM_MASTER)
-        inbound_header_input = self.DataDirectoryObj.get_df(UploadFileType.INBOUND_HEADER)
-        inbound_details_input = self.DataDirectoryObj.get_df(UploadFileType.INBOUND_DETAILS)
-        inventory_input = self.DataDirectoryObj.get_df(UploadFileType.INVENTORY)
-        order_header_input = self.DataDirectoryObj.get_df(UploadFileType.ORDER_HEADER)
-        order_details_input = self.DataDirectoryObj.get_df(UploadFileType.ORDER_DETAILS)
-
         # Instantiate dataframe variables - one for each output table
         item_master_data = pd.DataFrame()
         inbound_header = pd.DataFrame()
@@ -107,12 +99,19 @@ class TransformService:
         log_file.flush()
 
         # Start with Item Master
+        item_master_input = self.DataDirectoryObj.get_df(UploadFileType.ITEM_MASTER)
+        
         item_master_data = self.create_item_master(project_num=self.project_number, item_master=item_master_input)
         total_rows_of_data += len(item_master_data)
         log_file.write(f'Item Master rows: {len(item_master_data)}\n')
 
         # Create outbound so we can determine velocities
         if self.transform_options.process_outbound_data:
+            # Get input dfs
+            order_header_input = self.DataDirectoryObj.get_df(UploadFileType.ORDER_HEADER)
+            order_details_input = self.DataDirectoryObj.get_df(UploadFileType.ORDER_DETAILS)
+
+            # Form final tables
             outbound_data = self.create_outbound_data(project_num=self.project_number, order_header_df=order_header_input, order_details_df=order_details_input, item_master_df=item_master_data)
             total_rows_of_data += len(outbound_data)
             order_nums = outbound_data['OrderNumber'].unique().tolist()
@@ -134,6 +133,11 @@ class TransformService:
         # Inbound
         inbound_skus = []
         if self.transform_options.process_inbound_data:
+            # Get input dfs
+            inbound_header_input = self.DataDirectoryObj.get_df(UploadFileType.INBOUND_HEADER)
+            inbound_details_input = self.DataDirectoryObj.get_df(UploadFileType.INBOUND_DETAILS)
+
+            # Form final tables
             inbound_header = self.create_inbound_header(project_num=self.project_number, inbound_header_df=inbound_header_input, inbound_details_df=inbound_details_input)
             inbound_details = self.create_inbound_details(project_num=self.project_number, inbound_details_df=inbound_details_input, item_master_df=item_master_data)
             
@@ -146,6 +150,10 @@ class TransformService:
 
         # Inventory
         if self.transform_options.process_inventory_data:
+            # Get input df
+            inventory_input = self.DataDirectoryObj.get_df(UploadFileType.INVENTORY)
+
+            # Form final table
             inventory_data = self.create_inventory_data(project_num=self.project_number, inventory_df=inventory_input, velocity_analysis=velocity_analysis, inbound_skus=inbound_skus, item_master_df=item_master_data)
             
             total_rows_of_data += len(inventory_data)
@@ -242,7 +250,6 @@ class TransformService:
                     # Insert
                     rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name=table, data_frame=df, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER[table]}")
                     total_rows_inserted += rows
-                    rows_inserted_obj.skus = rows
                 
         # https://peps.python.org/pep-0249/#exceptions
         except InterfaceError as e:
@@ -264,10 +271,7 @@ class TransformService:
             transform_response.success = False
             transform_response.message = 'Something went wrong when inserting data to database. Check log.'
         else:
-            transform_response.success = True
-            transform_response.message = 'Successful transform and insertion.'
-            transform_response.rows_inserted = rows_inserted_obj
-
+            # Create TransformRowsInserted object            
             rows_inserted_obj.total_rows_inserted = total_rows_inserted
             rows_inserted_obj.skus = len(item_master_data)
             rows_inserted_obj.inbound_pos = len(inbound_header)
@@ -275,6 +279,9 @@ class TransformService:
             rows_inserted_obj.inventory_lines = len(inventory_data)
             rows_inserted_obj.outbound_orders = len(project_number_order_number)
             rows_inserted_obj.outbound_lines = len(outbound_data)
+
+            transform_response.success = True
+            transform_response.rows_inserted = rows_inserted_obj
 
             insert_et = time()
             log_file.write(f'Success! Inserted {total_rows_inserted} rows in {timedelta(seconds=insert_et-insert_st)}\n\n')
