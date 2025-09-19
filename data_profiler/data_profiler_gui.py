@@ -587,14 +587,14 @@ class DataProfilerGUI(ApexApp):
             self.navigate_to_home_action()
 
             # Display notification of results
-            notification_dialog = NotificationDialog(self, title='Success!', text=f'Created new data project for {self._get_project_number()}')
+            notification_dialog = NotificationDialog(self, title='Success!', text=f'Created new data project for {new_project_info.project_number}.')
         
         else:
             # Navigate back to new project screen
             self.navigate_to_new_project_frame_action()
 
             # Display notification of results
-            message = f'Something went wrong when creating new project for {self._get_project_number()}:\n\n{response.error_message}'
+            message = f'Something went wrong when creating new project for {new_project_info.project_number}:\n\n{response.message}'
             notification_dialog = NotificationDialog(self, title='Error', text=message)
 
         notification_dialog.attributes('-topmost', True)
@@ -627,7 +627,7 @@ class DataProfilerGUI(ApexApp):
             self.navigate_to_upload_data_frame_action()
 
             # Display notification of results
-            message = results.message 
+            message = f'Trouble with the data upload:\n\n{results.message}'
         else:
             # Reset upload page
             self._create_upload_data_frame()
@@ -639,6 +639,8 @@ class DataProfilerGUI(ApexApp):
 
             # Display notification of results
             message = f'Successful transformation and data upload!\n\n{self.pretty_print_rows_inserted(results.rows_inserted)}'
+            if results.message:
+                message += f'\n\n{results.message}'
             
         # Report results
         notification_dialog = ResultsDialogWithLogFile(self, 
@@ -704,7 +706,7 @@ class DataProfilerGUI(ApexApp):
             notification_dialog = NotificationDialog(self, title='Success!', text='Saved project info changes to database.')
         else:
             # Notify of failure
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Could not save project info changes to database:\n\n{response.error_message}')
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Could not save project info changes to database:\n\n{response.message}')
 
         # Navigate back to home
         self.navigate_to_home_action()
@@ -743,13 +745,21 @@ class DataProfilerGUI(ApexApp):
         # Back to more actions
         self.navigate_to_more_actions_action()
 
-        # Clear browse, if operation was successful
+        notification_dialog = None
         if response.success:
+            # Clear browse, if operation was successful
             self.more_actions_frame_update_item_master_browse.clear_input()
-        
+            
+            message = f'Updated {response.rows_affected:,} items successfully.'
+            if response.message:
+                message += f'\n\n{response.message}'
+            
+            notification_dialog = NotificationDialog(self, title='Success!', text=message)
+        else:
+            message = f'Trouble updating Item Master:\n\n{response.message}'
+            notification_dialog = NotificationDialog(self, title='Error', text=message)
+            
         # Notify of results
-        title = 'Success!' if response.success else 'Error'
-        notification_dialog = NotificationDialog(self, title=title, text=f'Update Item Master:\n\n{response.message}')
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
 
@@ -765,19 +775,20 @@ class DataProfilerGUI(ApexApp):
         # Delete project
         response = self.DataProfiler.delete_project()
 
+        notification_dialog = None
         if response.success:
             # Navigate back to start
             self.logout_action()
     
             # Display notification of results
-            notification_dialog = NotificationDialog(self, title='Success!', text='Deleted project successfully.')        
+            notification_dialog = NotificationDialog(self, title='Success!', text=f'Deleted project successfully.')        
         
         else:
             # Navigate back to home
             self.navigate_to_home_action()
 
             # Display notification of results
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble deleting project:\n\n{response.error_message}')        
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble deleting project:\n\n{response.message}')        
         
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
@@ -799,8 +810,10 @@ class DataProfilerGUI(ApexApp):
             self._create_home_frame()
 
             message = 'Deleted project data successfully.'
+            if results.message:
+                message += f'\n\n{results.message}'
         else:
-            message = f'Encountered {len(results.errors_encountered)} errors when attempting to delete project data. Check log.'
+            message = f'Trouble deleting data. Check log.\n\n{results.message}'
 
         # Show self again
         self.navigate_to_home_action()
@@ -943,7 +956,7 @@ class DataProfilerGUI(ApexApp):
         notification_dialog = None
         if download_response.success:
             # Display notification of results
-            notification_dialog = ResultsDialog(self, title='Success!', text=f'Downloaded "{download_option.value}" for {self._get_project_number()}.', results_dir=download_response.download_path)        
+            notification_dialog = ResultsDialog(self, title='Success!', text=f'Downloaded "{download_option.value}" for {download_response.project_number}.', results_dir=download_response.download_path)        
         else:
             # Display notification of results
             notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble downloading "{download_option.value}" :\n\n{download_response.message}') 

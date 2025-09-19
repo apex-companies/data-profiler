@@ -22,7 +22,7 @@ from ..helpers.functions.functions import find_new_file_path
 
 from ..helpers.models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
 from ..helpers.models.TransformOptions import TransformOptions
-from ..helpers.models.Responses import DeleteResponse, DBDownloadResponse
+from ..helpers.models.Responses import BaseDBResponse, DBDownloadResponse
 from ..helpers.models.GeneralModels import UnitOfMeasure
 from ..helpers.constants.app_constants import SQL_DIR, SQL_DIR_DEV
 
@@ -170,7 +170,7 @@ class OutputTablesService:
         f.close()
         
         # Download datas
-        download_response = DBDownloadResponse(download_path=download_folder)
+        download_response = DBDownloadResponse(project_number=project_number, download_path=download_folder)
         with DatabaseConnection(dev=self.dev) as db_conn:
             try: 
                 print(f'Downloading Item Master...')
@@ -191,8 +191,7 @@ class OutputTablesService:
                 download_response.message = f'Something unknown went wrong. {e}'
             else:
                 download_response.success = True
-                download_response.message = 'Success!'
-                download_response.rows_downloaded = len(item_master_df) + len(inventory_df) + len(outbound_data_df)
+                download_response.rows_affected = len(item_master_df) + len(inventory_df) + len(outbound_data_df)
 
         # Export
         if download_response.success:
@@ -522,7 +521,7 @@ class OutputTablesService:
 
         return row_count
 
-    def delete_project_data(self, project_number: str, log_file: TextIOWrapper, update_progress_text_func: Callable[[str], None] = None) -> DeleteResponse:
+    def delete_project_data(self, project_number: str, log_file: TextIOWrapper, update_progress_text_func: Callable[[str], None] = None) -> BaseDBResponse:
         '''
         Delete from OutputTables schema. Removes records from all relevant DB tables belonging to the given project number
 
@@ -531,7 +530,7 @@ class OutputTablesService:
         DeleteResponse
         '''
 
-        response = DeleteResponse(project_number=project_number)
+        response = BaseDBResponse(project_number=project_number)
 
         # Configure schema and sql file mapper
         tables = 'all'                          # NOTE - this is from old code, when RawData was still used. We no longer need to be able to delete one table at a time, but it could be a future requirement
@@ -548,7 +547,9 @@ class OutputTablesService:
         delete_st = time()
         print(f'Deleting records from {schema} table(s) "{tables}" belonging to project number: {project_number}')
         total_rows_deleted = 0
-        
+        errors_encountered = []
+        response.success = True
+
         with DatabaseConnection(dev=self.dev) as db_conn:
             cursor = db_conn.cursor()
 
@@ -592,7 +593,7 @@ class OutputTablesService:
                     log_file.flush()
 
                     response.success = False
-                    response.errors_encountered.append(e)
+                    errors_encountered.append(e)
 
                 i += 1
 
@@ -602,16 +603,19 @@ class OutputTablesService:
         print(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.')
         print(f'{total_rows_deleted} rows deleted.')
 
+
         if response.success:
             log_file.write('\nSuccess!\n')
         else:
-            log_file.write(f'\n{len(response.errors_encountered)} errors while deleting. Unsuccessful. Try again.\n') 
+            log_file.write(f'\n{len(errors_encountered)} errors while deleting. Unsuccessful. Try again.\n') 
+            errors_str = "\n".join(errors_encountered)
+            response.message = f'{len(errors_encountered)} errors while deleting:\n\n{errors_str}'
         
         log_file.write(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.\n\n')
         log_file.write(f'{total_rows_deleted} rows deleted.\n')
         log_file.flush()
 
-        response.rows_deleted = total_rows_deleted
+        response.rows_affected = total_rows_deleted
 
         return response
     

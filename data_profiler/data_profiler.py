@@ -26,7 +26,7 @@ from .helpers.functions.functions import find_new_file_path
 
 from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .helpers.models.TransformOptions import TransformOptions
-from .helpers.models.Responses import DBWriteResponse, TransformResponse, DeleteResponse, DBDownloadResponse
+from .helpers.models.Responses import BaseDBResponse, TransformResponse, DBDownloadResponse
 from .helpers.models.DataFiles import UploadFileType, UploadedFilePaths
 from .helpers.models.GeneralModels import DownloadDataOptions, UnitOfMeasure
 from .helpers.constants.data_file_constants import FILE_TYPES_COLUMNS_MAPPER
@@ -70,19 +70,19 @@ class DataProfiler:
 
     ## Create ##
 
-    def create_new_project(self, project_info: BaseProjectInfo) -> DBWriteResponse:
+    def create_new_project(self, project_info: BaseProjectInfo) -> BaseDBResponse:
         '''
         Create new project row in Project table
 
         Return
         ------
-        DBWriteResponse
+        BaseDBResponse
         '''
         
         if self.get_project_exists():
             return 'Project already exists. Try updating it instead'
         
-        response = DBWriteResponse()
+        response = BaseDBResponse(project_number=project_info.project_number)
 
         try:
             with OutputTablesService(dev=self.dev) as service:
@@ -95,7 +95,7 @@ class DataProfiler:
                     self.refresh_project_info()
         except pyodbc.DatabaseError as e:
             response.success = False
-            response.error_message = e
+            response.message = e
 
         return response
     
@@ -171,7 +171,7 @@ class DataProfiler:
                 response = service.download_items_material_flow_report(uom=UnitOfMeasure.PALLET, project_number=project_number, download_folder=download_directory)
 
         else:
-            response = DBDownloadResponse()
+            response = DBDownloadResponse(project_number=project_number)
         
 
         return response
@@ -179,11 +179,11 @@ class DataProfiler:
 
     ## Update ##
 
-    def update_project_info(self, new_project_info: ExistingProjectProjectInfo) -> DBWriteResponse:
+    def update_project_info(self, new_project_info: ExistingProjectProjectInfo) -> BaseDBResponse:
         if not self.get_project_exists():
             raise ValueError('Project does not yet exist')
         
-        response = DBWriteResponse()
+        response = BaseDBResponse(project_number=new_project_info.project_number)
 
         try:
             with OutputTablesService(dev=self.dev) as service:
@@ -194,13 +194,13 @@ class DataProfiler:
 
         except pyodbc.DatabaseError as e:
             response.success = False
-            response.error_message = e
+            response.message = e
 
         self.refresh_project_info()
 
-        return 
+        return response
     
-    def update_item_master(self, file_path: str, update_progress_text_func: Callable[[str], None] = None) -> DBWriteResponse:
+    def update_item_master(self, file_path: str, update_progress_text_func: Callable[[str], None] = None) -> BaseDBResponse:
         '''
         Update SKUs in Item Master with a CSV of valid item master columns
 
@@ -211,10 +211,8 @@ class DataProfiler:
 
         Return
         ------
-        DBWriteResponse
+        BaseDBResponse
         '''
-
-        response = DBWriteResponse()
 
         ## Validate inputs
         if not self.get_project_exists():
@@ -224,7 +222,10 @@ class DataProfiler:
 
         if not project_info.data_uploaded:
             raise ValueError('Project does not have any associated data. Upload some data first!')
-        
+
+
+        response = BaseDBResponse(project_number=project_info.project_number)
+
         # Validate given file
         if update_progress_text_func: update_progress_text_func('Validating file upload...')
         validation_obj = validate_file_structure(file_type=UploadFileType.ITEM_MASTER_UPDATE, file_path=file_path, required_columns=['SKU'], valid_columns=FILE_TYPES_COLUMNS_MAPPER['ItemMaster'])
@@ -280,7 +281,6 @@ class DataProfiler:
 
                 if response.rows_affected > 0:
                     response.success = True
-                    response.message = f'Updated {response.rows_affected:,} items successfully.'
 
                     if skus_dropped > 0:
                         response.message += f'\n\nNote: Dropped {skus_dropped:,} SKUs from given file that are not in database.'
@@ -367,6 +367,8 @@ class DataProfiler:
 
         # If unsuccessful, delete any rows that were inserted
         if not transform_response.success:
+            if update_progress_text_func: update_progress_text_func('Something happened. Deleting data...\n\n(You may need to re-connect to VPN)')
+
             log_file.write('ERROR - Unsuccessful transform/insertion. Deleting any inserted data from DB.\n')
             self.delete_project_data(log_file=log_file)
         else:
@@ -387,7 +389,7 @@ class DataProfiler:
 
     ## Delete ##
 
-    def delete_project_data(self, log_file: TextIOWrapper | None = None, update_progress_text_func: Callable[[str], None] = None) -> DeleteResponse:
+    def delete_project_data(self, log_file: TextIOWrapper | None = None, update_progress_text_func: Callable[[str], None] = None) -> BaseDBResponse:
         if not self.get_project_exists():
             raise ValueError('Project does not yet exist')
         
@@ -404,7 +406,7 @@ class DataProfiler:
             log_file.flush()
 
         # Try delete
-        response = None
+        response: BaseDBResponse = None
         with OutputTablesService(dev=self.dev) as service:
             response = service.delete_project_data(project_number=project_info.project_number, log_file=log_file, update_progress_text_func=update_progress_text_func)
             response.log_file_path = log_file_path
@@ -424,7 +426,7 @@ class DataProfiler:
 
         return response
     
-    def delete_project(self) -> DBWriteResponse:
+    def delete_project(self) -> BaseDBResponse:
         if not self.get_project_exists():
             raise ValueError('Project does not yet exist')
         
@@ -434,7 +436,7 @@ class DataProfiler:
             raise ValueError('Please delete project data before deleting project.')
         
         # Try delete
-        response = DBWriteResponse()
+        response = BaseDBResponse(project_number=project_info.project_number)
         try:
             with OutputTablesService(dev=self.dev) as service:
                 response.rows_affected = service.delete_project(project_number=project_info.project_number)
@@ -444,7 +446,7 @@ class DataProfiler:
 
         except pyodbc.DatabaseError as e:
             response.success = False
-            response.error_message = e
+            response.message = e
         
         return response
 
