@@ -10,17 +10,22 @@ Python constants relating to input/upload files for DataProfiler
 ''' Required Columns '''
 
 ITEM_MASTER_COLS = ['SKU','SKUDescription','SKUClass','ProductLine','UnitOfMeasure','EachLength','EachWidth','EachHeight','EachWeight','InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight','CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Subwarehouse']
+INBOUND_COLS = ['PO_Number', 'SKU', 'UnitOfMeasure', 'Quantity', 'ArrivalDate', 'ArrivalTime', 'ExpectedDate', 'ExpectedTime', 'Carrier', 'Mode','ShipmentNumber', 'UnloadType', 'VendorID','SourcePoint']
+INVENTORY_COLS = ['Period','SKU','Quantity','UnitOfMeasure','Location','Lot', 'LPN','Subwarehouse']
+OUTBOUND_COLS = ['OrderNumber', 'SKU', 'UnitOfMeasure', 'PickType', 'Quantity', 'ReceivedDate','PickDate','ShipDate','Channel', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier']
+
 INBOUND_HEADER_COLS = ['PO_Number', 'ArrivalDate', 'ArrivalTime', 'ExpectedDate', 'ExpectedTime', 'Carrier', 'Mode','ShipmentNumber', 'UnloadType']
 INBOUND_DETAILS_COLS = ['PO_Number', 'SKU', 'UnitOfMeasure', 'Quantity', 'VendorID','SourcePoint']
-INVENTORY_COLS = ['Period','SKU','Quantity','UnitOfMeasure','Location','Lot', 'LPN','Subwarehouse']
 ORDER_HEADER_COLS = ['OrderNumber','ReceivedDate','PickDate','ShipDate','Channel']
 ORDER_DETAILS_COLS = ['OrderNumber','SKU', 'UnitOfMeasure', 'PickType', 'Quantity', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier']
 
 FILE_TYPES_COLUMNS_MAPPER = {
     'ItemMaster': ITEM_MASTER_COLS,
+    'Inbound': INBOUND_COLS,
+    'Inventory': INVENTORY_COLS,
+    'Outbound': OUTBOUND_COLS,
     'InboundHeader': INBOUND_HEADER_COLS,
     'InboundDetails': INBOUND_DETAILS_COLS,
-    'Inventory': INVENTORY_COLS,
     'OrderHeader': ORDER_HEADER_COLS,
     'OrderDetails': ORDER_DETAILS_COLS
 }
@@ -59,6 +64,23 @@ ITEM_MASTER_DTYPES = {
     'Subwarehouse':'object'
 }
 
+INBOUND_DTYPES = {
+    'PO_Number': 'object',
+    'SKU': 'object', 
+    'UnitOfMeasure': 'object', 
+    'Quantity': 'float64', 
+    'ArrivalDate': 'date', 
+    'ArrivalTime': 'time' , 
+    'ExpectedDate': 'date', 
+    'ExpectedTime': 'time', 
+    'Carrier': 'object', 
+    'Mode': 'object',
+    'ShipmentNumber': 'object',
+    'UnloadType': 'object',
+    'VendorID': 'object', 
+    'SourcePoint': 'object'
+}
+
 INBOUND_HEADER_DTYPES = {
     'PO_Number': 'object',
     'ArrivalDate': 'date', 
@@ -91,6 +113,22 @@ INVENTORY_DTYPES = {
     'Subwarehouse': 'object'
 }
 
+OUTBOUND_DTYPES = {
+    'OrderNumber':'object',
+    'SKU': 'object',
+    'UnitOfMeasure': 'object',
+    'PickType': 'object',
+    'Quantity': 'float64',
+    'ReceivedDate':'date',
+    'PickDate':'date',
+    'ShipDate':'date',
+    'Channel':'object',
+    'BusinessUnit': 'object', 
+    'ShipContainerType': 'object',
+    'SpecialHandlingCodes': 'object', 
+    'Carrier': 'object'
+}
+
 ORDER_HEADER_DTYPES = {
     'OrderNumber':'object',
     'ReceivedDate':'date',
@@ -113,9 +151,11 @@ ORDER_DETAILS_DTYPES = {
 
 FILE_TYPES_DTYPES_MAPPER = {
     'ItemMaster': ITEM_MASTER_DTYPES,
+    'Inbound': INBOUND_DTYPES,
+    'Inventory': INVENTORY_DTYPES,
+    'Outbound': OUTBOUND_DTYPES,
     'InboundHeader': INBOUND_HEADER_DTYPES,
     'InboundDetails': INBOUND_DETAILS_DTYPES,
-    'Inventory': INVENTORY_DTYPES,
     'OrderHeader': ORDER_HEADER_DTYPES,
     'OrderDetails': ORDER_DETAILS_DTYPES
 }
@@ -134,16 +174,21 @@ DTYPES_DEFAULT_VALUES = {
 DIRECTORY_ERROR_DOES_NOT_EXIST = 'The given data directory does not exist.'
 
 FILE_ERROR_MISSING_ITEM_MASTER = 'Item Master is missing. Cannot continue.'
+FILE_ERROR_MISSING_INBOUND = '"Process Inbound Data" set to true but Inbound is not found.'
+FILE_ERROR_MISSING_INVENTORY = '"Process Inventory Data" set to true but Inventory file is not found.'
+FILE_ERROR_MISSING_OUTBOUND = '"Process Outbound Data" set to true but Outbound file is not found.'
+
 FILE_ERROR_MISSING_INBOUND_HEADER = '"Process Inbound Data" set to true but Inbound Header is not found.'
 FILE_ERROR_MISSING_INBOUND_DETAILS = '"Process Inbound Data" set to true but Inbound Details is not found.'
-FILE_ERROR_MISSING_INVENTORY = '"Process Inventory Data" set to true but Inventory file is not found.'
 FILE_ERROR_MISSING_OUTBOUND_HEADER = '"Process Outbound Data" set to true but Outbound Header is not found.'
 FILE_ERROR_MISSING_OUTBOUND_DETAILS = '"Process Outbound Data" set to true but Outbound Details is not found.'
 
 FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS = 'Item Master is missing columns.'
+FILE_ERROR_INBOUND_MISSING_COLUMNS = 'Inbound is missing columns.'
+FILE_ERROR_INVENTORY_MISSING_COLUMNS = 'Inventory is missing columns.'
+FILE_ERROR_OUTBOUND_MISSING_COLUMNS = 'Outbound is missing columns.'
 FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS = 'Inbound Header is missing columns.'
 FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS = 'Inbound Details is missing columns.'
-FILE_ERROR_INVENTORY_MISSING_COLUMNS = 'Inventory is missing columns.'
 FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS = 'Order Header is missing columns.'
 FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS = 'Order Details is missing columns.'
 

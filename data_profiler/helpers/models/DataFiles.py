@@ -11,16 +11,18 @@ from enum import Enum
 
 from typing import Union
 
-class FileType(Enum):
-# class FileType(BaseModel):
-    BASE_FILE = 'BaseFile'
 
-# class UploadFileTypes(FileType, Enum):
-class UploadFileTypes(str, Enum):
+class DataDirectoryType(str, Enum):
+    REGULAR = 'Regular'
+    HEADERS = 'Headers'
+
+class UploadFileType(str, Enum):
     ITEM_MASTER = 'ItemMaster'
+    INBOUND = 'Inbound'
     INBOUND_HEADER = 'InboundHeader'
     INBOUND_DETAILS = 'InboundDetails'
     INVENTORY = 'Inventory'
+    OUTBOUND = 'Outbound'
     ORDER_HEADER = 'OrderHeader'
     ORDER_DETAILS = 'OrderDetails'
     SUBWHSE_UPDATE = 'SubwhseUpdate'
@@ -30,21 +32,23 @@ class OtherFileTypes(str, Enum):
     SUBWHSE_UPDATE = 'SubwhseUpdate'
 
 class UploadedFile(BaseModel):
-    file_type: UploadFileTypes
+    file_type: UploadFileType
     file_path: str
-
 
 class UploadedFilePaths(BaseModel):
     item_master: str = ''
+    inbound: str = ''
+    inventory: str = ''
+    outbound: str = ''
+    
     inbound_header: str = ''
     inbound_details: str = ''
-    inventory: str = ''
     order_header: str = ''
     order_details: str = ''
 
 
 class FileValidation(BaseModel):
-    file_type: UploadFileTypes
+    file_type: UploadFileType
     file_path: str = ''
     is_present: bool = True
     is_valid: bool = True
@@ -55,12 +59,18 @@ class FileValidation(BaseModel):
 
 class DataDirectoryValidation(BaseModel):
     file_path: str
-    is_valid: bool = True
+    data_directory_type: DataDirectoryType = DataDirectoryType.REGULAR
     given_files: list = []
+
+    is_valid: bool = True
     errors_list: list = []
-    item_master: FileValidation = FileValidation(file_type=UploadFileTypes.ITEM_MASTER)
-    inbound_header: FileValidation = FileValidation(file_type=UploadFileTypes.INBOUND_HEADER)
-    inbound_details: FileValidation = FileValidation(file_type=UploadFileTypes.INBOUND_DETAILS)
-    inventory: FileValidation = FileValidation(file_type=UploadFileTypes.INVENTORY)
-    order_header: FileValidation = FileValidation(file_type=UploadFileTypes.ORDER_HEADER)
-    order_details: FileValidation = FileValidation(file_type=UploadFileTypes.ORDER_DETAILS)
+
+    item_master: FileValidation = FileValidation(file_type=UploadFileType.ITEM_MASTER)
+    inbound: FileValidation = FileValidation(file_type=UploadFileType.INBOUND)
+    inventory: FileValidation = FileValidation(file_type=UploadFileType.INVENTORY)
+    outbound: FileValidation = FileValidation(file_type=UploadFileType.OUTBOUND)
+
+    inbound_header: FileValidation = FileValidation(file_type=UploadFileType.INBOUND_HEADER)
+    inbound_details: FileValidation = FileValidation(file_type=UploadFileType.INBOUND_DETAILS)
+    order_header: FileValidation = FileValidation(file_type=UploadFileType.ORDER_HEADER)
+    order_details: FileValidation = FileValidation(file_type=UploadFileType.ORDER_DETAILS)

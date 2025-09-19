@@ -18,6 +18,7 @@ from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectI
 from .helpers.models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
 from .helpers.models.Responses import TransformRowsInserted
 from .helpers.models.GeneralModels import DownloadDataOptions
+from .helpers.models.DataFiles import DataDirectoryType
 from .helpers.constants.app_constants import RESOURCES_DIR, RESOURCES_DIR_DEV
 from .frames.custom_widgets import ProjectInfoFrame, DataDescriberColumnSelector
 
@@ -28,10 +29,9 @@ from .data_profiler import DataProfiler
 from apex_gui.apex_app import ApexApp
 from apex_gui.frames.notification_dialogs import NotificationDialog, ResultsDialog, ResultsDialogWithLogFile, ConfirmDeleteDialog
 from apex_gui.frames.styled_widgets import Page, Section, SectionWithScrollbar, Frame, NeutralButton, TransparentIconButton, PositiveIconButton, NeutralIconButton, DangerIconButton
-from apex_gui.frames.custom_widgets import EntryWithLabel, StaticValueWithLabel, DropdownWithLabel, CheckbuttonWithLabel, FileBrowser
+from apex_gui.frames.custom_widgets import Toggle, StaticValueWithLabel, DropdownWithLabel, CheckbuttonWithLabel, FileBrowser
 from apex_gui.styles.fonts import AppSubtitleFont, SectionHeaderFont, SectionSubheaderFont
 from apex_gui.styles.colors import *
-from apex_gui.helpers.constants import EntryType
 
 
 class DataProfilerGUI(ApexApp):
@@ -196,12 +196,17 @@ class DataProfilerGUI(ApexApp):
         self.upload_frame_title = CTkLabel(self.upload_frame_header_frame, text='Upload Project Data', font=AppSubtitleFont())
         self.upload_frame_back_to_home_btn = TransparentIconButton(self.upload_frame_header_frame, image=self.back_icon, command=self.navigate_to_home_action)
 
-        # LEVEL 2 - upload_frame_content_frame
+        # LEVEL 1 - upload_frame_content_frame
         self.upload_frame_upload_section = SectionWithScrollbar(self.upload_frame_content_frame, width=375, height=420)
         self.upload_frame_submit_btn = PositiveIconButton(self.upload_frame_content_frame, image=self.check_icon, command=self.upload_data_action)#, state='disabled')
 
-        # LEVEL 3 - upload_frame_upload_section
-        self.upload_frame_data_directory_browse = FileBrowser(self.upload_frame_upload_section, label_text='Select a data directory', path_type='folder')#, btn_action=self.validate_data_directory)
+        # LEVEL 2 - upload_frame_upload_section
+        self.upload_frame_data_directory_browse = FileBrowser(self.upload_frame_upload_section, label_text='Select a data directory', path_type='folder')
+        self.upload_frame_data_upload_type = Toggle(self.upload_frame_upload_section, on_value_text=DataDirectoryType.HEADERS.value, off_value_text=DataDirectoryType.REGULAR.value, default='off')
+
+        self.upload_frame_process_inbound_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Inbound Data', default_val=True)
+        self.upload_frame_process_inventory_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Inventory Data', default_val=True)
+        self.upload_frame_process_outbound_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Outbound Data', default_val=True)
 
         self.upload_frame_date_for_analysis = DropdownWithLabel(self.upload_frame_upload_section, label_text='Date for Analysis', default_val=DateForAnalysis.PICK_DATE.value,
                                                                 dropdown_values=[DateForAnalysis.RECEIVED_DATE.value, DateForAnalysis.PICK_DATE.value, DateForAnalysis.SHIP_DATE.value],
@@ -209,11 +214,7 @@ class DataProfilerGUI(ApexApp):
         self.upload_frame_weekend_date_rule = DropdownWithLabel(self.upload_frame_upload_section, label_text='Weekend Date Rule', default_val=WeekendDateRules.AS_IS.value,
                                                                 dropdown_values=[WeekendDateRules.NEAREST_WEEKDAY.value, WeekendDateRules.ALL_TO_FRIDAY.value, WeekendDateRules.ALL_TO_MONDAY.value, WeekendDateRules.AS_IS.value],
                                                                 dropdown_sticky='')
-
-        self.upload_frame_process_inbound_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Inbound Data', default_val=True)
-        self.upload_frame_process_inventory_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Inventory Data', default_val=True)
-        self.upload_frame_process_outbound_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Outbound Data', default_val=True)
-
+        
         # Grid
         self._grid_upload_frame()
 
@@ -426,14 +427,17 @@ class DataProfilerGUI(ApexApp):
         # LEVEL 2 - upload_frame_upload_section
         self.upload_frame_upload_section.grid_columnconfigure(0, weight=1)
 
-        self.upload_frame_data_directory_browse.grid(row=0, column=0, sticky='ew', padx=20, pady=(5, 20))
+        self.upload_frame_data_directory_browse.grid(row=0, column=0, sticky='ew', padx=20, pady=(5, 10))
+        
+        self.upload_frame_data_upload_type.grid(row=1, column=0, padx=20, pady=(20, 0))
+        self.upload_frame_process_inbound_data.grid(row=2, column=0, sticky='ew', padx=20, pady=(5, 0))
+        self.upload_frame_process_inventory_data.grid(row=3, column=0, sticky='ew', padx=20, pady=(5, 0))
+        self.upload_frame_process_outbound_data.grid(row=4, column=0, sticky='ew', padx=20, pady=(5, 10))   
 
-        self.upload_frame_date_for_analysis.grid(row=1, column=0, sticky='ew', padx=20, pady=(20, 0))
-        self.upload_frame_weekend_date_rule.grid(row=2, column=0, sticky='ew', padx=20, pady=(20, 20))
+        self.upload_frame_date_for_analysis.grid(row=5, column=0, sticky='ew', padx=20, pady=(10, 0))
+        self.upload_frame_weekend_date_rule.grid(row=6, column=0, sticky='ew', padx=20, pady=(10, 5))
 
-        self.upload_frame_process_inbound_data.grid(row=3, column=0, sticky='ew', padx=20, pady=(20, 0))
-        self.upload_frame_process_inventory_data.grid(row=4, column=0, sticky='ew', padx=20, pady=(20, 0))
-        self.upload_frame_process_outbound_data.grid(row=5, column=0, sticky='ew', padx=20, pady=(20, 5))        
+             
 
     def _grid_more_actions_frame(self):
         # Parent = self
@@ -528,6 +532,7 @@ class DataProfilerGUI(ApexApp):
             self.get_title_frame().ungrid_project_number_frame()  
         self.update()
 
+
     ''' Main CRUD functions '''
     
     ## Create ##
@@ -598,30 +603,17 @@ class DataProfilerGUI(ApexApp):
     
     def upload_data_action(self):
         data_dir = self.upload_frame_data_directory_browse.get_path()
-
-        # Transform options don't need validation (cuz they're dropdowns and checkboxes)
+        
+        # Transform options don't need validation (cuz they're dropdowns and checkboxes)       
         transform_options = TransformOptions(
             date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
             weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
+            data_directory_type=DataDirectoryType(self.upload_frame_data_upload_type.get_value()),
             process_inbound_data=self.upload_frame_process_inbound_data.get_value(),
             process_inventory_data=self.upload_frame_process_inventory_data.get_value(),
             process_outbound_data=self.upload_frame_process_outbound_data.get_value(),
         )
 
-        # Validate data directory
-        data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
-        if not data_directory_validation.is_valid:
-            errors_str = '\n\n'.join(data_directory_validation.errors_list)
-            message = f'Data directory is not valid:\n\n{errors_str}'
-
-            # Display error
-            notification_dialog = NotificationDialog(self, title='Error', text=message)
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
-
-            print(f'DATA DIR NOT VALID')
-            return
-        
         # Show loading frame while executing
         self.show_loading_frame_action('Transforming and uploading data...')
 
@@ -635,7 +627,7 @@ class DataProfilerGUI(ApexApp):
             self.navigate_to_upload_data_frame_action()
 
             # Display notification of results
-            message = f'Trouble with the upload:\n{results.message}' 
+            message = results.message 
         else:
             # Reset upload page
             self._create_upload_data_frame()
@@ -1096,6 +1088,7 @@ class DataProfilerGUI(ApexApp):
         self._navigate(to_frame=self.more_actions_frame)
         self._toggle_project_number_frame_grid(grid=True)
 
+
     ''' Other critical/logic functions '''
 
     def _init_data_profiler(self):
@@ -1123,29 +1116,6 @@ class DataProfilerGUI(ApexApp):
         # Grid the to frame
         self._toggle_frame_grid(frame=to_frame, grid=True)
         self.update()
-
-    # UNUSED
-    def validate_data_directory(self):
-        data_dir = self.upload_frame_data_directory_browse.get_path()
-        
-        transform_options = TransformOptions(
-            date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
-            weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
-            process_inbound_data=self.upload_frame_process_inbound_data.get_value(),
-            process_inventory_data=self.upload_frame_process_inventory_data.get_value(),
-            process_outbound_data=self.upload_frame_process_outbound_data.get_value(),
-        )
-
-        data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
-        if not data_directory_validation.is_valid:
-            errors_str = '\n'.join(data_directory_validation.errors_list)
-            # Display error
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Data directory is not valid:\n{errors_str}')
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
-
-            print(f'DATA DIR NOT VALID')
-            return
 
 
     ''' Helpers '''

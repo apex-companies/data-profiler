@@ -16,7 +16,7 @@ import math
 
 import pandas as pd
 import numpy as np
-from pyodbc import Connection, InterfaceError, DatabaseError, OperationalError
+from pyodbc import InterfaceError, DatabaseError, OperationalError
 
 # Data Profiler
 from ..database.helpers.constants import OUTPUT_TABLES_COLS_MAPPER, OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER, DEV_OUTPUT_TABLES_INSERT_SQL_FILES_MAPPER
@@ -25,6 +25,8 @@ from ..database.database_manager import DatabaseConnection
 
 from ..helpers.models.TransformOptions import TransformOptions, DateForAnalysis, WeekendDateRules
 from ..helpers.models.Responses import TransformRowsInserted, TransformResponse
+from ..helpers.models.DataFiles import UploadFileType
+from ..helpers.data_directory import DataDirectory
 from ..helpers.constants.app_constants import SQL_DIR, SQL_DIR_DEV
 
 
@@ -35,9 +37,11 @@ class TransformService:
     The main function takes a set of dataframes and creates data in the form of the OutputTables schema, and then inserts the data into the database.
     '''
 
-    def __init__(self, project_number: str, transform_options: TransformOptions, dev: bool = False):
+    def __init__(self, project_number: str, DataDirectoryObj: DataDirectory, transform_options: TransformOptions, dev: bool = False, update_progress_text_func: Callable[[str], None] = None):
         self.project_number = project_number
+        self.DataDirectoryObj = DataDirectoryObj
         self.transform_options = transform_options
+        self.update_progress_text_func = update_progress_text_func
         self.dev = dev
         self.sql_dir = SQL_DIR_DEV if self.dev else SQL_DIR
 
@@ -53,15 +57,7 @@ class TransformService:
 
     ''' Main Functions '''
     
-    def transform_and_persist_dataframes(self, 
-                                         item_master_df: pd.DataFrame, 
-                                         inbound_header_df: pd.DataFrame, 
-                                         inbound_details_df: pd.DataFrame,
-                                         inventory_df: pd.DataFrame, 
-                                         order_header_df: pd.DataFrame, 
-                                         order_details_df: pd.DataFrame,
-                                         log_file: TextIOWrapper,
-                                         update_progress_text_func: Callable[[str], None] = None) -> TransformResponse:
+    def transform_and_persist_dataframes(self, log_file: TextIOWrapper) -> TransformResponse:
         '''
         Transforms the raw data dataframes and inserts into the OutputTables_Dev schema
 
@@ -78,7 +74,15 @@ class TransformService:
 
         '''STEP 1: Create output tables '''
 
-        if update_progress_text_func: update_progress_text_func('Transforming data...')
+        if self.update_progress_text_func: self.update_progress_text_func('Transforming data...')
+
+        # Get input dataframes
+        item_master_input = self.DataDirectoryObj.get_df(UploadFileType.ITEM_MASTER)
+        inbound_header_input = self.DataDirectoryObj.get_df(UploadFileType.INBOUND_HEADER)
+        inbound_details_input = self.DataDirectoryObj.get_df(UploadFileType.INBOUND_DETAILS)
+        inventory_input = self.DataDirectoryObj.get_df(UploadFileType.INVENTORY)
+        order_header_input = self.DataDirectoryObj.get_df(UploadFileType.ORDER_HEADER)
+        order_details_input = self.DataDirectoryObj.get_df(UploadFileType.ORDER_DETAILS)
 
         # Instantiate dataframe variables - one for each output table
         item_master_data = pd.DataFrame()
@@ -103,13 +107,13 @@ class TransformService:
         log_file.flush()
 
         # Start with Item Master
-        item_master_data = self.create_item_master(project_num=self.project_number, item_master=item_master_df)
+        item_master_data = self.create_item_master(project_num=self.project_number, item_master=item_master_input)
         total_rows_of_data += len(item_master_data)
         log_file.write(f'Item Master rows: {len(item_master_data)}\n')
 
         # Create outbound so we can determine velocities
         if self.transform_options.process_outbound_data:
-            outbound_data = self.create_outbound_data(project_num=self.project_number, order_header_df=order_header_df, order_details_df=order_details_df, item_master_df=item_master_data)
+            outbound_data = self.create_outbound_data(project_num=self.project_number, order_header_df=order_header_input, order_details_df=order_details_input, item_master_df=item_master_data)
             total_rows_of_data += len(outbound_data)
             order_nums = outbound_data['OrderNumber'].unique().tolist()
 
@@ -130,8 +134,8 @@ class TransformService:
         # Inbound
         inbound_skus = []
         if self.transform_options.process_inbound_data:
-            inbound_header = self.create_inbound_header(project_num=self.project_number, inbound_header_df=inbound_header_df, inbound_details_df=inbound_details_df)
-            inbound_details = self.create_inbound_details(project_num=self.project_number, inbound_details_df=inbound_details_df, item_master_df=item_master_data)
+            inbound_header = self.create_inbound_header(project_num=self.project_number, inbound_header_df=inbound_header_input, inbound_details_df=inbound_details_input)
+            inbound_details = self.create_inbound_details(project_num=self.project_number, inbound_details_df=inbound_details_input, item_master_df=item_master_data)
             
             total_rows_of_data += len(inbound_header)
             total_rows_of_data += len(inbound_details)
@@ -142,7 +146,7 @@ class TransformService:
 
         # Inventory
         if self.transform_options.process_inventory_data:
-            inventory_data = self.create_inventory_data(project_num=self.project_number, inventory_df=inventory_df, velocity_analysis=velocity_analysis, inbound_skus=inbound_skus, item_master_df=item_master_data)
+            inventory_data = self.create_inventory_data(project_num=self.project_number, inventory_df=inventory_input, velocity_analysis=velocity_analysis, inbound_skus=inbound_skus, item_master_df=item_master_data)
             
             total_rows_of_data += len(inventory_data)
             log_file.write(f'Inventory Data rows: {len(inventory_data)}\n')
@@ -198,7 +202,7 @@ class TransformService:
         log_file.flush()
 
         ''' STEP 2: Insert into database '''
-        if update_progress_text_func: update_progress_text_func('Uploading to database...')
+        if self.update_progress_text_func: self.update_progress_text_func('Uploading to database...')
 
         log_file.write(f'3. INSERT TO DATABASE\n')
         log_file.flush()
@@ -233,7 +237,7 @@ class TransformService:
                     progress_str = f'Rows Inserted: {total_rows_inserted:,} / {total_rows_of_data:,} ({(total_rows_inserted / total_rows_of_data) * 100:,.0f}%)'
                     current_str = f'Uploading {table} ({len(df):,} rows)...'
                     message_str = f'{progress_str}\n\n{current_str}'
-                    if update_progress_text_func: update_progress_text_func(message_str)
+                    if self.update_progress_text_func: self.update_progress_text_func(message_str)
                     
                     # Insert
                     rows = insert_table_to_db(log_file=log_file, connection=db_conn, table_name=table, data_frame=df, sql_file_path=f"{self.sql_dir}/{SQL_FILE_MAPPER[table]}")

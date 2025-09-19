@@ -18,6 +18,8 @@ from apex_gui.helpers.constants import EntryType
 from apex_gui.styles.colors import *
 from apex_gui.styles.fonts import SectionSubheaderFont
 
+
+
 class ProjectInfoFrame(SectionWithScrollbar):
     '''
     Displays basic project info and allows user to edit said info.
