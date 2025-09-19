@@ -327,6 +327,7 @@ class DataProfiler:
             transform_response.message = message
             return transform_response
 
+        # NOTE: not updated with dp-92-create-header-tables. Not worth updating database, these aren't used anywhere
         uploaded_files = UploadedFilePaths(
             item_master = dir_validation_obj.item_master.file_path,
             inbound_header = dir_validation_obj.inbound_header.file_path if transform_options.process_inbound_data else '',
