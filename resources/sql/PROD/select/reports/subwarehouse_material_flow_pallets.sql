@@ -15,10 +15,8 @@ DECLARE @PeriodsOfInventory INT = (
 
 DECLARE @DaysActive INT = (
     SELECT TOP (1) APPROX_COUNT_DISTINCT([Date]) as days_active
-    FROM OutputTables_Prod.OutboundData od
-        LEFT JOIN OutputTables_Prod.ItemMaster im
-        ON od.ProjectNumber_SKU = im.ProjectNumber_SKU
-    WHERE im.ProjectNumber = @ProjectNumber
+    FROM OutputTables_Prod.OrderHeader
+    WHERE ProjectNumber = @ProjectNumber
 );
 
 DECLARE @DaysOfReceiving INT = (
@@ -29,7 +27,7 @@ DECLARE @DaysOfReceiving INT = (
 
 
 --- The Query ---
-SELECT @ProjectNumber as [Project Number], im.SubWarehouse, COUNT(*) as SKUs, @UOM as [Unit of Measure], 
+SELECT TOP (10) @ProjectNumber as [Project Number], im.SubWarehouse, COUNT(*) as SKUs, @UOM as [Unit of Measure], 
     @DaysOfReceiving as [Days of Receiving], ROUND(SUM(ib_by_sku.[Daily Lines]), 0) as [Daily IB Lines], ROUND(SUM(ib_by_sku.[Daily Qty]), 0) as [Daily IB Qty],
     ROUND(SUM(inv_by_sku.[Avg Inventory]), 0) as [Avg Total Inventory], 
     @DaysActive as [Days Active], ROUND(SUM(ob_by_sku.[Daily Lines]), 0) as [Daily OB Lines], ROUND(SUM(ob_by_sku.[Daily Qty]), 0) as [Daily OB Qty], 
@@ -59,10 +57,10 @@ FROM OutputTables_Prod.ItemMaster im
     ON im.ProjectNumber_SKU = inv_by_sku.ProjectNumber_SKU
     LEFT JOIN (
         SELECT od.ProjectNumber_SKU, ROUND(COUNT(*) / CAST(@DaysActive as Float), 2) as [Daily Lines], ROUND(SUM(od.Quantity) / CAST(@DaysActive as Float), 2) as [Daily Qty]
-        FROM OutputTables_Prod.OutboundData od
-            LEFT JOIN OutputTables_Prod.ItemMaster im1
-            ON od.ProjectNumber_SKU = im1.ProjectNumber_SKU
-        WHERE im1.ProjectNumber = @ProjectNumber and od.UnitOfMeasure = @UOM
+        FROM OutputTables_Prod.OrderDetails od
+            LEFT JOIN OutputTables_Prod.OrderHeader oh
+            ON od.ProjectNumber_OrderNumber = oh.ProjectNumber_OrderNumber
+        WHERE oh.ProjectNumber = @ProjectNumber and od.UnitOfMeasure = @UOM
         GROUP BY od.ProjectNumber_SKU
     ) ob_by_sku
     ON im.ProjectNumber_SKU = ob_by_sku.ProjectNumber_SKU
