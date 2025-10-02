@@ -201,7 +201,7 @@ class OutputTablesService:
 
         return download_response
     
-    def download_inventory_stratification_report(self, project_number: str, download_folder: str):
+    def download_inventory_stratification_report(self, project_number: str, download_folder: str) -> DBDownloadResponse:
         
         # Init empty dataframes
         each_df: pd.DataFrame
@@ -218,7 +218,7 @@ class OutputTablesService:
         query = query.replace('?', f'\'{project_number}\'', 1)
         f.close()
 
-        download_response = DBDownloadResponse(download_path=download_folder)
+        download_response = DBDownloadResponse(project_number=project_number, download_path=download_folder)
         with DatabaseConnection(dev=self.dev) as db_conn:
             try: 
                 # NOTE - run once for each UOM?
@@ -250,7 +250,7 @@ class OutputTablesService:
             else:
                 download_response.success = True
                 download_response.message = 'Success!'
-                download_response.rows_downloaded = len(carton_df) + len(pallet_df)
+                download_response.rows_affected = len(carton_df) + len(pallet_df)
 
         # Export
         if download_response.success:
@@ -264,7 +264,7 @@ class OutputTablesService:
 
         return download_response
     
-    def download_subwarehouse_material_flow_report(self, uom: UnitOfMeasure, project_number: str, download_folder: str):
+    def download_subwarehouse_material_flow_report(self, uom: UnitOfMeasure, project_number: str, download_folder: str) -> DBDownloadResponse:
         
         # Init empty dataframes
         df: pd.DataFrame
@@ -281,7 +281,7 @@ class OutputTablesService:
         query = query.replace('?', f'\'{project_number}\'', 1)
         query = query.replace('?', f'\'{uom.value}\'', 1)
 
-        download_response = DBDownloadResponse(download_path=download_folder)
+        download_response = DBDownloadResponse(project_number=project_number, download_path=download_folder)
         with DatabaseConnection(dev=self.dev) as db_conn:
             try: 
                 # NOTE - run once for each UOM?
@@ -299,7 +299,7 @@ class OutputTablesService:
             else:
                 download_response.success = True
                 download_response.message = 'Success!'
-                download_response.rows_downloaded = len(df)
+                download_response.rows_affected = len(df)
 
         # Export
         if download_response.success:
@@ -309,7 +309,7 @@ class OutputTablesService:
 
         return download_response
     
-    def download_items_material_flow_report(self, uom: UnitOfMeasure, project_number: str, download_folder: str):
+    def download_items_material_flow_report(self, uom: UnitOfMeasure, project_number: str, download_folder: str) -> DBDownloadResponse:
         
         # Init empty dataframes
         df: pd.DataFrame
@@ -326,7 +326,7 @@ class OutputTablesService:
         query = query.replace('?', f'\'{project_number}\'', 1)
         query = query.replace('?', f'\'{uom.value}\'', 1)
         
-        download_response = DBDownloadResponse(download_path=download_folder)
+        download_response = DBDownloadResponse(project_number=project_number, download_path=download_folder)
         with DatabaseConnection(dev=self.dev) as db_conn:
             try: 
                 # NOTE - run once for each UOM?
@@ -344,7 +344,7 @@ class OutputTablesService:
             else:
                 download_response.success = True
                 download_response.message = 'Success!'
-                download_response.rows_downloaded = len(df)
+                download_response.rows_affected = len(df)
 
         # Export
         if download_response.success:

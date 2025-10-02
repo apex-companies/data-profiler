@@ -92,20 +92,12 @@ class TransformService:
         velocity_by_month = pd.DataFrame()
         velocity_ladder = pd.DataFrame()
 
-        # project_number_order_number = pd.DataFrame()
-        # outbound_data = pd.DataFrame()
-        # order_velocity_combinations = pd.DataFrame()
-        # outbound_data_by_order = pd.DataFrame()
-        # velocity_summary = pd.DataFrame()
-        # daily_order_profile_by_velocity = pd.DataFrame()
-
         velocity_analysis = pd.DataFrame(columns=['SKU', 'Velocity'])
-        # order_nums = []
 
         # Start with Item Master
         item_master_input = self.DataDirectoryObj.get_df(UploadFileType.ITEM_MASTER)
         
-        item_master = self.create_item_master(project_num=self.project_number, item_master=item_master_input)
+        item_master = self.create_item_master(project_num=self.project_number, item_master_df=item_master_input)
         total_rows_of_data += len(item_master)
         log_file.write(f'Item Master rows: {len(item_master)}\n')
 
@@ -122,11 +114,10 @@ class TransformService:
             velocity_analysis = self.run_velocity_analysis(outbound_df=order_details)
             item_master = item_master.merge(velocity_analysis[['SKU', 'Velocity']], on='SKU', how='left')
             item_master['Velocity'] = item_master['Velocity'].fillna('X')
+            print(item_master['Velocity'].value_counts())
             
             # Create order header
             order_header = self.create_order_header(project_num=self.project_number, order_header_df=order_header_input, order_details_df=order_details, item_master_df=item_master)
-            # order_nums = order_header['OrderNumber'].unique().tolist()
-            # outbound_data = self.create_outbound_data(project_num=self.project_number, order_header_df=order_header_input, order_details_df=order_details_input, item_master_df=item_master_data)
 
             total_rows_of_data += len(order_header)
             total_rows_of_data += len(order_details)
@@ -169,7 +160,6 @@ class TransformService:
         # The rest - mostly outbound related
         if self.transform_options.process_outbound_data:
             project_number_velocity = self.create_project_number_velocity(project_num=self.project_number)  
-            # velocity_by_month = self.create_velocity_by_month(project_num=self.project_number, outbound_df=outbound_data, velocity_analysis=velocity_analysis)
             velocity_by_month = self.create_velocity_by_month(project_num=self.project_number, order_header_df=order_header, order_details_df=order_details, velocity_analysis=velocity_analysis)
             velocity_ladder = self.create_velocity_ladder(project_num=self.project_number, velocity_analysis=velocity_analysis)
             
@@ -180,45 +170,17 @@ class TransformService:
             log_file.write(f'Velocity by Month rows: {len(velocity_by_month)}\n')
             log_file.write(f'Velocity Ladder rows: {len(velocity_ladder)}\n')
 
-            # velocity_summary = self.create_velocity_summary(project_num=self.project_number, velocity_analysis_df=velocity_analysis, inventory_df=inventory_data)
-            # daily_order_profile_by_velocity = self.create_daily_order_profile_by_velocity(project_num=self.project_number, outbound_df=outbound_data, velocity_summary=velocity_summary)  
-            # project_number_order_number = self.create_project_number_order_number(project_num=self.project_number, order_numbers=order_nums)
-            # outbound_data_by_order = self.create_outbound_data_by_order(project_num=self.project_number, outbound_df=outbound_data)
-            # order_velocity_combinations = self.create_order_velocity_combinations(project_num=self.project_number, outbound_df=outbound_data[['OrderNumber', 'Velocity']])
-
-            # total_rows_of_data += len(order_velocity_combinations)
-            # total_rows_of_data += len(velocity_summary)
-            # total_rows_of_data += len(outbound_data_by_order)
-            # total_rows_of_data += len(daily_order_profile_by_velocity)
-            
-            # total_rows_of_data += len(project_number_order_number)
-            # log_file.write(f'Order Velocity Combinations rows: {len(order_velocity_combinations)}\n')
-            # log_file.write(f'Velocity Summary rows: {len(velocity_summary)}\n')
-            # log_file.write(f'Outbound Data by Order rows: {len(outbound_data_by_order)}\n')
-            # log_file.write(f'Daily Order Profile rows: {len(daily_order_profile_by_velocity)}\n')
-            # log_file.write(f'Project Number - Order Number rows: {len(project_number_order_number)}\n')
-                
         # Reorder columns to match sql queries
         # NOTE: at this point, we don't care if files are present (e.g., process_inbound_data = False)
-        #   Reindex and insertion will ignore blank dataframes
-        item_master = item_master.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['ItemMaster'])
-        inbound_header = inbound_header.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InboundHeader'])
-        inbound_details = inbound_details.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InboundDetails'])
-        inventory_data = inventory_data.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InventoryData'])
-        order_header = order_header.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['OrderHeader'])
-        order_details = order_details.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['OrderDetails'])
-        
-        project_number_velocity = project_number_velocity.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['ProjectNumber_Velocity'])
-        velocity_by_month = velocity_by_month.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['VelocityByMonth'])
-        velocity_ladder = velocity_ladder.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['VelocityLadder'])
-
-        # outbound_data = outbound_data.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['OutboundData'])
-        # order_velocity_combinations = order_velocity_combinations.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['OrderVelocityCombinations'])
-        # velocity_summary = velocity_summary.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['VelocitySummary'])
-        # outbound_data_by_order = outbound_data_by_order.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['OutboundDataByOrder'])
-        # daily_order_profile_by_velocity = daily_order_profile_by_velocity.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['DailyOrderProfileByVelocity'])
-        # project_number_order_number = project_number_order_number.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['ProjectNumber_OrderNumber'])
-        
+        item_master = item_master.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['ItemMaster']).fillna('')
+        inbound_header = inbound_header.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InboundHeader']).fillna('')
+        inbound_details = inbound_details.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InboundDetails']).fillna('')
+        inventory_data = inventory_data.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InventoryData']).fillna('')
+        order_header = order_header.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['OrderHeader']).fillna('')
+        order_details = order_details.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['OrderDetails']).fillna('')
+        project_number_velocity = project_number_velocity.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['ProjectNumber_Velocity']).fillna('')
+        velocity_by_month = velocity_by_month.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['VelocityByMonth']).fillna('')
+        velocity_ladder = velocity_ladder.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['VelocityLadder']).fillna('')
 
         et = time()
         print(f'Output table creation time: {timedelta(seconds=et-st)}')
@@ -246,12 +208,6 @@ class TransformService:
             'OrderDetails': order_details,
             'VelocityLadder': velocity_ladder,
             'VelocityByMonth': velocity_by_month,
-            # 'ProjectNumber_OrderNumber': project_number_order_number,
-            # 'OutboundData': outbound_data,
-            # 'OutboundDataByOrder': outbound_data_by_order,
-            # 'OrderVelocityCombinations': order_velocity_combinations,
-            # 'VelocitySummary': velocity_summary,
-            # 'DailyOrderProfileByVelocity': daily_order_profile_by_velocity,
         }
 
         # IDEA - keep track, in data_profiler, of tables that have been inserted. so, if there's an error halfway thru, it could
@@ -308,131 +264,39 @@ class TransformService:
         
         return transform_response
 
-    # NOTE - this maybe should exist somewhere else in future
-    # def insert_table_to_db(self, connection: Connection, table_name: str, data_frame: pd.DataFrame, sql_file_path: str, log_file: TextIOWrapper) -> int:
-    #     '''
-    #     Inserts a dataframe into the database. Uses fast_executemany to insert data all in one transaction, thus speeding up process greatly
-
-    #     Note
-    #     ------
-    #     data_frame MUST BE 
-    #         1) in base python types
-    #         2) in type expected by table schema. make sure dates are stored as datetimes, etc.
-
-    #     Args
-    #     ------
-    #     connection : Connection
-    #         a valid pyodbc Connection object (should be connected to aasdevserverfree)
-    #     table_name : str
-    #         the name of a table in the OutputTables schema. Only used for logging purposes
-    #     data_frame : pd.DataFrame
-    #         the data to insert
-    #     sql_file_path : str
-    #         the path to the insert sql file for the table
-    #     log_file : TextIOWrapper
-    #         a file-like object used for logging            
-
-    #     Return
-    #     ------
-    #     Number of rows inserted or -1 if error
-    #     '''
-
-    #     # If dataframe is empty, don't try inserting
-    #     log_file.write(f'{table_name}\n')
-    #     if len(data_frame) == 0:
-    #         log_file.write('Table is empty\n\n')
-    #         return 0
-        
-    #     # Configure cursor
-    #     # https://stackoverflow.com/questions/29638136/how-to-speed-up-bulk-insert-to-ms-sql-server-using-pyodbc/47057189#47057189
-    #     cursor = connection.cursor()
-    #     connection.autocommit = False                   # autocommit = True could force a DB transaction for each query, which would defeat the point
-    #     cursor.fast_executemany = True
-
-    #     # Get sql query
-    #     fd = open(f'{self.sql_dir}/{sql_file_path}')
-    #     insert_query = fd.read()
-    #     fd.close()
-        
-    #     # Get data to insert in form of 2d list
-    #     data_lst = data_frame.to_dict('split')['data']
-    #     print(data_lst[0])
-    #     log_file.write(f'{data_lst[0]}\n')
-
-    #     ## Batch insert ##
-    #     rows_inserted: int = 0
-    #     batch_size = 100000
-    #     batch_num = 1
-    #     error_encountered = False
-    #     insert_st = time()
-
-    #     for i in range(0, len(data_lst), batch_size):
-    #         # Only proceed if no errors have been found
-    #         if not error_encountered:
-    #             start_idx = i
-    #             end_idx = i + batch_size
-
-    #             # Partition data into batch
-    #             batch_data = data_lst[start_idx:end_idx]
-           
-    #             # Insert using excutemany
-    #             st = time()
-    #             print(f'Batch {batch_num}: attempting insert into {table_name}...')
-    #             log_file.write(f'Batch {batch_num}: attempting insert into {table_name}...\n')
-
-    #             cursor.executemany(insert_query, batch_data)
-    #             connection.commit()
-
-    #             et = time()
-    #             print(f'Inserted {len(batch_data)} rows into {table_name} in {timedelta(seconds=et-st)} seconds.')
-    #             log_file.write(f'Inserted {len(batch_data)} rows into {table_name} in {timedelta(seconds=et-st)} seconds\n')
-    #             rows_inserted += len(batch_data)
-
-    #         batch_num += 1
-
-    #     insert_et = time()
-    #     print(f'Inserted {batch_num-1} batches into {table_name} in {timedelta(seconds=insert_et-insert_st)} seconds')
-    #     log_file.write(f'Inserted {batch_num-1} batches into {table_name} in {timedelta(seconds=insert_et-insert_st)} seconds\n\n')
-
-    #     # Close cursor
-    #     connection.autocommit = True
-    #     cursor.close()
-
-    #     return rows_inserted
-
 
     ''' Create Table Functions '''
 
-    def create_item_master(self, project_num: str, item_master: pd.DataFrame) -> pd.DataFrame:
+    def create_item_master(self, project_num: str, item_master_df: pd.DataFrame) -> pd.DataFrame:
         print(f'creating item master...')
 
-        item_master_return = item_master.copy(deep=True)
-        item_master_return['Subwarehouse'] = item_master['Subwarehouse'].astype(str)
-        item_master_return['ProjectNumber_SKU'] = project_num + '-' + item_master_return['SKU'].astype(str)
-        item_master_return['ProjectNumber'] = project_num
+        item_master = item_master_df.copy(deep=True)
+        item_master['Subwarehouse'] = item_master['Subwarehouse'].astype(str)
+        item_master['ProjectNumber_SKU'] = project_num + '-' + item_master['SKU'].astype(str)
+        item_master['ProjectNumber'] = project_num
 
         # Strip description of some characters
-        item_master_return['SKUDescription'] = item_master_return['SKUDescription'].astype(str)
+        item_master['SKUDescription'] = item_master['SKUDescription'].astype(str)
         bad_characters = [r'"',r"'",r'\t',r'\n',r'<',r'>',r"\\", r"/", r"\(", r"\)"]
         for c in bad_characters:
             rgx = re.compile(pattern=c, flags=re.IGNORECASE)
-            item_master_return['SKUDescription'] = item_master_return['SKUDescription'].str.replace(pat=rgx, repl='', regex=True)
+            item_master['SKUDescription'] = item_master['SKUDescription'].str.replace(pat=rgx, repl='', regex=True)
 
-        item_master_return['EachCube'] = round((item_master_return['EachLength'].astype(float) * item_master_return['EachWidth'].astype(float) * item_master_return['EachHeight'].astype(float))/(12*12*12),2)
-        item_master_return['InnerCube'] = round((item_master_return['InnerLength'].astype(float) * item_master_return['InnerWidth'].astype(float) * item_master_return['InnerHeight'].astype(float))/(12*12*12),2)
-        item_master_return['CartonCube'] = round((item_master_return['CartonLength'].astype(float) * item_master_return['CartonWidth'].astype(float) * item_master_return['CartonHeight'].astype(float))/(12*12*12),2)
-        item_master_return['PalletCube'] = round((item_master_return['PalletLength'].astype(float) * item_master_return['PalletWidth'].astype(float) * item_master_return['PalletHeight'].astype(float))/(12*12*12),2)
+        item_master['EachCube'] = round((item_master['EachLength'].astype(float) * item_master['EachWidth'].astype(float) * item_master['EachHeight'].astype(float))/(12*12*12),2)
+        item_master['InnerCube'] = round((item_master['InnerLength'].astype(float) * item_master['InnerWidth'].astype(float) * item_master['InnerHeight'].astype(float))/(12*12*12),2)
+        item_master['CartonCube'] = round((item_master['CartonLength'].astype(float) * item_master['CartonWidth'].astype(float) * item_master['CartonHeight'].astype(float))/(12*12*12),2)
+        item_master['PalletCube'] = round((item_master['PalletLength'].astype(float) * item_master['PalletWidth'].astype(float) * item_master['PalletHeight'].astype(float))/(12*12*12),2)
         
         # Add dimension ranges
-        item_master_return['PalletWidthRange'] = item_master_return['PalletWidth'].apply(lambda x: self.value_range(x, 5))
-        item_master_return['PalletLengthRange'] = item_master_return['PalletLength'].apply(lambda x: self.value_range(x, 5))
-        item_master_return['PalletHeightRange'] = item_master_return['PalletHeight'].apply(lambda x: self.value_range(x, 5))
-        item_master_return['PalletWeightRange'] = item_master_return['PalletWeight'].apply(lambda x: self.value_range(x, 200))
+        item_master['PalletWidthRange'] = item_master['PalletWidth'].apply(lambda x: self.value_range(x, 5))
+        item_master['PalletLengthRange'] = item_master['PalletLength'].apply(lambda x: self.value_range(x, 5))
+        item_master['PalletHeightRange'] = item_master['PalletHeight'].apply(lambda x: self.value_range(x, 5))
+        item_master['PalletWeightRange'] = item_master['PalletWeight'].apply(lambda x: self.value_range(x, 200))
 
-        # Fill in any nulls cells with empty string
-        # item_master_return = item_master_return.replace(to_replace=pd.NA, value='')
+        # NOTE - dont reindex item master until just before insertion
+        # item_master = item_master.replace(to_replace=pd.NA, value='')
 
-        return item_master_return
+        return item_master
 
     def create_inbound_header(self, project_num: str, inbound_header_df: pd.DataFrame, inbound_details_df: pd.DataFrame) -> pd.DataFrame:
         if len(inbound_header_df) == 0:
@@ -461,6 +325,9 @@ class TransformService:
         inbound_header['ProjectNumber'] = project_num
         inbound_header['ProjectNumber_PO_Number'] = project_num + '-' + inbound_header['PO_Number'].astype(str)
 
+        # # Re-order columns
+        # inbound_header = inbound_header.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InboundHeader'])
+
         return inbound_header
 
     def create_inbound_details(self, project_num: str, inbound_details_df: pd.DataFrame, item_master_df: pd.DataFrame) -> pd.DataFrame: # , transform_options: TransformOptions) -> pd.DataFrame:
@@ -485,6 +352,9 @@ class TransformService:
         # Add ProjectNumber_SKU, ProjectNumber_PO_Number
         inbound_details['ProjectNumber_SKU'] = project_num + '-' + inbound_details['SKU'].astype(str)
         inbound_details['ProjectNumber_PO_Number'] = project_num + '-' + inbound_details['PO_Number'].astype(str)
+
+        # # Re-order columns
+        # inbound_details = inbound_details.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InboundDetails'])
 
         return inbound_details
 
@@ -542,15 +412,12 @@ class TransformService:
         order_header['LinesPerOrderRange'] = order_header['Lines'].apply(lambda x: self.find_range(x, lpo_ranges))
         order_header['UnitsPerOrderRange'] = order_header['Units'].apply(lambda x: self.find_range(x, upo_ranges))
 
-        # Fill in any nulls cells with empty string
-        order_header = order_header.replace(pd.NA, '')
+        # # Re-order columns
+        # order_header = order_header.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['OrderHeader'])
 
-        # # Order Velocity combos
-        # order_velocities = order_details_df.merge(item_master_df[['SKU', 'Velocity']], on='SKU', how='left').groupby('OrderNumber').aggregate({'Velocity': lambda x: ''.join(sorted(list(set(x))))})
-        # order_header['VelocityCombination'] = order_header['OrderNumber'].map(order_velocities)
-        # order_header = order_details_df.groupby('OrderNumber').aggregate(VelocitySet=('Velocity', 'unique')).reset_index()
-        # order_header['VelocityCombination'] = order_velocity_combos['VelocitySet'].apply(lambda x: ''.join(sorted(x)))
-
+        # # Fill in any nulls cells with empty string
+        # order_header = order_header.fillna(pd.NA)
+        
         return order_header
 
     def create_order_details(self, project_num: str, order_details_df: pd.DataFrame, item_master_df: pd.DataFrame) -> pd.DataFrame:
@@ -577,12 +444,17 @@ class TransformService:
         upl_ranges = [(0,1), (1,2), (2,5), (5,10),(10,'max')]
         order_details['UnitsPerLineRange'] = order_details['Quantity'].apply(lambda x: self.find_range(x, upl_ranges))
 
-        # Fill in any nulls cells with empty string
-        order_details = order_details.replace(pd.NA, '')
+        # # Re-order columns
+        # order_details = order_details.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['OrderDetails'])
+
+        # # Fill in any nulls cells with empty string
+        # order_details = order_details.fillna(pd.NA)
 
         return order_details
 
     def create_outbound_data(self, project_num: str, order_header_df: pd.DataFrame, order_details_df: pd.DataFrame, item_master_df: pd.DataFrame) -> pd.DataFrame: #, transform_options: TransformOptions)         
+        ''' DEPRECATED '''
+        
         print(f'creating outbound data...')
 
         # Join Order Details and Order Header to form Outbound Data
@@ -642,6 +514,8 @@ class TransformService:
         return outbound_data
 
     def create_order_velocity_combinations(self, project_num: str, outbound_df: pd.DataFrame) -> pd.DataFrame:
+        ''' DEPRECATED '''
+
         if len(outbound_df) == 0:
             print(f'No order data. Skipping order velocity combinations')
             return outbound_df
@@ -667,33 +541,38 @@ class TransformService:
         print(f'creating inventory...')
 
         # Add velocity. Fill in any inactive SKUs with "X" for velocity
-        inventory_data = inventory_df.merge(velocity_analysis[['SKU', 'Velocity']], on='SKU', how='left')
-        inventory_data['Velocity'] = inventory_data['Velocity'].fillna(value='X')
+        inventory = inventory_df.merge(velocity_analysis[['SKU', 'Velocity']], on='SKU', how='left')
+        inventory['Velocity'] = inventory['Velocity'].fillna(value='X')
 
         # TODO - this will eventually be "ExistsInInbound"
-        inventory_data['ExistsInInbound'] = np.where(inventory_data['SKU'].isin(inbound_skus), True, False)
-        inventory_data['Period'] = pd.to_datetime(inventory_data['Period'], dayfirst=True, format='mixed')
+        inventory['ExistsInInbound'] = np.where(inventory['SKU'].isin(inbound_skus), True, False)
+        inventory['Period'] = pd.to_datetime(inventory['Period'], dayfirst=True, format='mixed')
 
         # Add ProjectNumber_SKU
-        inventory_data['ProjectNumber_SKU'] = project_num + '-' + inventory_data['SKU'].astype(str)
+        inventory['ProjectNumber_SKU'] = project_num + '-' + inventory['SKU'].astype(str)
 
         ''' Add LineCube and LineWeight '''
         # Add cube and weight info to outbound
-        inventory_data = inventory_data.merge(item_master_df[['SKU', 'EachCube', 'InnerCube', 'CartonCube', 'PalletCube', 
+        inventory = inventory.merge(item_master_df[['SKU', 'EachCube', 'InnerCube', 'CartonCube', 'PalletCube', 
                                                             'EachWeight', 'InnerWeight', 'CartonWeight', 'PalletWeight']],
                                             how='left',
                                             on='SKU')
 
         # Add line weight and cube using appropriate info from item master
-        inventory_data['LineCube'] = inventory_data.apply(lambda x: self.calc_line_cube(row=x), axis=1)
-        inventory_data['LineWeight'] = inventory_data.apply(lambda x: self.calc_line_weight(row=x), axis=1)
+        inventory['LineCube'] = inventory.apply(lambda x: self.calc_line_cube(row=x), axis=1)
+        inventory['LineWeight'] = inventory.apply(lambda x: self.calc_line_weight(row=x), axis=1)
+
+        # # Re-order columns
+        # inventory = inventory.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['InventoryData'])
 
         # Fill in any nulls cells with empty string
-        inventory_data.replace(to_replace=pd.NA, value='', inplace=True)
+        inventory = inventory.replace(to_replace=pd.NA, value='')
 
-        return inventory_data
+        return inventory
 
     def create_velocity_summary(self, project_num: str, velocity_analysis_df: pd.DataFrame, inventory_df: pd.DataFrame) -> pd.DataFrame:
+        ''' DEPRECATED '''
+        
         if len(velocity_analysis_df) == 0:
             print(f'No order data. Skipping velocity summary')
             return pd.DataFrame()
@@ -717,6 +596,8 @@ class TransformService:
         return velocity_summary
 
     def create_outbound_data_by_order(self, project_num: str, outbound_df: pd.DataFrame) -> pd.DataFrame:
+        ''' DEPRECATED '''
+        
         if len(outbound_df) == 0:
             print(f'No order data. Skipping outbound by order')
             return pd.DataFrame()
@@ -749,6 +630,8 @@ class TransformService:
         return outbound_by_order
 
     def create_daily_order_profile_by_velocity(self, project_num: str, outbound_df: pd.DataFrame, velocity_summary: pd.DataFrame) -> pd.DataFrame:
+        ''' DEPRECATED '''
+
         if len(outbound_df) == 0:
             print(f'No order data. Skipping daily order profile')
             return pd.DataFrame()
@@ -792,14 +675,14 @@ class TransformService:
             return pd.DataFrame()
         
         print(f'creating velocity by month...')
-        
+
         # Create get dates from order header
         outbound_df = order_details_df.merge(order_header_df[['OrderNumber', 'Date']], on='OrderNumber', how='left')
         OUTBOUND_SKUS = set(outbound_df['SKU'].unique().tolist())
         
         # Months
-        outbound_df = outbound_df.sort_values('Date')
-        outbound_df['Month-Year'] = outbound_df['Date'].dt.month_name() + '-' + outbound_df['Date'].dt.year.astype(str)
+        outbound_df = outbound_df.sort_values(by='Date', ascending=True)
+        outbound_df['Month-Year'] = outbound_df['Date'].dt.strftime('%B-%Y')
         months_in_data = outbound_df['Month-Year'].unique().tolist()
 
         # Create DF
@@ -839,6 +722,9 @@ class TransformService:
         # Add ProjectNumber_SKU
         velocity_by_month['ProjectNumber_SKU'] = project_num + '-' + velocity_by_month['SKU'].astype(str)
 
+        # # Re-order columns
+        # velocity_by_month = velocity_by_month.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['VelocityByMonth'])
+
         # Fill in any nulls cells with empty string
         velocity_by_month = velocity_by_month.replace(pd.NA, '')
 
@@ -852,12 +738,17 @@ class TransformService:
         projectnum_velocity['ProjectNumber'] = project_num
         projectnum_velocity['ProjectNumber_Velocity'] = project_num + '-' + projectnum_velocity['Velocity'].astype(str)
 
+        # # Re-order columns
+        # projectnum_velocity = projectnum_velocity.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['ProjectNumber_Velocity'])
+
         # Fill in any nulls cells with empty string
-        projectnum_velocity.replace(to_replace=pd.NA, value='', inplace=True)
+        projectnum_velocity = projectnum_velocity.replace(to_replace=pd.NA, value='')
 
         return projectnum_velocity
 
     def create_project_number_order_number(self, project_num: str, order_numbers: list) -> pd.DataFrame:
+        ''' DEPRECATED '''
+
         if len(order_numbers) == 0:
             print(f'No order data. Skipping project number order number')
             return pd.DataFrame()
@@ -901,8 +792,11 @@ class TransformService:
         # Add ProjectNumber_Velocity
         velocity_ladder['ProjectNumber_Velocity'] = project_num + '-' + velocity_ladder['Velocity']
 
+        # # Re-order columns
+        # velocity_ladder = velocity_ladder.reindex(columns=OUTPUT_TABLES_COLS_MAPPER['VelocityLadder'])
+
         # Fill in any nulls cells with empty string
-        velocity_ladder.replace(to_replace=pd.NA, value='', inplace=True)
+        velocity_ladder = velocity_ladder.replace(to_replace=pd.NA, value='')
 
         return velocity_ladder
 

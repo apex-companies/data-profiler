@@ -88,7 +88,7 @@ def read_and_cleanse_uploaded_data_file(file_type: UploadFileType, file_path: st
             default_val = DTYPES_DEFAULT_VALUES[dtype]
 
             if dtype == 'date':
-                df[col] = pd.to_datetime(df[col], dayfirst=True, format='mixed', errors='coerce')
+                df[col] = pd.to_datetime(df[col], format='%Y-%m-%d', errors='raise')                # Be strict with dates... want to get these right
             elif dtype == 'time':
                 df[col] = pd.to_datetime(df[col], format='%H:%M:%S', errors='coerce')
             elif dtype == 'float64' or dtype == 'int64':
