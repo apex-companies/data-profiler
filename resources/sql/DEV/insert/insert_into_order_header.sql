@@ -1,0 +1,20 @@
+INSERT INTO [OutputTables_Dev].[OrderHeader] 
+    ([ProjectNumber_OrderNumber]
+    ,[ProjectNumber]
+    ,[OrderNumber]
+    ,[ReceivedDate]
+    ,[PickDate]
+    ,[ShipDate]
+    ,[Date]
+    ,[Weekday]
+    ,[Weekday_Idx]
+    ,[Week]
+    ,[Week_Number]
+    ,[Lines]
+    ,[Units]
+    ,[SKUs]
+    ,[LinesPerOrderRange]
+    ,[UnitsPerOrderRange]
+    ,[VelocityCombination])
+VALUES
+    (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)

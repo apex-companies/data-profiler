@@ -45,5 +45,5 @@ if master_version != current_version:
 
 ## Start app ##
 
-app = DataProfilerGUI(dev=False)
+app = DataProfilerGUI(dev=True)
 app.mainloop()

@@ -15,10 +15,8 @@ DECLARE @PeriodsOfInventory INT = (
 
 DECLARE @DaysActive INT = (
     SELECT TOP (1) APPROX_COUNT_DISTINCT([Date]) as days_active
-    FROM OutputTables_Dev.OutboundData od
-        LEFT JOIN OutputTables_Dev.ItemMaster im
-        ON od.ProjectNumber_SKU = im.ProjectNumber_SKU
-    WHERE im.ProjectNumber = @ProjectNumber
+    FROM OutputTables_Dev.OrderHeader
+    WHERE ProjectNumber = @ProjectNumber
 );
 
 DECLARE @DaysOfReceiving INT = (
@@ -59,10 +57,10 @@ FROM OutputTables_Dev.ItemMaster im
     ON im.ProjectNumber_SKU = inv_by_sku.ProjectNumber_SKU
     LEFT JOIN (
         SELECT od.ProjectNumber_SKU, ROUND(COUNT(*) / CAST(@DaysActive as Float), 2) as [Daily Lines], ROUND(SUM(od.Quantity) / CAST(@DaysActive as Float), 2) as [Daily Qty]
-        FROM OutputTables_Dev.OutboundData od
-            LEFT JOIN OutputTables_Dev.ItemMaster im1
-            ON od.ProjectNumber_SKU = im1.ProjectNumber_SKU
-        WHERE im1.ProjectNumber = @ProjectNumber and od.UnitOfMeasure = @UOM
+        FROM OutputTables_Dev.OrderDetails od
+            LEFT JOIN OutputTables_Dev.OrderHeader oh
+            ON od.ProjectNumber_OrderNumber = oh.ProjectNumber_OrderNumber
+        WHERE oh.ProjectNumber = @ProjectNumber and od.UnitOfMeasure = @UOM
         GROUP BY od.ProjectNumber_SKU
     ) ob_by_sku
     ON im.ProjectNumber_SKU = ob_by_sku.ProjectNumber_SKU
