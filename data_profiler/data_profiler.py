@@ -20,22 +20,28 @@ import pandas as pd
 import pyodbc
 import plotly.express as px
 from plotly.graph_objects import Figure
+import plotly.io as pio
 
 # Data Profiler
-from .helpers.functions.functions import find_new_file_path
-
 from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .helpers.models.TransformOptions import TransformOptions
 from .helpers.models.Responses import BaseDBResponse, TransformResponse, DBDownloadResponse
 from .helpers.models.DataFiles import UploadFileType, UploadedFilePaths
 from .helpers.models.GeneralModels import DownloadDataOptions, UnitOfMeasure
+
 from .helpers.constants.data_file_constants import FILE_TYPES_COLUMNS_MAPPER
+from .helpers.constants.plotly_theme import apex_template
+
+from .helpers.functions.functions import find_new_file_path
 from .helpers.functions.data_file_functions import validate_file_structure, read_and_cleanse_uploaded_data_file
 
 from .helpers.data_directory import DataDirectory
 
 from .services.output_tables_service import OutputTablesService
 from .services.transform_service import TransformService
+
+
+pio.templates['apex_template'] = apex_template
 
 
 
@@ -571,19 +577,23 @@ class DataProfiler:
             summary_str = header + avgs + bad_vals + outliers
 
             ## Charts
+
+            base_title = f'Distribution: {col}'
             histogram = px.histogram(
                 data_frame=df,
                 x=col,
-                title=f'Distribution: {col}'
+                title=base_title,
+                template='apex_template'
             )
             histogram.update_layout(yaxis_title='# SKUs')
 
-            box_plot_title = f'Distribution by {group_col}: {col}' if group_col else f'Distribution: {col}'
+            box_plot_title = f'{base_title}<br><sup>By {group_col}</sup>' if group_col else base_title
             box_plot = px.box(
                 data_frame=df,
                 x=group_col,
                 y=col,
-                title=box_plot_title
+                title=box_plot_title,
+                template='apex_template'
             )
 
             summary_strs.append(summary_str)

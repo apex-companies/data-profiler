@@ -213,8 +213,8 @@ class TransformService:
         # IDEA - keep track, in data_profiler, of tables that have been inserted. so, if there's an error halfway thru, it could
         #   pick up where it left off. For now, just delete
         try:
-            with DatabaseConnection(dev=self.dev) as db_conn:
-                for table,df in upload_df_mapper.items():
+            for table,df in upload_df_mapper.items():
+                with DatabaseConnection(dev=self.dev) as db_conn:
                     # Progress message str
                     progress_str = f'Rows Inserted: {total_rows_inserted:,} / {total_rows_of_data:,} ({(total_rows_inserted / total_rows_of_data) * 100:,.0f}%)'
                     current_str = f'Uploading {table} ({len(df):,} rows)...'

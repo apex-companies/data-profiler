@@ -83,7 +83,27 @@ def transform_medline_c54():
     # Transform
     run_transform(project_number=project_number, data_dir=data_path, transform_options=transform_options)
 
+def transform_hd_bulk():
+    # PN
+    project_number = 'P01C'
+    
+    # Data Directory
+    data_path = "C:/Users/jack.miller/Documents/Apex/Consulting/3 - Source Folders/data-profiler/test data sets/HD MDC Bulk"
+
+    # Transform Options
+    transform_options = TransformOptions(
+        date_for_analysis=DateForAnalysis.PICK_DATE,
+        weekend_date_rule=WeekendDateRules.AS_IS,
+        data_directory_type=DataDirectoryType.HEADERS,
+        process_inbound_data=True,
+        process_inventory_data=True,
+        process_outbound_data=True
+    )
+
+    # Transform
+    run_transform(project_number=project_number, data_dir=data_path, transform_options=transform_options)
+
 
 # transform_pactiv()
 # transform_medline_c54()
-
+# transform_hd_bulk()
