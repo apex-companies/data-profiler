@@ -9,29 +9,35 @@ Python constants relating to input/upload files for DataProfiler
 
 ''' Required Columns '''
 
-ITEM_MASTER_UPLOAD_REQUIRED_COLS = ['SKU','SKUDescription','SKUClass','UnitOfMeasure','EachLength','EachWidth','EachHeight','EachWeight','InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight','CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Conveyable','Subwarehouse','AllowToPickPallet','AllowToPickCarton','AllowToPickInnerPacks','AllowToPickUnits']
-INBOUND_HEADER_UPLOAD_REQUIRED_COLS = ['PO_Number', 'ArrivalDate', 'ArrivalTime', 'ExpectedDate', 'ExpectedTime', 'Carrier', 'Mode', 'ShipmentNumber', 'UnloadType']
-INBOUND_DETAILS_UPLOAD_REQUIRED_COLS = ['PO_Number', 'SKU', 'UnitOfMeasure', 'Quantity', 'VendorID', 'SourcePoint']
-INVENTORY_UPLOAD_REQUIRED_COLS = ['Period','SKU','Quantity','UnitOfMeasure','Location','Lot','Subwarehouse']
-ORDER_HEADER_UPLOAD_REQUIRED_COLS = ['OrderNumber','ReceivedDate','PickDate','ShipDate','Channel']
-ORDER_DETAILS_UPLOAD_REQUIRED_COLS = ['OrderNumber','SKU', 'UnitOfMeasure', 'PickType', 'Quantity', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier']
+ITEM_MASTER_COLS = ['SKU','SKUDescription','SKUClass','ProductLine','UnitOfMeasure','EachLength','EachWidth','EachHeight','EachWeight','InnerQuantity','InnerLength','InnerWidth','InnerHeight','InnerWeight','CartonQuantity','CartonLength','CartonWidth','CartonHeight','CartonWeight','CartonsPerPallet','PalletTie','PalletHigh','MaxPalletStack','PalletLength','PalletWidth','PalletHeight','PalletWeight','Subwarehouse']
+INBOUND_COLS = ['PO_Number', 'SKU', 'UnitOfMeasure', 'Quantity', 'ArrivalDate', 'ArrivalTime', 'ExpectedDate', 'ExpectedTime', 'Carrier', 'Mode','ShipmentNumber', 'UnloadType', 'VendorID','SourcePoint']
+INVENTORY_COLS = ['Period','SKU','Quantity','UnitOfMeasure','Location','Lot', 'LPN','Subwarehouse']
+OUTBOUND_COLS = ['OrderNumber', 'SKU', 'UnitOfMeasure', 'PickType', 'Quantity', 'ReceivedDate','PickDate','ShipDate','Channel', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier']
 
-UPLOADS_REQUIRED_COLUMNS_MAPPER = {
-    'ItemMaster': ITEM_MASTER_UPLOAD_REQUIRED_COLS,
-    'InboundHeader': INBOUND_HEADER_UPLOAD_REQUIRED_COLS,
-    'InboundDetails': INBOUND_DETAILS_UPLOAD_REQUIRED_COLS,
-    'Inventory': INVENTORY_UPLOAD_REQUIRED_COLS,
-    'OrderHeader': ORDER_HEADER_UPLOAD_REQUIRED_COLS,
-    'OrderDetails': ORDER_DETAILS_UPLOAD_REQUIRED_COLS
+INBOUND_HEADER_COLS = ['PO_Number', 'ArrivalDate', 'ArrivalTime', 'ExpectedDate', 'ExpectedTime', 'Carrier', 'Mode','ShipmentNumber', 'UnloadType']
+INBOUND_DETAILS_COLS = ['PO_Number', 'SKU', 'UnitOfMeasure', 'Quantity', 'VendorID','SourcePoint']
+ORDER_HEADER_COLS = ['OrderNumber','ReceivedDate','PickDate','ShipDate','Channel']
+ORDER_DETAILS_COLS = ['OrderNumber','SKU', 'UnitOfMeasure', 'PickType', 'Quantity', 'BusinessUnit', 'ShipContainerType', 'SpecialHandlingCodes', 'Carrier']
+
+FILE_TYPES_COLUMNS_MAPPER = {
+    'ItemMaster': ITEM_MASTER_COLS,
+    'Inbound': INBOUND_COLS,
+    'Inventory': INVENTORY_COLS,
+    'Outbound': OUTBOUND_COLS,
+    'InboundHeader': INBOUND_HEADER_COLS,
+    'InboundDetails': INBOUND_DETAILS_COLS,
+    'OrderHeader': ORDER_HEADER_COLS,
+    'OrderDetails': ORDER_DETAILS_COLS
 }
 
 
 ''' Required column types '''
 
-ITEM_MASTER_UPLOAD_REQUIRED_DTYPES = {
+ITEM_MASTER_DTYPES = {
     'SKU':'object',
     'SKUDescription':'object',
     'SKUClass':'object',
+    'ProductLine':'object',
     'UnitOfMeasure':'object',
     'EachLength':'float64',
     'EachWidth':'float64',
@@ -58,7 +64,24 @@ ITEM_MASTER_UPLOAD_REQUIRED_DTYPES = {
     'Subwarehouse':'object'
 }
 
-INBOUND_HEADER_UPLOAD_REQUIRED_DTYPES = {
+INBOUND_DTYPES = {
+    'PO_Number': 'object',
+    'SKU': 'object', 
+    'UnitOfMeasure': 'object', 
+    'Quantity': 'float64', 
+    'ArrivalDate': 'date', 
+    'ArrivalTime': 'time' , 
+    'ExpectedDate': 'date', 
+    'ExpectedTime': 'time', 
+    'Carrier': 'object', 
+    'Mode': 'object',
+    'ShipmentNumber': 'object',
+    'UnloadType': 'object',
+    'VendorID': 'object', 
+    'SourcePoint': 'object'
+}
+
+INBOUND_HEADER_DTYPES = {
     'PO_Number': 'object',
     'ArrivalDate': 'date', 
     'ArrivalTime': 'time' , 
@@ -70,7 +93,7 @@ INBOUND_HEADER_UPLOAD_REQUIRED_DTYPES = {
     'UnloadType': 'object'
 }
 
-INBOUND_DETAILS_UPLOAD_REQUIRED_DTYPES = {
+INBOUND_DETAILS_DTYPES = {
     'PO_Number': 'object', 
     'SKU': 'object', 
     'UnitOfMeasure': 'object', 
@@ -79,17 +102,34 @@ INBOUND_DETAILS_UPLOAD_REQUIRED_DTYPES = {
     'SourcePoint': 'object'
 }
 
-INVENTORY_UPLOAD_REQUIRED_DTYPES = {
+INVENTORY_DTYPES = {
     'Period':'date',
     'SKU':'object',
     'Quantity':'float64',
     'UnitOfMeasure':'object',
     'Location': 'object',
     'Lot': 'object',
+    'LPN': 'object',
     'Subwarehouse': 'object'
 }
 
-ORDER_HEADER_UPLOAD_REQUIRED_DTYPES = {
+OUTBOUND_DTYPES = {
+    'OrderNumber':'object',
+    'SKU': 'object',
+    'UnitOfMeasure': 'object',
+    'PickType': 'object',
+    'Quantity': 'float64',
+    'ReceivedDate':'date',
+    'PickDate':'date',
+    'ShipDate':'date',
+    'Channel':'object',
+    'BusinessUnit': 'object', 
+    'ShipContainerType': 'object',
+    'SpecialHandlingCodes': 'object', 
+    'Carrier': 'object'
+}
+
+ORDER_HEADER_DTYPES = {
     'OrderNumber':'object',
     'ReceivedDate':'date',
     'PickDate':'date',
@@ -97,7 +137,7 @@ ORDER_HEADER_UPLOAD_REQUIRED_DTYPES = {
     'Channel':'object'
 }
 
-ORDER_DETAILS_UPLOAD_REQUIRED_DTYPES = {
+ORDER_DETAILS_DTYPES = {
     'OrderNumber': 'object',
     'SKU': 'object',
     'UnitOfMeasure': 'object',
@@ -109,13 +149,15 @@ ORDER_DETAILS_UPLOAD_REQUIRED_DTYPES = {
     'Carrier': 'object'
 }
 
-UPLOADS_REQUIRED_DTYPES_MAPPER = {
-    'ItemMaster': ITEM_MASTER_UPLOAD_REQUIRED_DTYPES,
-    'InboundHeader': INBOUND_HEADER_UPLOAD_REQUIRED_DTYPES,
-    'InboundDetails': INBOUND_DETAILS_UPLOAD_REQUIRED_DTYPES,
-    'Inventory': INVENTORY_UPLOAD_REQUIRED_DTYPES,
-    'OrderHeader': ORDER_HEADER_UPLOAD_REQUIRED_DTYPES,
-    'OrderDetails': ORDER_DETAILS_UPLOAD_REQUIRED_DTYPES
+FILE_TYPES_DTYPES_MAPPER = {
+    'ItemMaster': ITEM_MASTER_DTYPES,
+    'Inbound': INBOUND_DTYPES,
+    'Inventory': INVENTORY_DTYPES,
+    'Outbound': OUTBOUND_DTYPES,
+    'InboundHeader': INBOUND_HEADER_DTYPES,
+    'InboundDetails': INBOUND_DETAILS_DTYPES,
+    'OrderHeader': ORDER_HEADER_DTYPES,
+    'OrderDetails': ORDER_DETAILS_DTYPES
 }
 
 DTYPES_DEFAULT_VALUES = {
@@ -132,16 +174,21 @@ DTYPES_DEFAULT_VALUES = {
 DIRECTORY_ERROR_DOES_NOT_EXIST = 'The given data directory does not exist.'
 
 FILE_ERROR_MISSING_ITEM_MASTER = 'Item Master is missing. Cannot continue.'
+FILE_ERROR_MISSING_INBOUND = '"Process Inbound Data" set to true but Inbound is not found.'
+FILE_ERROR_MISSING_INVENTORY = '"Process Inventory Data" set to true but Inventory file is not found.'
+FILE_ERROR_MISSING_OUTBOUND = '"Process Outbound Data" set to true but Outbound file is not found.'
+
 FILE_ERROR_MISSING_INBOUND_HEADER = '"Process Inbound Data" set to true but Inbound Header is not found.'
 FILE_ERROR_MISSING_INBOUND_DETAILS = '"Process Inbound Data" set to true but Inbound Details is not found.'
-FILE_ERROR_MISSING_INVENTORY = '"Process Inventory Data" set to true but Inventory file is not found.'
 FILE_ERROR_MISSING_OUTBOUND_HEADER = '"Process Outbound Data" set to true but Outbound Header is not found.'
 FILE_ERROR_MISSING_OUTBOUND_DETAILS = '"Process Outbound Data" set to true but Outbound Details is not found.'
 
 FILE_ERROR_ITEM_MASTER_MISSING_COLUMNS = 'Item Master is missing columns.'
+FILE_ERROR_INBOUND_MISSING_COLUMNS = 'Inbound is missing columns.'
+FILE_ERROR_INVENTORY_MISSING_COLUMNS = 'Inventory is missing columns.'
+FILE_ERROR_OUTBOUND_MISSING_COLUMNS = 'Outbound is missing columns.'
 FILE_ERROR_INBOUND_HEADER_MISSING_COLUMNS = 'Inbound Header is missing columns.'
 FILE_ERROR_INBOUND_DETAILS_MISSING_COLUMNS = 'Inbound Details is missing columns.'
-FILE_ERROR_INVENTORY_MISSING_COLUMNS = 'Inventory is missing columns.'
 FILE_ERROR_ORDER_HEADER_MISSING_COLUMNS = 'Order Header is missing columns.'
 FILE_ERROR_ORDER_DETAILS_MISSING_COLUMNS = 'Order Details is missing columns.'
 

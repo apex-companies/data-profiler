@@ -1,10 +1,10 @@
-SELECT ons.[OrderNumber]
-    ,o.[Date]
+SELECT oh.[OrderNumber]
+    ,oh.[Date]
     ,im.[SKU]
-    ,o.[Quantity]
+    ,od.[Quantity]
 FROM [OutputTables_Dev].[ItemMaster] im 
-    INNER JOIN [OutputTables_Dev].[OutboundData] o 
-    ON o.[ProjectNumber_SKU] = im.[ProjectNumber_SKU]
-    INNER JOIN [OutputTables_Dev].[ProjectNumber_OrderNumber] ons 
-    ON o.[ProjectNumber_OrderNumber] = ons.[ProjectNumber_OrderNumber]
+    INNER JOIN [OutputTables_Dev].[OrderDetails] od 
+        ON im.[ProjectNumber_SKU] = od.[ProjectNumber_SKU]
+    INNER JOIN [OutputTables_Dev].[OrderHeader] oh 
+        ON od.[ProjectNumber_OrderNumber] = oh.[ProjectNumber_OrderNumber]
 WHERE im.ProjectNumber = ?

@@ -7,9 +7,11 @@ Functions that interface with the OutputTables schema in the database
 '''
 
 # Python
+from typing import Callable
 from datetime import datetime, timedelta
 from time import time
 from io import TextIOWrapper
+import math
 
 import pyodbc
 from pyodbc import DatabaseError
@@ -20,7 +22,7 @@ from ..helpers.functions.functions import find_new_file_path
 
 from ..helpers.models.ProjectInfo import UploadedFilePaths, BaseProjectInfo, ExistingProjectProjectInfo
 from ..helpers.models.TransformOptions import TransformOptions
-from ..helpers.models.Responses import DeleteResponse, DBDownloadResponse
+from ..helpers.models.Responses import BaseDBResponse, DBDownloadResponse
 from ..helpers.models.GeneralModels import UnitOfMeasure
 from ..helpers.constants.app_constants import SQL_DIR, SQL_DIR_DEV
 
@@ -118,6 +120,26 @@ class OutputTablesService:
 
         return project_info
 
+    def get_sku_list(self, project_number: str) -> list[str]:
+        ''' Returns list of SKUs for given project number'''
+        
+        sku_list = []
+
+        # Get query from sql file
+        sql_file = DEV_OUTPUT_TABLES_SQL_FILE_GET_SKU_LIST if self.dev else OUTPUT_TABLES_SQL_FILE_GET_SKU_LIST
+
+        f = open(f'{self.sql_dir}/{sql_file}')
+        select_query = f.read()
+        f.close()
+
+        # Connect and run query    
+        with DatabaseConnection(dev=self.dev) as db_conn:
+            cursor = db_conn.cursor()
+
+            cursor.execute(select_query, project_number)
+            sku_list = [result[0] for result in cursor.fetchall()]
+
+        return sku_list
 
     def download_storage_analyzer_inputs(self, project_number: str, download_folder: str) -> DBDownloadResponse:
 
@@ -148,7 +170,7 @@ class OutputTablesService:
         f.close()
         
         # Download datas
-        download_response = DBDownloadResponse(download_path=download_folder)
+        download_response = DBDownloadResponse(project_number=project_number, download_path=download_folder)
         with DatabaseConnection(dev=self.dev) as db_conn:
             try: 
                 print(f'Downloading Item Master...')
@@ -169,8 +191,7 @@ class OutputTablesService:
                 download_response.message = f'Something unknown went wrong. {e}'
             else:
                 download_response.success = True
-                download_response.message = 'Success!'
-                download_response.rows_downloaded = len(item_master_df) + len(inventory_df) + len(outbound_data_df)
+                download_response.rows_affected = len(item_master_df) + len(inventory_df) + len(outbound_data_df)
 
         # Export
         if download_response.success:
@@ -180,7 +201,7 @@ class OutputTablesService:
 
         return download_response
     
-    def download_inventory_stratification_report(self, project_number: str, download_folder: str):
+    def download_inventory_stratification_report(self, project_number: str, download_folder: str) -> DBDownloadResponse:
         
         # Init empty dataframes
         each_df: pd.DataFrame
@@ -197,7 +218,7 @@ class OutputTablesService:
         query = query.replace('?', f'\'{project_number}\'', 1)
         f.close()
 
-        download_response = DBDownloadResponse(download_path=download_folder)
+        download_response = DBDownloadResponse(project_number=project_number, download_path=download_folder)
         with DatabaseConnection(dev=self.dev) as db_conn:
             try: 
                 # NOTE - run once for each UOM?
@@ -229,7 +250,7 @@ class OutputTablesService:
             else:
                 download_response.success = True
                 download_response.message = 'Success!'
-                download_response.rows_downloaded = len(carton_df) + len(pallet_df)
+                download_response.rows_affected = len(carton_df) + len(pallet_df)
 
         # Export
         if download_response.success:
@@ -243,7 +264,7 @@ class OutputTablesService:
 
         return download_response
     
-    def download_subwarehouse_material_flow_report(self, uom: UnitOfMeasure, project_number: str, download_folder: str):
+    def download_subwarehouse_material_flow_report(self, uom: UnitOfMeasure, project_number: str, download_folder: str) -> DBDownloadResponse:
         
         # Init empty dataframes
         df: pd.DataFrame
@@ -260,7 +281,7 @@ class OutputTablesService:
         query = query.replace('?', f'\'{project_number}\'', 1)
         query = query.replace('?', f'\'{uom.value}\'', 1)
 
-        download_response = DBDownloadResponse(download_path=download_folder)
+        download_response = DBDownloadResponse(project_number=project_number, download_path=download_folder)
         with DatabaseConnection(dev=self.dev) as db_conn:
             try: 
                 # NOTE - run once for each UOM?
@@ -278,7 +299,7 @@ class OutputTablesService:
             else:
                 download_response.success = True
                 download_response.message = 'Success!'
-                download_response.rows_downloaded = len(df)
+                download_response.rows_affected = len(df)
 
         # Export
         if download_response.success:
@@ -288,7 +309,7 @@ class OutputTablesService:
 
         return download_response
     
-    def download_items_material_flow_report(self, uom: UnitOfMeasure, project_number: str, download_folder: str):
+    def download_items_material_flow_report(self, uom: UnitOfMeasure, project_number: str, download_folder: str) -> DBDownloadResponse:
         
         # Init empty dataframes
         df: pd.DataFrame
@@ -305,7 +326,7 @@ class OutputTablesService:
         query = query.replace('?', f'\'{project_number}\'', 1)
         query = query.replace('?', f'\'{uom.value}\'', 1)
         
-        download_response = DBDownloadResponse(download_path=download_folder)
+        download_response = DBDownloadResponse(project_number=project_number, download_path=download_folder)
         with DatabaseConnection(dev=self.dev) as db_conn:
             try: 
                 # NOTE - run once for each UOM?
@@ -323,7 +344,7 @@ class OutputTablesService:
             else:
                 download_response.success = True
                 download_response.message = 'Success!'
-                download_response.rows_downloaded = len(df)
+                download_response.rows_affected = len(df)
 
         # Export
         if download_response.success:
@@ -417,41 +438,49 @@ class OutputTablesService:
 
         return row_count
 
-    
-    def update_subwarehouse_in_item_master(self, project_number: str, data_frame: pd.DataFrame) -> int:
+    def update_item_master(self, project_number: str, data_frame: pd.DataFrame) -> int:
         '''
-        Updates Subwarehouse value in Item Master for given SKUs
+        Updates Item Master for given SKUs
 
         Params
-
+        ------
         project_number : str  
+            the project number
         data_frame : pd.DataFrame  
-            columns = ['SKU', 'Subwarehouse']
+            columns = ['SKU', ...]  
+            Must only contain valid item master columns
         
         Return
         ------
         The number of SKUs affected by update
         '''
 
-        # Get query from sql file
-        sql_file = DEV_OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER if self.dev else OUTPUT_TABLES_SQL_FILE_UPDATE_SUBWHSE_IN_ITEM_MASTER
+        # Make sure SKU is given (other columns have already been validated)
+        if 'SKU' not in data_frame.columns:
+            raise ValueError(f'SKU numbers not provided for item master update.')
 
-        f = open(f'{self.sql_dir}/{sql_file}')
-        update_query = f.read()
-        f.close()
+        # Create update query
+        schema = 'OutputTables_Dev' if self.dev else 'OutputTables_Prod'
+        given_attributes = data_frame.columns.drop(labels='SKU').tolist()
+        set_column_strings = [f'[{col}] = ?' for col in given_attributes]
 
+        update_query = f'''
+            UPDATE [{schema}].[ItemMaster]
+            SET {", ".join(set_column_strings)}
+            WHERE [ProjectNumber] = ? AND [SKU] = ?
+        '''
         print(update_query)
 
-        # Add ProjectNumber to data_frame and reorder columns to match update_subwhse_item_master query
+        # Add ProjectNumber to data_frame and reorder columns to match update query
         data_frame['ProjectNumber'] = project_number
-        data_frame = data_frame.reindex(columns=['Subwarehouse', 'ProjectNumber', 'SKU'])
+        data_frame = data_frame.reindex(columns=given_attributes + ['ProjectNumber', 'SKU'])
 
         # Get 2d list
         data_lst = data_frame.to_dict('split')['data']
         print(data_lst[0])
 
-        row_count = 0
         # Connect and run query    
+        row_count = 0
         with DatabaseConnection(dev=self.dev) as db_conn:
             cursor = db_conn.cursor()
 
@@ -459,9 +488,27 @@ class OutputTablesService:
             db_conn.autocommit = False                   # autocommit = True could force a DB transaction for each query, which would defeat the point
             cursor.fast_executemany = True
 
-            # Execute query, all data at once
-            cursor.executemany(update_query, data_lst)
-            db_conn.commit()
+            batch_size = 1000                            # Update is real slow, so set a moderate batch size
+            batch_num = 1
+
+            batches = int(math.ceil(len(data_lst) / batch_size))
+            for i in range(0, len(data_lst), batch_size):
+                # Partition data into batch
+                start_idx = i
+                end_idx = i + batch_size
+                batch_data = data_lst[start_idx:end_idx]
+
+                # Execute query, all data at once
+                print(f'Batch {batch_num} of {batches}: attempting to insert {len(batch_data)} rows into Item Master...')
+
+                st = time()
+                cursor.executemany(update_query, batch_data)
+                db_conn.commit()
+                et = time()
+
+                print(f'Inserted {len(batch_data)} rows into Item Master in {timedelta(seconds=et-st)} seconds.')
+
+                batch_num += 1
 
             # executemany can't return rowcount, so assuming the code has executed to this point, everything was successful, and the rowcount is the number of items given!
             row_count = len(data_lst)   
@@ -474,8 +521,7 @@ class OutputTablesService:
 
         return row_count
 
-
-    def delete_project_data(self, project_number: str, log_file: TextIOWrapper) -> DeleteResponse:
+    def delete_project_data(self, project_number: str, log_file: TextIOWrapper, update_progress_text_func: Callable[[str], None] = None) -> BaseDBResponse:
         '''
         Delete from OutputTables schema. Removes records from all relevant DB tables belonging to the given project number
 
@@ -484,7 +530,7 @@ class OutputTablesService:
         DeleteResponse
         '''
 
-        response = DeleteResponse(project_number=project_number)
+        response = BaseDBResponse(project_number=project_number)
 
         # Configure schema and sql file mapper
         tables = 'all'                          # NOTE - this is from old code, when RawData was still used. We no longer need to be able to delete one table at a time, but it could be a future requirement
@@ -501,11 +547,14 @@ class OutputTablesService:
         delete_st = time()
         print(f'Deleting records from {schema} table(s) "{tables}" belonging to project number: {project_number}')
         total_rows_deleted = 0
-        
+        errors_encountered = []
+        response.success = True
+
         with DatabaseConnection(dev=self.dev) as db_conn:
             cursor = db_conn.cursor()
 
             # We want to delete one table at a time so it's easier to tell where failure happens
+            i = 1
             for table,file in sql_file_mapper.items():
 
                 # If a single table is passed to be deleted, skip if not the correct table
@@ -515,6 +564,11 @@ class OutputTablesService:
                 if table == 'Project':
                     break
                 
+                # Delete
+                if update_progress_text_func: update_progress_text_func(f'Deleting from {table} ({i} / {len(sql_file_mapper.keys()) - 1})...')
+                log_file.write(f'Deleting from {table} - ')
+                log_file.flush()
+                
                 # Get delete query
                 fd = open(f'{self.sql_dir}/{file}')
                 delete_query = fd.read()
@@ -522,9 +576,7 @@ class OutputTablesService:
                 print(f'{delete_query} \n')
 
                 try:
-                    log_file.write(f'Deleting from {table} - ')
-                    log_file.flush()
-                    
+                                       
                     cursor.execute(delete_query, project_number)
                     rows_deleted = cursor.rowcount
                     total_rows_deleted += rows_deleted
@@ -541,7 +593,9 @@ class OutputTablesService:
                     log_file.flush()
 
                     response.success = False
-                    response.errors_encountered.append(e)
+                    errors_encountered.append(e)
+
+                i += 1
 
             cursor.close()  
             
@@ -549,16 +603,19 @@ class OutputTablesService:
         print(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.')
         print(f'{total_rows_deleted} rows deleted.')
 
+
         if response.success:
             log_file.write('\nSuccess!\n')
         else:
-            log_file.write(f'\n{len(response.errors_encountered)} errors while deleting. Unsuccessful. Try again.\n') 
+            log_file.write(f'\n{len(errors_encountered)} errors while deleting. Unsuccessful. Try again.\n') 
+            errors_str = "\n".join(errors_encountered)
+            response.message = f'{len(errors_encountered)} errors while deleting:\n\n{errors_str}'
         
         log_file.write(f'Finished deleting. Took {timedelta(seconds=delete_et-delete_st)}.\n\n')
         log_file.write(f'{total_rows_deleted} rows deleted.\n')
         log_file.flush()
 
-        response.rows_deleted = total_rows_deleted
+        response.rows_affected = total_rows_deleted
 
         return response
     

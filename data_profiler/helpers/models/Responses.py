@@ -9,6 +9,27 @@ Some helpful pydantic models for relaying/returning information about database i
 from pydantic import BaseModel
 
 
+''' Base '''
+
+class BaseResponse(BaseModel):
+    project_number: str
+
+    success: bool = False
+    message: str = ''
+    log_file_path: str = ''
+
+class BaseDBResponse(BaseResponse):
+    rows_affected: int = 0
+
+
+''' Various DB '''
+
+class DBDownloadResponse(BaseDBResponse):    
+    download_path: str = ''
+
+
+''' Transform '''
+
 class TransformRowsInserted(BaseModel):
     total_rows_inserted: int = 0
     skus: int = 0
@@ -18,32 +39,5 @@ class TransformRowsInserted(BaseModel):
     outbound_lines: int = 0
     outbound_orders: int = 0
 
-
-class TransformResponse(BaseModel):
-    project_number: str
-    success: bool = False
-    message: str = ''
+class TransformResponse(BaseResponse):
     rows_inserted: TransformRowsInserted = TransformRowsInserted()
-    log_file_path: str = ''
-
-
-class DeleteResponse(BaseModel):
-    project_number: str
-    success: bool = True
-    errors_encountered: list = []
-    rows_deleted: int = 0
-    log_file_path: str = ''
-
-
-class DBWriteResponse(BaseModel):
-    success: bool = False
-    rows_affected: int = 0
-    error_message: str = ''
-
-
-class DBDownloadResponse(BaseModel):
-    success: bool = False
-    rows_downloaded: int = 0
-    download_path: str = ''
-    message: str = ''
-

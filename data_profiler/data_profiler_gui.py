@@ -11,14 +11,16 @@ from pprint import pprint
 import customtkinter
 from customtkinter import CTkLabel, StringVar, CTkFrame, CTkImage
 from PIL import Image
+import pandas as pd
 
 # DataProfiler
 from .helpers.models.ProjectInfo import BaseProjectInfo, ExistingProjectProjectInfo
 from .helpers.models.TransformOptions import DateForAnalysis, WeekendDateRules, TransformOptions
 from .helpers.models.Responses import TransformRowsInserted
 from .helpers.models.GeneralModels import DownloadDataOptions
+from .helpers.models.DataFiles import DataDirectoryType
 from .helpers.constants.app_constants import RESOURCES_DIR, RESOURCES_DIR_DEV
-from .frames.custom_widgets import ProjectInfoFrame
+from .frames.custom_widgets import ProjectInfoFrame, DataDescriberColumnSelector
 
 from .services.output_tables_service import OutputTablesService
 from .data_profiler import DataProfiler
@@ -27,7 +29,7 @@ from .data_profiler import DataProfiler
 from apex_gui.apex_app import ApexApp
 from apex_gui.frames.notification_dialogs import NotificationDialog, ResultsDialog, ResultsDialogWithLogFile, ConfirmDeleteDialog
 from apex_gui.frames.styled_widgets import Page, Section, SectionWithScrollbar, Frame, NeutralButton, TransparentIconButton, PositiveIconButton, NeutralIconButton, DangerIconButton
-from apex_gui.frames.custom_widgets import StaticValueWithLabel, DropdownWithLabel, CheckbuttonWithLabel, FileBrowser
+from apex_gui.frames.custom_widgets import Toggle, StaticValueWithLabel, DropdownWithLabel, CheckbuttonWithLabel, FileBrowser
 from apex_gui.styles.fonts import AppSubtitleFont, SectionHeaderFont, SectionSubheaderFont
 from apex_gui.styles.colors import *
 
@@ -151,12 +153,12 @@ class DataProfilerGUI(ApexApp):
 
         # LEVEL 2 - Parent = home_frame_task_bar_frame
         self.home_frame_more_actions_btn = NeutralButton(self.home_frame_task_bar_frame, text='More Actions', command=self.navigate_to_more_actions_action)
-        self.home_frame_delete_project_frame = TransparentIconButton(self.home_frame_task_bar_frame, image=self.trash_icon, command=self.delete_project_action)
+        self.home_frame_delete_project_frame = TransparentIconButton(self.home_frame_task_bar_frame, image=self.trash_icon, command=self._delete_project_action)
 
         # LEVEL 2 - home_frame_project_info_frame
         self.home_frame_project_info_title = CTkLabel(self.home_frame_project_info_frame, text='Project Info', font=SectionHeaderFont())
         self.home_frame_project_info_section = ProjectInfoFrame(self.home_frame_project_info_frame)
-        self.home_frame_save_changes_button = NeutralIconButton(self.home_frame_project_info_frame, image=self.save_icon, command=self.save_project_info_changes_action)
+        self.home_frame_save_changes_button = NeutralIconButton(self.home_frame_project_info_frame, image=self.save_icon, command=self._save_project_info_changes_action)
 
         # LEVEL 3 - home_frame_data_info_section
         # Within ProjectInfoFrame
@@ -165,7 +167,7 @@ class DataProfilerGUI(ApexApp):
         # LEVEL 2 - Parent = home_frame_data_info_frame
         self.home_frame_data_info_title = CTkLabel(self.home_frame_data_info_frame, text='Project Data Info', font=SectionHeaderFont())
         self.home_frame_data_info_section = SectionWithScrollbar(self.home_frame_data_info_frame, width=350, height=250)
-        self.delete_project_data_button = DangerIconButton(self.home_frame_data_info_frame, image=self.trash_icon, command=self.delete_project_data_action)
+        self.delete_project_data_button = DangerIconButton(self.home_frame_data_info_frame, image=self.trash_icon, command=self._delete_project_data_action)
         self.home_frame_upload_data_button = PositiveIconButton(self.home_frame_data_info_frame, image=self.upload_icon, command=self.navigate_to_upload_data_frame_action)
 
         # LEVEL 3 - Parent = home_frame_data_info_section
@@ -194,12 +196,17 @@ class DataProfilerGUI(ApexApp):
         self.upload_frame_title = CTkLabel(self.upload_frame_header_frame, text='Upload Project Data', font=AppSubtitleFont())
         self.upload_frame_back_to_home_btn = TransparentIconButton(self.upload_frame_header_frame, image=self.back_icon, command=self.navigate_to_home_action)
 
-        # LEVEL 2 - upload_frame_content_frame
+        # LEVEL 1 - upload_frame_content_frame
         self.upload_frame_upload_section = SectionWithScrollbar(self.upload_frame_content_frame, width=375, height=420)
         self.upload_frame_submit_btn = PositiveIconButton(self.upload_frame_content_frame, image=self.check_icon, command=self.upload_data_action)#, state='disabled')
 
-        # LEVEL 3 - upload_frame_upload_section
-        self.upload_frame_data_directory_browse = FileBrowser(self.upload_frame_upload_section, label_text='Select a data directory', path_type='folder')#, btn_action=self.validate_data_directory)
+        # LEVEL 2 - upload_frame_upload_section
+        self.upload_frame_data_directory_browse = FileBrowser(self.upload_frame_upload_section, label_text='Select a data directory', path_type='folder')
+        self.upload_frame_data_upload_type = Toggle(self.upload_frame_upload_section, on_value_text=DataDirectoryType.HEADERS.value, off_value_text=DataDirectoryType.REGULAR.value, default='off')
+
+        self.upload_frame_process_inbound_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Inbound Data', default_val=True)
+        self.upload_frame_process_inventory_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Inventory Data', default_val=True)
+        self.upload_frame_process_outbound_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Outbound Data', default_val=True)
 
         self.upload_frame_date_for_analysis = DropdownWithLabel(self.upload_frame_upload_section, label_text='Date for Analysis', default_val=DateForAnalysis.PICK_DATE.value,
                                                                 dropdown_values=[DateForAnalysis.RECEIVED_DATE.value, DateForAnalysis.PICK_DATE.value, DateForAnalysis.SHIP_DATE.value],
@@ -207,11 +214,7 @@ class DataProfilerGUI(ApexApp):
         self.upload_frame_weekend_date_rule = DropdownWithLabel(self.upload_frame_upload_section, label_text='Weekend Date Rule', default_val=WeekendDateRules.AS_IS.value,
                                                                 dropdown_values=[WeekendDateRules.NEAREST_WEEKDAY.value, WeekendDateRules.ALL_TO_FRIDAY.value, WeekendDateRules.ALL_TO_MONDAY.value, WeekendDateRules.AS_IS.value],
                                                                 dropdown_sticky='')
-
-        self.upload_frame_process_inbound_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Inbound Data', default_val=True)
-        self.upload_frame_process_inventory_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Inventory Data', default_val=True)
-        self.upload_frame_process_outbound_data = CheckbuttonWithLabel(self.upload_frame_upload_section, label_text='Process Outbound Data', default_val=True)
-
+        
         # Grid
         self._grid_upload_frame()
 
@@ -228,19 +231,19 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_task_bar_frame = Frame(self.more_actions_frame_header_frame)
 
         # LEVEL 1 - Parent = more_actions_frame_content_container
-        self.more_actions_frame_update_subwhse_section = Section(self.more_actions_frame_content_container)
+        self.more_actions_frame_update_item_master_section = Section(self.more_actions_frame_content_container)
         self.more_actions_frame_download_data_section = Section(self.more_actions_frame_content_container)
-        self.more_actions_subframe_3 = Frame(self.more_actions_frame_content_container)
+        self.more_actions_data_describer_section = Section(self.more_actions_frame_content_container)
         self.more_actions_subframe_4 = Frame(self.more_actions_frame_content_container)
 
         # LEVEL 2 - Parent = more_actions_frame_task_bar_frame
         self.more_actions_frame_home_btn = NeutralButton(self.more_actions_frame_task_bar_frame, text='Home', command=self.navigate_to_home_action)
-        self.more_actions_frame_delete_project_frame = TransparentIconButton(self.more_actions_frame_task_bar_frame, image=self.trash_icon, command=self.delete_project_action)
+        self.more_actions_frame_delete_project_frame = TransparentIconButton(self.more_actions_frame_task_bar_frame, image=self.trash_icon, command=self._delete_project_action)
 
-        # LEVEL 2 - Parent = more_actions_frame_update_subwhse_frame
-        self.more_actions_frame_update_subwhse_title = CTkLabel(self.more_actions_frame_update_subwhse_section, text='Update Subwarehouse', font=SectionHeaderFont())
-        self.more_actions_frame_update_subwhse_browse = FileBrowser(self.more_actions_frame_update_subwhse_section, label_text='Select a file', path_type='CSV')
-        self.more_actions_frame_update_subwhse_submit_btn = PositiveIconButton(self.more_actions_frame_update_subwhse_section, image=self.check_icon, command=self.update_subwarehouse_in_item_master)
+        # LEVEL 2 - Parent = more_actions_frame_update_item_master_section
+        self.more_actions_frame_update_item_master_title = CTkLabel(self.more_actions_frame_update_item_master_section, text='Update Item Master', font=SectionHeaderFont())
+        self.more_actions_frame_update_item_master_browse = FileBrowser(self.more_actions_frame_update_item_master_section, label_text='Select a file', path_type='CSV')
+        self.more_actions_frame_update_item_master_submit_btn = PositiveIconButton(self.more_actions_frame_update_item_master_section, image=self.check_icon, command=self.update_item_master)
 
         # LEVEL 2 - Parent = more_actions_frame_download_data_section
         self.more_actions_frame_download_data_title = CTkLabel(self.more_actions_frame_download_data_section, text='Download Data', font=SectionHeaderFont())
@@ -249,7 +252,13 @@ class DataProfilerGUI(ApexApp):
                                                                 dropdown_values=[option.value for option in DownloadDataOptions],
                                                                 default_val='')
         self.more_actions_frame_download_data_folder_browse = FileBrowser(self.more_actions_frame_download_data_section, label_text='Select a download folder', path_type='folder')
-        self.more_actions_frame_download_data_submit_btn = PositiveIconButton(self.more_actions_frame_download_data_section, image=self.check_icon, command=self.download_data_submit_action)
+        self.more_actions_frame_download_data_submit_btn = PositiveIconButton(self.more_actions_frame_download_data_section, image=self.check_icon, command=self._download_data_submit_action)
+
+        # LEVEL 2 - Parent = more_actions_data_describer_section
+        self.more_actions_data_describer_title = CTkLabel(self.more_actions_data_describer_section, text='Describe a dataset', font=SectionHeaderFont())
+        self.more_actions_data_describer_browse = FileBrowser(self.more_actions_data_describer_section, label_text='Select a file', path_type='TABLE', btn_action=self._data_describer_set_sheet_names)
+        self.more_actions_data_describer_sheet_name = DropdownWithLabel(self.more_actions_data_describer_section, label_text='Sheet Name', default_val=None, dropdown_values=[], dropdown_sticky='')
+        self.more_actions_data_describer_submit_btn = PositiveIconButton(self.more_actions_data_describer_section, image=self.check_icon, command=self._data_describer_submit_action)
 
         # Grid
         self._grid_more_actions_frame()
@@ -418,14 +427,17 @@ class DataProfilerGUI(ApexApp):
         # LEVEL 2 - upload_frame_upload_section
         self.upload_frame_upload_section.grid_columnconfigure(0, weight=1)
 
-        self.upload_frame_data_directory_browse.grid(row=0, column=0, sticky='ew', padx=20, pady=(5, 20))
+        self.upload_frame_data_directory_browse.grid(row=0, column=0, sticky='ew', padx=20, pady=(5, 10))
+        
+        self.upload_frame_data_upload_type.grid(row=1, column=0, padx=20, pady=(20, 0))
+        self.upload_frame_process_inbound_data.grid(row=2, column=0, sticky='ew', padx=20, pady=(5, 0))
+        self.upload_frame_process_inventory_data.grid(row=3, column=0, sticky='ew', padx=20, pady=(5, 0))
+        self.upload_frame_process_outbound_data.grid(row=4, column=0, sticky='ew', padx=20, pady=(5, 10))   
 
-        self.upload_frame_date_for_analysis.grid(row=1, column=0, sticky='ew', padx=20, pady=(20, 0))
-        self.upload_frame_weekend_date_rule.grid(row=2, column=0, sticky='ew', padx=20, pady=(20, 20))
+        self.upload_frame_date_for_analysis.grid(row=5, column=0, sticky='ew', padx=20, pady=(10, 0))
+        self.upload_frame_weekend_date_rule.grid(row=6, column=0, sticky='ew', padx=20, pady=(10, 5))
 
-        self.upload_frame_process_inbound_data.grid(row=3, column=0, sticky='ew', padx=20, pady=(20, 0))
-        self.upload_frame_process_inventory_data.grid(row=4, column=0, sticky='ew', padx=20, pady=(20, 0))
-        self.upload_frame_process_outbound_data.grid(row=5, column=0, sticky='ew', padx=20, pady=(20, 5))        
+             
 
     def _grid_more_actions_frame(self):
         # Parent = self
@@ -450,9 +462,9 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_content_container.grid_rowconfigure([0,1], weight=1)
         self.more_actions_frame_content_container.grid_columnconfigure([0,1], weight=1)
 
-        self.more_actions_frame_update_subwhse_section.grid(row=0, column=0, sticky='nsew', padx=20, pady=20)      # LEVEL 2 and 3 within ProjectInfoFrame class
+        self.more_actions_frame_update_item_master_section.grid(row=0, column=0, sticky='nsew', padx=20, pady=20)      # LEVEL 2 and 3 within ProjectInfoFrame class
         self.more_actions_frame_download_data_section.grid(row=0, column=1, sticky='nsew', padx=20, pady=20)
-        self.more_actions_subframe_3.grid(row=1, column=0, sticky='nsew')
+        self.more_actions_data_describer_section.grid(row=1, column=0, sticky='nsew', padx=20, pady=(0,20))
         self.more_actions_subframe_4.grid(row=1, column=1, sticky='nsew')
 
         # LEVEL 2 - more_actions_frame_task_bar_frame
@@ -462,12 +474,12 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_delete_project_frame.grid(row=0, column=1, sticky='ew', padx=(5,0))
 
         # LEVEL 2 - more_actions_frame_update_subwhse_frame
-        self.more_actions_frame_update_subwhse_section.grid_rowconfigure(1, weight=1)
-        self.more_actions_frame_update_subwhse_section.grid_columnconfigure(0, weight=1)
+        self.more_actions_frame_update_item_master_section.grid_rowconfigure(1, weight=1)
+        self.more_actions_frame_update_item_master_section.grid_columnconfigure(0, weight=1)
 
-        self.more_actions_frame_update_subwhse_title.grid(row=0, column=0, sticky='ew', padx=10, pady=(10, 0))
-        self.more_actions_frame_update_subwhse_browse.grid(row=1, column=0, sticky='ew', padx=10, pady=20)
-        self.more_actions_frame_update_subwhse_submit_btn.grid(row=2, column=0, padx=10, pady=(0, 20))
+        self.more_actions_frame_update_item_master_title.grid(row=0, column=0, sticky='ew', padx=10, pady=(10, 0))
+        self.more_actions_frame_update_item_master_browse.grid(row=1, column=0, sticky='ew', padx=10, pady=20)
+        self.more_actions_frame_update_item_master_submit_btn.grid(row=2, column=0, padx=10, pady=(0, 20))
 
          # LEVEL 2 - more_actions_frame_download_data_section
         self.more_actions_frame_download_data_section.grid_rowconfigure([1,2], weight=1)
@@ -478,6 +490,14 @@ class DataProfilerGUI(ApexApp):
         self.more_actions_frame_download_data_folder_browse.grid(row=2, column=0, sticky='ew', padx=10, pady=(0,20))
         self.more_actions_frame_download_data_submit_btn.grid(row=3, column=0, padx=10, pady=(0, 20))
 
+        # LEVEL 2 - more_actions_data_describer_section
+        self.more_actions_data_describer_section.grid_rowconfigure(1, weight=1)
+        self.more_actions_data_describer_section.grid_columnconfigure(0, weight=1)
+
+        self.more_actions_data_describer_title.grid(row=0, column=0, sticky='ew', padx=10, pady=(10, 0))
+        self.more_actions_data_describer_browse.grid(row=1, column=0, sticky='ew', padx=10, pady=(15, 0))
+        self.more_actions_data_describer_sheet_name.grid(row=2, column=0, padx=10, pady=(0, 20))
+        self.more_actions_data_describer_submit_btn.grid(row=3, column=0, padx=10, pady=(0, 20))
 
     def _grid_loading_frame(self):
         # Parent = self
@@ -511,6 +531,7 @@ class DataProfilerGUI(ApexApp):
         else:
             self.get_title_frame().ungrid_project_number_frame()  
         self.update()
+
 
     ''' Main CRUD functions '''
     
@@ -566,14 +587,14 @@ class DataProfilerGUI(ApexApp):
             self.navigate_to_home_action()
 
             # Display notification of results
-            notification_dialog = NotificationDialog(self, title='Success!', text=f'Created new data project for {self._get_project_number()}')
+            notification_dialog = NotificationDialog(self, title='Success!', text=f'Created new data project for {new_project_info.project_number}.')
         
         else:
             # Navigate back to new project screen
             self.navigate_to_new_project_frame_action()
 
             # Display notification of results
-            message = f'Something went wrong when creating new project for {self._get_project_number()}:\n\n{response.error_message}'
+            message = f'Something went wrong when creating new project for {new_project_info.project_number}:\n\n{response.message}'
             notification_dialog = NotificationDialog(self, title='Error', text=message)
 
         notification_dialog.attributes('-topmost', True)
@@ -582,35 +603,22 @@ class DataProfilerGUI(ApexApp):
     
     def upload_data_action(self):
         data_dir = self.upload_frame_data_directory_browse.get_path()
-
-        # Transform options don't need validation (cuz they're dropdowns and checkboxes)
+        
+        # Transform options don't need validation (cuz they're dropdowns and checkboxes)       
         transform_options = TransformOptions(
             date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
             weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
+            data_directory_type=DataDirectoryType(self.upload_frame_data_upload_type.get_value()),
             process_inbound_data=self.upload_frame_process_inbound_data.get_value(),
             process_inventory_data=self.upload_frame_process_inventory_data.get_value(),
             process_outbound_data=self.upload_frame_process_outbound_data.get_value(),
         )
 
-        # Validate data directory
-        data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
-        if not data_directory_validation.is_valid:
-            errors_str = '\n\n'.join(data_directory_validation.errors_list)
-            message = f'Data directory is not valid:\n\n{errors_str}'
-
-            # Display error
-            notification_dialog = NotificationDialog(self, title='Error', text=message)
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
-
-            print(f'DATA DIR NOT VALID')
-            return
-        
         # Show loading frame while executing
         self.show_loading_frame_action('Transforming and uploading data...')
 
         # Transform and upload
-        results = self.DataProfiler.transform_and_upload_data(data_directory=data_dir, transform_options=transform_options)
+        results = self.DataProfiler.transform_and_upload_data(data_directory=data_dir, transform_options=transform_options, update_progress_text_func=self._update_progess_text)
 
         # Navigate appropriately based on success
         message = ''
@@ -619,7 +627,7 @@ class DataProfilerGUI(ApexApp):
             self.navigate_to_upload_data_frame_action()
 
             # Display notification of results
-            message = f'Trouble with the upload:\n{results.message}' 
+            message = f'Trouble with the data upload:\n\n{results.message}'
         else:
             # Reset upload page
             self._create_upload_data_frame()
@@ -631,6 +639,8 @@ class DataProfilerGUI(ApexApp):
 
             # Display notification of results
             message = f'Successful transformation and data upload!\n\n{self.pretty_print_rows_inserted(results.rows_inserted)}'
+            if results.message:
+                message += f'\n\n{results.message}'
             
         # Report results
         notification_dialog = ResultsDialogWithLogFile(self, 
@@ -696,7 +706,7 @@ class DataProfilerGUI(ApexApp):
             notification_dialog = NotificationDialog(self, title='Success!', text='Saved project info changes to database.')
         else:
             # Notify of failure
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Could not save project info changes to database:\n\n{response.error_message}')
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Could not save project info changes to database:\n\n{response.message}')
 
         # Navigate back to home
         self.navigate_to_home_action()
@@ -706,11 +716,11 @@ class DataProfilerGUI(ApexApp):
         notification_dialog.mainloop()
         return
 
-    def update_subwarehouse_in_item_master(self):
+    def update_item_master(self):
         # Make sure project has data exists
         notification_dialog = None
         if not self._get_project_info().data_uploaded:
-            message = f'Project has no data! Please upload data before updating subwarehouse'
+            message = f'Project has no data! Please upload data before updating item master'
 
             notification_dialog = NotificationDialog(self, title='Data Profiler', text=message)
             notification_dialog.attributes('-topmost', True)
@@ -718,39 +728,44 @@ class DataProfilerGUI(ApexApp):
             return
         
         # Get selected file path
-        file_path = self.more_actions_frame_update_subwhse_browse.get_path()
+        file_path = self.more_actions_frame_update_item_master_browse.get_path()
 
         if not file_path:
-            notification_dialog = NotificationDialog(self, title='Error', text='Update Subwarehouse:\n\nPlease select a valid CSV file.')
+            notification_dialog = NotificationDialog(self, title='Error', text='Update Item Master:\n\nPlease select a valid CSV file.')
             notification_dialog.attributes('-topmost', True)
             notification_dialog.mainloop()
             return
 
         # Show loading frame while executing
-        self.show_loading_frame_action('Updating subwarehouse...')
+        self.show_loading_frame_action('Loading...')
 
         # Delete project
-        response = self.DataProfiler.update_subwhse_in_item_master(file_path=file_path)
+        response = self.DataProfiler.update_item_master(file_path=file_path, update_progress_text_func=self._update_progess_text)
 
-        notification_dialog = None
-        if response.success:
-            # Clear browse
-            self.more_actions_frame_update_subwhse_browse.clear_input()
-
-            # Success notification
-            notification_dialog = NotificationDialog(self, title='Success!', text=f'Update Subwarehouse:\n\nUpdated {response.rows_affected} items successfully.')
-        else:
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Update Subwarehouse:\n\nTrouble updating Subwarehouse values:\n\n{response.error_message}')   
-        
         # Back to more actions
         self.navigate_to_more_actions_action()
 
+        notification_dialog = None
+        if response.success:
+            # Clear browse, if operation was successful
+            self.more_actions_frame_update_item_master_browse.clear_input()
+            
+            message = f'Updated {response.rows_affected:,} items successfully.'
+            if response.message:
+                message += f'\n\n{response.message}'
+            
+            notification_dialog = NotificationDialog(self, title='Success!', text=message)
+        else:
+            message = f'Trouble updating Item Master:\n\n{response.message}'
+            notification_dialog = NotificationDialog(self, title='Error', text=message)
+            
         # Notify of results
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
+
         return
-
-
+    
+    
     ## Delete ##
 
     def delete_project(self):
@@ -760,19 +775,20 @@ class DataProfilerGUI(ApexApp):
         # Delete project
         response = self.DataProfiler.delete_project()
 
+        notification_dialog = None
         if response.success:
             # Navigate back to start
             self.logout_action()
     
             # Display notification of results
-            notification_dialog = NotificationDialog(self, title='Success!', text='Deleted project successfully.')        
+            notification_dialog = NotificationDialog(self, title='Success!', text=f'Deleted project successfully.')        
         
         else:
             # Navigate back to home
             self.navigate_to_home_action()
 
             # Display notification of results
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble deleting project:\n\n{response.error_message}')        
+            notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble deleting project:\n\n{response.message}')        
         
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
@@ -786,7 +802,7 @@ class DataProfilerGUI(ApexApp):
         # Show loading frame while executing
         self.show_loading_frame_action('Deleting project data...')
 
-        results = self.DataProfiler.delete_project_data()
+        results = self.DataProfiler.delete_project_data(update_progress_text_func=self._update_progess_text)
 
         message = ''
         if results.success:
@@ -794,8 +810,10 @@ class DataProfilerGUI(ApexApp):
             self._create_home_frame()
 
             message = 'Deleted project data successfully.'
+            if results.message:
+                message += f'\n\n{results.message}'
         else:
-            message = f'Encountered {len(results.errors_encountered)} errors when attempting to delete project data. Check log.'
+            message = f'Trouble deleting data. Check log.\n\n{results.message}'
 
         # Show self again
         self.navigate_to_home_action()
@@ -845,7 +863,7 @@ class DataProfilerGUI(ApexApp):
 
         self.update()
 
-    def save_project_info_changes_action(self):
+    def _save_project_info_changes_action(self):
         # Validate inputs
         project_info_errors = self.home_frame_project_info_section.validate_inputs()
         if len(project_info_errors) > 0:
@@ -878,7 +896,7 @@ class DataProfilerGUI(ApexApp):
 
         return
 
-    def delete_project_action(self):
+    def _delete_project_action(self):
         notification_dialog = None
         if self._get_project_info().data_uploaded:
             message = f'Please delete project data before deleting project.'
@@ -895,7 +913,7 @@ class DataProfilerGUI(ApexApp):
         notification_dialog.mainloop()
         return
 
-    def delete_project_data_action(self):
+    def _delete_project_data_action(self):
         confirm_dialog = ConfirmDeleteDialog(self, 
                                              title='Confirm Deletion', 
                                              text=f'Are you sure you would like to delete project data for "{self._get_project_number()}"?',
@@ -906,7 +924,7 @@ class DataProfilerGUI(ApexApp):
         confirm_dialog.mainloop()
         return
     
-    def download_data_submit_action(self):
+    def _download_data_submit_action(self):
         download_path = self.more_actions_frame_download_data_folder_browse.get_path()
         download_option_input = self.more_actions_frame_download_data_options_dropdown.get_variable_value()
 
@@ -938,7 +956,7 @@ class DataProfilerGUI(ApexApp):
         notification_dialog = None
         if download_response.success:
             # Display notification of results
-            notification_dialog = ResultsDialog(self, title='Success!', text=f'Downloaded "{download_option.value}" for {self._get_project_number()}.', results_dir=download_response.download_path)        
+            notification_dialog = ResultsDialog(self, title='Success!', text=f'Downloaded "{download_option.value}" for {download_response.project_number}.', results_dir=download_response.download_path)        
         else:
             # Display notification of results
             notification_dialog = NotificationDialog(self, title='Error', text=f'Trouble downloading "{download_option.value}" :\n\n{download_response.message}') 
@@ -949,6 +967,84 @@ class DataProfilerGUI(ApexApp):
         # Display dialog
         notification_dialog.attributes('-topmost', True)
         notification_dialog.mainloop()
+
+    def _data_describer_set_sheet_names(self):
+        file_path = self.more_actions_data_describer_browse.get_path()
+        file_suffix = file_path.split('.')[-1]
+
+        if file_suffix == 'xlsx':
+            # Populate dropdown with sheet names from that book
+            sheets: list[str] = []
+            with pd.ExcelFile(file_path) as file:
+                sheets = file.sheet_names
+            self.more_actions_data_describer_sheet_name.set_variable_value(val=sheets[0])
+            self.more_actions_data_describer_sheet_name.set_dropdown_values(values=sheets)
+        else:
+            # Set to nothin
+            self.more_actions_data_describer_sheet_name.set_variable_value(val=None)
+            self.more_actions_data_describer_sheet_name.set_dropdown_values(values=[])
+
+    def _data_describer_submit_action(self):
+        # Variables
+        file = self.more_actions_data_describer_browse.get_path()
+        sheet_name = self.more_actions_data_describer_sheet_name.get_variable_value()
+
+        # Open file and get columns
+        file_suffix = file.split('.')[-1]
+        if not file:
+            return
+        
+        given_cols: list[str] = []
+        try:
+            if file_suffix == 'csv':
+                df = pd.read_csv(file, nrows=1)
+                given_cols = df.columns.tolist()
+            else:
+                if not sheet_name:
+                    raise ValueError(f'XLSX file uploaded, but no sheet name given!')
+                df = pd.read_excel(file, sheet_name=sheet_name, nrows=1)
+                given_cols = df.columns.tolist()
+
+        except Exception as e:
+            # Display dialog
+            notification_dialog = NotificationDialog(self, title='Data Profiler', text=f'Data Describer ERROR:\n{e}')
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+            return
+        
+        # Have user select the columns to include
+        column_selector = DataDescriberColumnSelector(self, columns=given_cols)
+        column_selector.attributes('-topmost', True)
+        self.wait_window(column_selector)
+
+        # Run description, if user saved inputs
+        if column_selector.get_saved():
+            # Validate inputs
+            success, message = column_selector.validate_inputs()
+            if not success:
+                # Display dialog
+                notification_dialog = NotificationDialog(self, title='Data Profiler', text=f'Data Describer ERROR:\n{message}')
+                notification_dialog.attributes('-topmost', True)
+                notification_dialog.mainloop()
+                return
+
+            # Show loading frame while executing
+            self.show_loading_frame_action(f'Describing data...')
+            
+            # Get user inputted values
+            grouping_col = column_selector.get_grouping_col()
+            selected_columns = column_selector.get_selected_columns()
+
+            # Call data_describer
+            output_dir = self.DataProfiler.describe_data_frame(file_path=file, columns=selected_columns, file_type=file_suffix, sheet_name=sheet_name, group_col=grouping_col)
+
+            # Navigate back to more actions
+            self.navigate_to_more_actions_action()
+
+            notification_dialog = ResultsDialog(self, title='Success!', text=f'Described data.', results_dir=output_dir)
+            notification_dialog.attributes('-topmost', True)
+            notification_dialog.mainloop()
+        
 
     ## Navigations ##
 
@@ -993,10 +1089,6 @@ class DataProfilerGUI(ApexApp):
     def navigate_to_new_project_frame_action(self):
         self._navigate(self.new_project_frame)
 
-    # def upload_frame_back_to_home_action(self):
-    #     self._navigate(self.home_frame)
-    #     self._toggle_project_number_frame_grid(grid=True)
-
     def navigate_to_upload_data_frame_action(self):
         self._navigate(self.upload_frame)
         self._toggle_project_number_frame_grid(grid=True)
@@ -1008,6 +1100,7 @@ class DataProfilerGUI(ApexApp):
     def navigate_to_more_actions_action(self):
         self._navigate(to_frame=self.more_actions_frame)
         self._toggle_project_number_frame_grid(grid=True)
+
 
     ''' Other critical/logic functions '''
 
@@ -1036,29 +1129,6 @@ class DataProfilerGUI(ApexApp):
         # Grid the to frame
         self._toggle_frame_grid(frame=to_frame, grid=True)
         self.update()
-
-    # UNUSED
-    def validate_data_directory(self):
-        data_dir = self.upload_frame_data_directory_browse.get_path()
-        
-        transform_options = TransformOptions(
-            date_for_analysis=DateForAnalysis(self.upload_frame_date_for_analysis.get_variable_value()),
-            weekend_date_rule=WeekendDateRules(self.upload_frame_weekend_date_rule.get_variable_value()),
-            process_inbound_data=self.upload_frame_process_inbound_data.get_value(),
-            process_inventory_data=self.upload_frame_process_inventory_data.get_value(),
-            process_outbound_data=self.upload_frame_process_outbound_data.get_value(),
-        )
-
-        data_directory_validation = self.DataProfiler.validate_data_directory(data_directory=data_dir, transform_options=transform_options)
-        if not data_directory_validation.is_valid:
-            errors_str = '\n'.join(data_directory_validation.errors_list)
-            # Display error
-            notification_dialog = NotificationDialog(self, title='Error', text=f'Data directory is not valid:\n{errors_str}')
-            notification_dialog.attributes('-topmost', True)
-            notification_dialog.mainloop()
-
-            print(f'DATA DIR NOT VALID')
-            return
 
 
     ''' Helpers '''
@@ -1093,3 +1163,7 @@ class DataProfilerGUI(ApexApp):
 
     def _set_loading_frame_text(self, text: str):
         self.loading_frame_text_var.set(text)
+
+    def _update_progess_text(self, text: str):
+        self._set_loading_frame_text(text)
+        self.update()
